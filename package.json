@@ -1,0 +1,33 @@
+{
+  "name": "multi-service-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/backend",
+    "apps/admin"
+  ],
+  "scripts": {
+    "mobile:start": "npm run start --workspace=apps/mobile",
+    "mobile:android": "npm run android --workspace=apps/mobile",
+    "mobile:ios": "npm run ios --workspace=apps/mobile",
+    "mobile:web": "npm run web --workspace=apps/mobile",
+    "backend:dev": "npm run dev --workspace=apps/backend",
+    "backend:start": "npm run start --workspace=apps/backend",
+    "admin:dev": "npm run dev --workspace=apps/admin",
+    "admin:build": "npm run build --workspace=apps/admin",
+    "admin:start": "npm run start --workspace=apps/admin"
+  },
+  "overrides": {
+    "@types/react": "~19.1.10",
+    "@types/react-dom": "~19.1.10",
+    "mobile": {
+      "react": "19.1.0",
+      "react-dom": "19.1.0"
+    }
+  },
+  "devDependencies": {
+    "expo": "~54.0.36",
+    "react-native-worklets": "0.5.1"
+  }
+}

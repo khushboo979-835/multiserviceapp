@@ -1,0 +1,251 @@
+import { Category } from "../types";
+
+export const MOCK_CATEGORIES: Category[] = [
+  {
+    id: "cat_mobile",
+    name: "Mobile Repair",
+    slug: "mobile-repair",
+    description: "Doorstep screen replacement, battery, software, and hardware troubleshooting.",
+    imageUrl: "phone",
+    isActive: true,
+    subcategories: [
+      {
+        id: "sub_mob_doorstep",
+        categoryId: "cat_mobile",
+        name: "Doorstep Mobile Repair",
+        slug: "doorstep-mobile-repair",
+        description: "Repair mobile at your doorstep within 60 minutes.",
+        basePrice: 499,
+        imageUrl: "smartphone",
+        formConfig: {
+          fields: [
+            {
+              id: "device_model",
+              label: "Device Model",
+              type: "TEXT",
+              placeholder: "e.g., iPhone 13, OnePlus 9 Pro",
+              validation: { required: true, min: 3 },
+            },
+            {
+              id: "repair_type",
+              label: "Repair Type",
+              type: "SELECT",
+              options: [
+                { label: "Screen Replacement", value: "screen", priceModifier: 1500 },
+                { label: "Battery Replacement", value: "battery", priceModifier: 800 },
+                { label: "Charging Port Fix", value: "charging", priceModifier: 400 },
+                { label: "Software Debugging", value: "software", priceModifier: 200 },
+              ],
+              validation: { required: true },
+              priceModifierField: true,
+            },
+            {
+              id: "preferred_date",
+              label: "Preferred Visit Date",
+              type: "DATE",
+              validation: { required: true },
+            },
+            {
+              id: "preferred_time",
+              label: "Preferred Visit Time Slot",
+              type: "TIME_SLOT",
+              validation: { required: true },
+            },
+            {
+              id: "service_address",
+              label: "Your Address (GPS)",
+              type: "ADDRESS_GPS",
+              validation: { required: true },
+            },
+            {
+              id: "damage_image",
+              label: "Device Photos (Optional)",
+              type: "IMAGE",
+              validation: { required: false },
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "cat_parlor",
+    name: "Home Parlor / Salon",
+    slug: "home-parlor",
+    description: "Professional salon, massage, facials, waxing, and hair treatments at home.",
+    imageUrl: "scissors",
+    isActive: true,
+    subcategories: [
+      {
+        id: "sub_parlor_female",
+        categoryId: "cat_parlor",
+        name: "Salon Classic for Women",
+        slug: "salon-classic-women",
+        description: "Waxing, facial, pedicure, and haircut combos.",
+        basePrice: 799,
+        imageUrl: "scissors",
+        formConfig: {
+          fields: [
+            {
+              id: "services_select",
+              label: "Choose Services",
+              type: "MULTI_SELECT",
+              options: [
+                { label: "Facial & Glow Combo", value: "facial", priceModifier: 600 },
+                { label: "Honey Waxing (Full Arms/Legs)", value: "waxing", priceModifier: 500 },
+                { label: "Pedicure Deluxe", value: "pedicure", priceModifier: 400 },
+                { label: "Hair Spa & Blow Dry", value: "hair_spa", priceModifier: 700 },
+              ],
+              validation: { required: true },
+              priceModifierField: true,
+            },
+            {
+              id: "preferred_date",
+              label: "Booking Date",
+              type: "DATE",
+              validation: { required: true },
+            },
+            {
+              id: "preferred_time",
+              label: "Preferred Time Slot",
+              type: "TIME_SLOT",
+              validation: { required: true },
+            },
+            {
+              id: "service_address",
+              label: "Your Address (GPS)",
+              type: "ADDRESS_GPS",
+              validation: { required: true },
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "cat_utility",
+    name: "Home Utilities",
+    slug: "home-utilities",
+    description: "Certified electricians, plumbers, AC service technicians, and cleaners.",
+    imageUrl: "wrench",
+    isActive: true,
+    subcategories: [
+      {
+        id: "sub_utility_ac",
+        categoryId: "cat_utility",
+        name: "AC Servicing & Repair",
+        slug: "ac-repair",
+        description: "Split / Window AC deep cleaning, gas leak detection, and breakdown services.",
+        basePrice: 399,
+        imageUrl: "wind",
+        formConfig: {
+          fields: [
+            {
+              id: "ac_type",
+              label: "AC Type",
+              type: "SELECT",
+              options: [
+                { label: "Split AC", value: "split", priceModifier: 100 },
+                { label: "Window AC", value: "window", priceModifier: 0 },
+                { label: "Multi-Split / Cassette AC", value: "cassette", priceModifier: 500 },
+              ],
+              validation: { required: true },
+              priceModifierField: true,
+            },
+            {
+              id: "service_type",
+              label: "Required Service",
+              type: "SELECT",
+              options: [
+                { label: "Deep Jet Cleaning", value: "cleaning", priceModifier: 200 },
+                { label: "Gas Leakage & Refill", value: "gas_refill", priceModifier: 1200 },
+                { label: "AC Not Cooling Checkup", value: "troubleshoot", priceModifier: 100 },
+              ],
+              validation: { required: true },
+              priceModifierField: true,
+            },
+            {
+              id: "preferred_date",
+              label: "Booking Date",
+              type: "DATE",
+              validation: { required: true },
+            },
+            {
+              id: "preferred_time",
+              label: "Preferred Time Slot",
+              type: "TIME_SLOT",
+              validation: { required: true },
+            },
+            {
+              id: "service_address",
+              label: "Your Address (GPS)",
+              type: "ADDRESS_GPS",
+              validation: { required: true },
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: "cat_pc",
+    name: "PC & Laptop Repair",
+    slug: "pc-repair",
+    description: "OS installation, malware cleanups, SSD/RAM upgrades, and motherboard repairs.",
+    imageUrl: "monitor",
+    isActive: true,
+    subcategories: [
+      {
+        id: "sub_pc_repair",
+        categoryId: "cat_pc",
+        name: "Laptop Diagnostic & Setup",
+        slug: "laptop-diagnostic",
+        description: "Professional diagnostics at home for all Windows/Mac systems.",
+        basePrice: 599,
+        imageUrl: "monitor",
+        formConfig: {
+          fields: [
+            {
+              id: "system_brand",
+              label: "System Brand",
+              type: "TEXT",
+              placeholder: "e.g., MacBook, Dell XPS, HP Pavilion",
+              validation: { required: true },
+            },
+            {
+              id: "issue_details",
+              label: "Primary Issue",
+              type: "SELECT",
+              options: [
+                { label: "Slow System / SSD Upgrade Check", value: "ssd_upgrade", priceModifier: 200 },
+                { label: "OS Reinstallation (Windows/Mac)", value: "os_install", priceModifier: 400 },
+                { label: "Keyboard/Trackpad Issue", value: "keyboard", priceModifier: 300 },
+                { label: "No Power / Motherboard check", value: "motherboard", priceModifier: 800 },
+              ],
+              validation: { required: true },
+              priceModifierField: true,
+            },
+            {
+              id: "preferred_date",
+              label: "Booking Date",
+              type: "DATE",
+              validation: { required: true },
+            },
+            {
+              id: "preferred_time",
+              label: "Preferred Time Slot",
+              type: "TIME_SLOT",
+              validation: { required: true },
+            },
+            {
+              id: "service_address",
+              label: "Your Address (GPS)",
+              type: "ADDRESS_GPS",
+              validation: { required: true },
+            },
+          ],
+        },
+      },
+    ],
+  },
+];

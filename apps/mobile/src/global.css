@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional global Styles for React Native */
+body {
+  margin: 0;
+  padding: 0;
+}

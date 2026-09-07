@@ -1,0 +1,33 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "nativewind": [
+        "../../node_modules/nativewind"
+      ],
+      "nativewind/types": [
+        "../../node_modules/nativewind/types.d.ts"
+      ],
+      "react-native-css-interop": [
+        "../../node_modules/nativewind/node_modules/react-native-css-interop"
+      ],
+      "react-native-css-interop/types": [
+        "../../node_modules/nativewind/node_modules/react-native-css-interop/types.d.ts"
+      ]
+    },
+    "jsx": "react-jsx",
+    "jsxImportSource": "nativewind"
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind-env.d.ts",
+    "src/**/*",
+    "app/**/*"
+  ]
+}

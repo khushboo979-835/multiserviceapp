@@ -27,6 +27,7 @@ const UserSchema = new Schema<IUser>(
       enum: ["CUSTOMER", "PROVIDER", "ADMIN"],
       required: true,
       default: "CUSTOMER",
+      index: true,
     },
     name: {
       type: String,
@@ -59,5 +60,7 @@ const UserSchema = new Schema<IUser>(
   },
   { timestamps: true }
 );
+
+UserSchema.index({ role: 1, createdAt: -1 });
 
 export const User = model<IUser>("User", UserSchema);

@@ -6,6 +6,7 @@ export interface IOtp extends Document {
   expiresAt: Date;
   attempts: number;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const OtpSchema = new Schema<IOtp>(
@@ -22,7 +23,7 @@ const OtpSchema = new Schema<IOtp>(
     expiresAt: {
       type: Date,
       required: true,
-      expires: 0, // MongoDB TTL index automatically removes expired documents
+      expires: 0, // MongoDB TTL index automatically purges expired OTP documents
     },
     attempts: {
       type: Number,
@@ -31,5 +32,7 @@ const OtpSchema = new Schema<IOtp>(
   },
   { timestamps: true }
 );
+
+OtpSchema.index({ phone: 1, createdAt: -1 });
 
 export const Otp = model<IOtp>("Otp", OtpSchema);

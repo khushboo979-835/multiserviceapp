@@ -143,8 +143,8 @@ const handleSendCustomerOtp = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate secure 6-digit cryptographic OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate secure 6-digit cryptographic OTP code via crypto.randomInt
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
 
     // Store in Database & In-Memory Fallback

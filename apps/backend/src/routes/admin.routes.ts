@@ -50,34 +50,69 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 /**
- * 2. Overview Metrics
+ * 2. Real-Time Overview Metrics from multiserviceapp database
  * GET /api/admin/metrics
  */
 router.get("/metrics", async (req: Request, res: Response) => {
   try {
-    const totalCustomers = await User.countDocuments({ role: "CUSTOMER" }).catch(() => 48);
-    const totalProviders = await ProviderProfile.countDocuments().catch(() => 12);
-    const liveProviders = await ProviderProfile.countDocuments({ isOnline: true }).catch(() => 8);
-    const totalBookings = await Booking.countDocuments().catch(() => 34);
+    const totalCustomers = await User.countDocuments({ role: "CUSTOMER" });
+    const totalProviders = await ProviderProfile.countDocuments();
+    const liveProviders = await ProviderProfile.countDocuments({ isOnline: true });
+    const totalBookings = await Booking.countDocuments();
     const activeBookings = await Booking.countDocuments({
-      status: { $in: ["PENDING_PROVIDER", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS"] },
-    }).catch(() => 5);
+      status: {
+        $in: ["PENDING", "PENDING_PROVIDER", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS"],
+      },
+    });
 
-    // Calculate approximate GMV
-    const bookings = await Booking.find().catch(() => []);
-    const gmv = bookings.reduce((sum, b) => sum + (b.pricing?.finalAmount || 0), 0) || 48650;
+    // Real GMV Calculation from successful / completed orders
+    const successfulBookings = await Booking.find({
+      status: { $in: ["SUCCESS", "COMPLETED"] },
+    });
+    const totalGMV = successfulBookings.reduce(
+      (sum, b) => sum + (b.pricing?.finalAmount || 0),
+      0
+    );
 
     return res.status(200).json({
       success: true,
       metrics: {
-        totalCustomers: Math.max(totalCustomers, 48),
-        totalProviders: Math.max(totalProviders, 12),
-        liveProviders: Math.max(liveProviders, 6),
-        totalBookings: Math.max(totalBookings, 34),
-        activeBookings: Math.max(activeBookings, 3),
-        totalGMV: gmv,
-        platformEarnings: Math.round(gmv * 0.15),
+        totalCustomers,
+        totalProviders,
+        liveProviders,
+        totalBookings,
+        activeBookings,
+        totalGMV,
+        platformEarnings: Math.round(totalGMV * 0.15),
       },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 3. Live Operations & Dispatch Feed
+ * GET /api/admin/bookings/live
+ */
+router.get("/bookings/live", async (req: Request, res: Response) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 }).limit(25);
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      bookings: bookings.map((b) => ({
+        id: b._id,
+        bookingId: `BK-${b._id.toString().slice(-6).toUpperCase()}`,
+        customerName: b.customerName,
+        customerPhone: b.customerPhone,
+        serviceTitle: b.categoryId || "Doorstep Service",
+        partnerName: b.providerName || null,
+        partnerId: b.providerId || null,
+        amount: b.pricing?.finalAmount || 0,
+        status: b.status,
+        createdAt: b.createdAt,
+      })),
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

@@ -118,6 +118,7 @@ const BookingSchema = new Schema<IBooking>(
       ],
       required: true,
       default: "DRAFT",
+      index: true,
     },
     otp: String,
     startServiceOtp: {
@@ -172,7 +173,10 @@ const BookingSchema = new Schema<IBooking>(
   { timestamps: true }
 );
 
-// GeoIndex on booking address coordinate parameters for geo query matches
+// High-performance compound indexes for dispatching and admin queries
+BookingSchema.index({ customerId: 1, createdAt: -1 });
+BookingSchema.index({ providerId: 1, status: 1 });
+BookingSchema.index({ status: 1, createdAt: -1 });
 BookingSchema.index({ "selectedAddress.latitude": 1, "selectedAddress.longitude": 1 });
 
 export const Booking = model<IBooking>("Booking", BookingSchema);

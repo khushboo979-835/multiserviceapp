@@ -23,7 +23,7 @@ export const connectDB = async (): Promise<typeof mongoose | null> => {
     });
 
     console.log(`\n==================================================`);
-    console.log(`✅ Connected to MongoDB Atlas Database`);
+    console.log(`✅ [Database] Connected successfully to database: multiserviceapp`);
     console.log(`📂 DB Host: ${conn.connection.host}`);
     console.log(`📂 DB Name: ${conn.connection.name}`);
     console.log(`⚡ Connection Pool: Ready (Min 10, Max 50)`);

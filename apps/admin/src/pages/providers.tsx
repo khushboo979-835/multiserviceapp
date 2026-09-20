@@ -229,7 +229,6 @@ export default function AdminProviders() {
     try {
       await updateDoc(doc(db, "providers", id), { isApproved: nextVal });
     } catch {
-      // Local state fallback
       setProviders((prev) =>
         prev.map((p) => (p.id === id || p._id === id ? { ...p, isApproved: nextVal } : p))
       );
@@ -270,11 +269,11 @@ export default function AdminProviders() {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <UserCheck className="text-indigo-400" size={24} />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2.5">
+            <UserCheck className="text-red-600" size={24} />
             Partner & KYC Management
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Authorize service technicians, issue Partner IDs, and manage live fleet ({providers.length} Registered)
           </p>
         </div>
@@ -286,11 +285,11 @@ export default function AdminProviders() {
               setupProvidersListener();
               fetchBackendFallback();
             }}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-slate-800 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-300 transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >
             <RefreshCw
               size={14}
-              className={loading ? "animate-spin text-indigo-400" : "text-slate-400"}
+              className={loading ? "animate-spin text-red-600" : "text-slate-500"}
             />
             Refresh
           </button>
@@ -299,7 +298,7 @@ export default function AdminProviders() {
               setCreatedPartnerSuccess(null);
               setOnboardModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition"
+            className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-red-600/20 transition"
           >
             <UserPlus size={16} />
             + Add New Partner
@@ -308,26 +307,26 @@ export default function AdminProviders() {
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-3 sm:p-4 flex items-center gap-3">
-        <Search size={18} className="text-slate-500 shrink-0" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-sm">
+        <Search size={18} className="text-slate-400 shrink-0" />
         <input
           type="text"
           placeholder="Search partner by name, ID (e.g. INP-4446), phone or skills..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-transparent border-none text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none w-full font-medium"
+          className="bg-transparent border-none text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none w-full font-medium"
         />
         {searchQuery && (
-          <button onClick={() => setSearchQuery("")} className="text-slate-500 hover:text-white">
+          <button onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-700">
             <X size={16} />
           </button>
         )}
       </div>
 
       {/* Responsive Table Card */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm sm:text-base font-extrabold text-white">
+          <h3 className="text-sm sm:text-base font-black text-slate-900">
             Active Partners ({filteredProviders.length})
           </h3>
         </div>
@@ -335,16 +334,16 @@ export default function AdminProviders() {
         {loading ? (
           <div className="space-y-3 py-4">
             {Array.from({ length: 3 }).map((_, idx) => (
-              <div key={idx} className="h-14 bg-slate-800/40 rounded-xl animate-pulse" />
+              <div key={idx} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : filteredProviders.length === 0 ? (
-          <div className="text-center py-12 px-4 border border-dashed border-slate-800 rounded-2xl bg-[#020617]/50">
-            <div className="w-12 h-12 bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <div className="text-center py-12 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Inbox size={24} />
             </div>
-            <h4 className="text-white font-bold text-sm">No Partners Found</h4>
-            <p className="text-xs text-slate-400 mt-1">
+            <h4 className="text-slate-900 font-bold text-sm">No Partners Found</h4>
+            <p className="text-xs text-slate-500 mt-1">
               Click &quot;+ Add New Partner&quot; to onboard your first service technician
             </p>
           </div>
@@ -353,29 +352,29 @@ export default function AdminProviders() {
             <div className="inline-block min-w-full align-middle px-4 sm:px-0">
               <table className="min-w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                    <th className="py-3 px-3">Partner ID</th>
-                    <th className="py-3 px-3">Technician Details</th>
-                    <th className="py-3 px-3">Specialized Skills</th>
-                    <th className="py-3 px-3 text-center">KYC Status</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wider font-black text-slate-500 bg-slate-50">
+                    <th className="py-3.5 px-3 rounded-l-xl">Partner ID</th>
+                    <th className="py-3.5 px-3">Technician Details</th>
+                    <th className="py-3.5 px-3">Specialized Skills</th>
+                    <th className="py-3.5 px-3 text-center">KYC Status</th>
+                    <th className="py-3.5 px-3 text-right rounded-r-xl">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50 text-xs font-semibold text-slate-300">
+                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                   {filteredProviders.map((p) => {
                     const provId = p.id || p._id || "";
                     const isApproved = p.isApproved !== false;
                     return (
-                      <tr key={provId} className="hover:bg-slate-800/20 transition">
+                      <tr key={provId} className="hover:bg-slate-50/80 transition">
                         <td className="py-3.5 px-3">
-                          <span className="font-mono text-indigo-400 font-extrabold bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-500/20 whitespace-nowrap">
+                          <span className="font-mono text-red-600 font-black bg-red-50 px-2.5 py-1 rounded-lg border border-red-200 whitespace-nowrap">
                             {p.partnerId}
                           </span>
                         </td>
                         <td className="py-3.5 px-3 whitespace-nowrap">
-                          <div className="text-white font-bold">{p.name}</div>
-                          <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
-                            <Phone size={11} className="text-slate-500" />
+                          <div className="text-slate-900 font-bold">{p.name}</div>
+                          <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                            <Phone size={11} className="text-slate-400" />
                             {p.phone}
                           </div>
                         </td>
@@ -384,7 +383,7 @@ export default function AdminProviders() {
                             {(Array.isArray(p.skills) ? p.skills : [p.skills]).map((skill, idx) => (
                               <span
                                 key={idx}
-                                className="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-md font-medium"
+                                className="bg-slate-100 border border-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-medium"
                               >
                                 {skill}
                               </span>
@@ -393,10 +392,10 @@ export default function AdminProviders() {
                         </td>
                         <td className="py-3.5 px-3 text-center whitespace-nowrap">
                           <span
-                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black ${
                               isApproved
-                                ? "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"
-                                : "bg-amber-950/40 text-amber-400 border border-amber-500/20"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : "bg-amber-100 text-amber-800 border border-amber-200"
                           }`}
                           >
                             {isApproved ? "VERIFIED & ACTIVE" : "PENDING REVIEW"}
@@ -408,8 +407,8 @@ export default function AdminProviders() {
                               onClick={() => handleToggleApproval(provId, isApproved)}
                               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
                                 isApproved
-                                  ? "bg-rose-950/40 border border-rose-500/30 text-rose-400 hover:bg-rose-900/30"
-                                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                                  ? "bg-red-50 border border-red-200 text-red-700 hover:bg-red-100"
+                                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                               }`}
                             >
                               {isApproved ? (
@@ -426,7 +425,7 @@ export default function AdminProviders() {
                             </button>
                             <button
                               onClick={() => setDeleteConfirmId(provId)}
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/50 hover:text-rose-400 text-slate-500 transition"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-400 border border-slate-200 transition"
                               title="Delete Partner"
                             >
                               <Trash2 size={14} />
@@ -445,27 +444,27 @@ export default function AdminProviders() {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl max-w-sm w-full p-5 text-center space-y-4">
-            <div className="w-12 h-12 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-5 text-center space-y-4 shadow-xl">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <AlertTriangle size={24} />
             </div>
             <div>
-              <h4 className="text-white font-bold text-base">Delete Partner?</h4>
-              <p className="text-xs text-slate-400 mt-1">
+              <h4 className="text-slate-900 font-bold text-base">Delete Partner?</h4>
+              <p className="text-xs text-slate-600 mt-1">
                 Are you sure you want to remove this partner record from the system?
               </p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-xs"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteProvider(deleteConfirmId)}
-                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-xs transition"
               >
                 Delete
               </button>
@@ -476,16 +475,16 @@ export default function AdminProviders() {
 
       {/* Onboard Partner Modal */}
       {onboardModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl my-8">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl my-8">
             {/* Modal Header */}
-            <div className="flex justify-between items-center mb-5">
+            <div className="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                  <UserPlus className="text-indigo-400" size={20} />
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <UserPlus className="text-red-600" size={20} />
                   Onboard Service Partner
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Create technician profile & issue unique Partner ID
                 </p>
               </div>
@@ -494,44 +493,44 @@ export default function AdminProviders() {
                   setOnboardModalOpen(false);
                   setCreatedPartnerSuccess(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition"
               >
                 <X size={16} />
               </button>
             </div>
 
             {createdPartnerSuccess ? (
-              <div className="bg-emerald-950/30 border border-emerald-500/30 p-5 rounded-2xl text-center space-y-4">
-                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+              <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl text-center space-y-4">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 size={26} />
                 </div>
                 <div>
-                  <h4 className="text-white font-extrabold text-base">Partner Successfully Added!</h4>
-                  <p className="text-xs text-slate-300 mt-1">
+                  <h4 className="text-slate-900 font-extrabold text-base">Partner Successfully Added!</h4>
+                  <p className="text-xs text-slate-600 mt-1">
                     Technician can now log into Provider Mobile App with these details:
                   </p>
                 </div>
 
-                <div className="bg-[#020617] border border-slate-800 p-4 rounded-xl text-left font-mono text-xs space-y-2">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <div className="bg-white border border-slate-200 p-4 rounded-xl text-left font-mono text-xs space-y-2 shadow-sm">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span className="text-slate-500">Partner ID:</span>
-                    <span className="text-indigo-400 font-bold text-sm">
+                    <span className="text-red-600 font-bold text-sm">
                       {createdPartnerSuccess.partnerId}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center border-b border-slate-800 py-1.5">
+                  <div className="flex justify-between items-center border-b border-slate-100 py-1.5">
                     <span className="text-slate-500">Password / PIN:</span>
-                    <span className="text-emerald-400 font-bold">
+                    <span className="text-emerald-700 font-bold">
                       {createdPartnerSuccess.temporaryPassword}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center border-b border-slate-800 py-1.5">
+                  <div className="flex justify-between items-center border-b border-slate-100 py-1.5">
                     <span className="text-slate-500">Name:</span>
-                    <span className="text-white font-bold">{createdPartnerSuccess.name}</span>
+                    <span className="text-slate-900 font-bold">{createdPartnerSuccess.name}</span>
                   </div>
                   <div className="flex justify-between items-center pt-1.5">
                     <span className="text-slate-500">Mobile:</span>
-                    <span className="text-white font-bold">{createdPartnerSuccess.phone}</span>
+                    <span className="text-slate-900 font-bold">{createdPartnerSuccess.phone}</span>
                   </div>
                 </div>
 
@@ -543,7 +542,7 @@ export default function AdminProviders() {
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
-                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-700"
+                    className="flex-1 bg-white hover:bg-slate-50 text-slate-800 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-200 shadow-sm"
                   >
                     <Copy size={14} />
                     {copied ? "Copied to Clipboard!" : "Copy Details"}
@@ -553,7 +552,7 @@ export default function AdminProviders() {
                       setOnboardModalOpen(false);
                       setCreatedPartnerSuccess(null);
                     }}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/20"
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
                   >
                     Done
                   </button>
@@ -562,7 +561,7 @@ export default function AdminProviders() {
             ) : (
               <form onSubmit={handleCreatePartner} className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                     Technician Full Name *
                   </label>
                   <input
@@ -571,13 +570,13 @@ export default function AdminProviders() {
                     placeholder="e.g. Ram Kumar"
                     value={newPartner.name}
                     onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
-                    className="w-full bg-[#020617] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-medium transition"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                       10-Digit Mobile Number *
                     </label>
                     <input
@@ -592,12 +591,12 @@ export default function AdminProviders() {
                           phone: e.target.value.replace(/\D/g, ""),
                         })
                       }
-                      className="w-full bg-[#020617] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-medium transition"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                       Email Address (Optional)
                     </label>
                     <input
@@ -605,13 +604,13 @@ export default function AdminProviders() {
                       placeholder="ram@inishacityservice.com"
                       value={newPartner.email}
                       onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })}
-                      className="w-full bg-[#020617] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-medium transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                     Select Specialized Skills
                   </label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
@@ -633,10 +632,10 @@ export default function AdminProviders() {
                             }
                             setNewPartner({ ...newPartner, skills: current.join(", ") });
                           }}
-                          className={`text-[10px] px-2.5 py-1 rounded-lg font-medium transition ${
+                          className={`text-[10px] px-2.5 py-1 rounded-lg font-bold transition ${
                             isSelected
-                              ? "bg-indigo-600 text-white border border-indigo-500"
-                              : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                              ? "bg-red-600 text-white border border-red-600 shadow-sm"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                           }`}
                         >
                           {isSelected ? "✓ " : "+ "}
@@ -650,12 +649,12 @@ export default function AdminProviders() {
                     placeholder="Mobile Repair, AC Cleaning, Electrician..."
                     value={newPartner.skills}
                     onChange={(e) => setNewPartner({ ...newPartner, skills: e.target.value })}
-                    className="w-full bg-[#020617] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-medium transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
                     Initial App Password / Login PIN
                   </label>
                   <input
@@ -664,7 +663,7 @@ export default function AdminProviders() {
                     placeholder="partner123"
                     value={newPartner.password}
                     onChange={(e) => setNewPartner({ ...newPartner, password: e.target.value })}
-                    className="w-full bg-[#020617] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-mono font-medium transition"
                   />
                 </div>
 
@@ -673,14 +672,14 @@ export default function AdminProviders() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => setOnboardModalOpen(false)}
-                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs transition"
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2"
+                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20 transition flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
                       <>

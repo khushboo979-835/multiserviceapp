@@ -167,11 +167,11 @@ export default function AdminCategories() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <Layers className="text-indigo-400" size={24} />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2.5">
+            <Layers className="text-red-600" size={24} />
             Catalog & Form Manager
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Configure dynamic booking form schemas and service base rates
           </p>
         </div>
@@ -180,18 +180,18 @@ export default function AdminCategories() {
       {/* Main Responsive Split View */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Column: Categories List */}
-        <div className="w-full lg:w-1/2 bg-[#0f172a] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl space-y-4 sm:space-y-6">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-white">Categories & Services</h3>
-              <p className="text-xs text-slate-400">Select a service to configure</p>
+              <h3 className="font-black text-base sm:text-lg text-slate-900">Categories & Services</h3>
+              <p className="text-xs text-slate-500">Select a service to configure</p>
             </div>
           </div>
 
           <div className="space-y-4">
             {categories.map((cat) => (
-              <div key={cat.id} className="bg-[#020617] border border-slate-800/80 rounded-2xl p-4">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+              <div key={cat.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider mb-3">
                   {cat.name}
                 </h4>
                 <div className="space-y-2">
@@ -203,19 +203,19 @@ export default function AdminCategories() {
                         onClick={() => handleSelectSub(sub)}
                         className={`flex justify-between items-center px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? "bg-indigo-950/30 border-indigo-500 text-white shadow-md shadow-indigo-600/10"
-                            : "bg-[#0f172a] border-slate-800/80 text-slate-300 hover:border-slate-700"
+                            ? "bg-red-50 border-red-500 text-slate-900 shadow-sm"
+                            : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
                         }`}
                       >
                         <div>
-                          <p className="text-xs font-bold">{sub.name}</p>
+                          <p className="text-xs font-bold text-slate-900">{sub.name}</p>
                           <p className="text-[10px] text-slate-500 mt-0.5">
                             {sub.fieldsCount} Dynamic Form Fields
                           </p>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <span className="text-xs font-extrabold text-white">₹{sub.basePrice}</span>
-                          <ChevronRight size={14} className="text-slate-500" />
+                          <span className="text-xs font-black text-slate-900">₹{sub.basePrice}</span>
+                          <ChevronRight size={14} className={isSelected ? "text-red-600" : "text-slate-400"} />
                         </div>
                       </div>
                     );
@@ -227,35 +227,35 @@ export default function AdminCategories() {
         </div>
 
         {/* Right Column: Subcategory Configuration */}
-        <div className="w-full lg:w-1/2 bg-[#0f172a] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl space-y-6">
+        <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm space-y-6">
           {selectedSub ? (
             <div className="space-y-6">
-              <div className="border-b border-slate-800 pb-4 flex justify-between items-center">
+              <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-white">{selectedSub.name}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Base Rate & Form Schema Config</p>
+                  <h3 className="font-black text-base sm:text-lg text-slate-900">{selectedSub.name}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Base Rate & Form Schema Config</p>
                 </div>
-                <Settings size={18} className="text-indigo-400" />
+                <Settings size={18} className="text-red-600" />
               </div>
 
               {/* Pricing */}
               <div>
-                <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-2">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">
                   Service Base Rate
                 </h4>
-                <div className="bg-[#020617] border border-slate-800 p-4 rounded-xl flex items-center justify-between gap-4">
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Base Price (₹)</p>
                     <input
                       type="number"
                       value={editingPrice ?? ""}
                       onChange={(e) => setEditingPrice(parseInt(e.target.value) || 0)}
-                      className="bg-transparent text-white text-lg font-extrabold focus:outline-none w-full mt-1 border-b border-slate-800 focus:border-indigo-500 pb-1"
+                      className="bg-transparent text-slate-900 text-lg font-black focus:outline-none w-full mt-1 border-b border-slate-200 focus:border-red-500 pb-1"
                     />
                   </div>
                   <button
                     onClick={handleSavePrice}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/15 transition"
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-red-600/20 transition"
                   >
                     <Check size={14} />
                     Save Rate
@@ -266,12 +266,12 @@ export default function AdminCategories() {
               {/* Dynamic form field list */}
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">
+                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">
                     Customer Form Parameters ({selectedSub.fields.length})
                   </h4>
                   <button
                     onClick={handleAddField}
-                    className="text-xs font-extrabold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    className="text-xs font-black text-red-600 hover:text-red-700 flex items-center gap-1"
                   >
                     <Plus size={14} />
                     + Add Field
@@ -282,12 +282,12 @@ export default function AdminCategories() {
                   {selectedSub.fields.map((field) => (
                     <div
                       key={field.id}
-                      className="bg-[#020617] border border-slate-800/80 p-3 rounded-xl flex items-center justify-between gap-3 text-xs"
+                      className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
+                        <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
                         <div className="truncate">
-                          <p className="text-white font-bold truncate">{field.label}</p>
+                          <p className="text-slate-900 font-bold truncate">{field.label}</p>
                           <p className="text-[10px] text-slate-500 uppercase font-mono">
                             Type: {field.type} • {field.required ? "Required" : "Optional"}
                           </p>
@@ -295,7 +295,7 @@ export default function AdminCategories() {
                       </div>
                       <button
                         onClick={() => handleDeleteField(field.id)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 transition shrink-0"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>

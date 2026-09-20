@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   CreditCard,
   CheckCircle2,
@@ -9,36 +9,44 @@ import {
   DollarSign,
   AlertCircle,
   Copy,
-  ExternalLink,
-  ShieldCheck,
   Building2,
-  ArrowUpRight,
-  Filter,
+  ShieldCheck,
+  X,
+  Inbox,
 } from "lucide-react";
+import {
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  Unsubscribe,
+} from "firebase/firestore";
+import { db } from "../config/firebase";
 import { apiClient } from "../api/apiClient";
 
 interface TransactionItem {
   _id: string;
   transactionId: string;
   bookingId: string;
-  customerId: string;
+  customerId?: string;
   customerName: string;
   customerPhone?: string;
   providerId?: string;
   providerName?: string;
   amount: number;
-  upiId: string;
-  merchantName: string;
-  utrNumber: string;
-  status: "PENDING" | "VERIFIED" | "FAILED";
-  paymentMethod: "UPI" | "WALLET" | "CASH";
-  commissionRate: number;
-  commissionAmount: number;
-  providerPayout: number;
+  upiId?: string;
+  merchantName?: string;
+  utrNumber?: string;
+  status: "PENDING" | "VERIFIED" | "FAILED" | "SUCCESS" | "COMPLETED";
+  paymentMethod?: "UPI" | "WALLET" | "CASH";
+  commissionRate?: number;
+  commissionAmount?: number;
+  providerPayout?: number;
   verifiedAt?: string;
   verifiedBy?: string;
   notes?: string;
-  createdAt: string;
+  createdAt: string | number;
 }
 
 interface PaymentStats {
@@ -52,13 +60,13 @@ interface PaymentStats {
 export default function AdminPaymentsPage() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [stats, setStats] = useState<PaymentStats>({
-    totalGmv: 52580,
-    verifiedRevenue: 48650,
-    platformCommission: 7297,
-    pendingSettlements: 2,
-    totalTransactions: 14,
+    totalGmv: 0,
+    verifiedRevenue: 0,
+    platformCommission: 0,
+    pendingSettlements: 0,
+    totalTransactions: 0,
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "VERIFIED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
@@ -68,16 +76,98 @@ export default function AdminPaymentsPage() {
   const MERCHANT_NAME = "Inisha City Service";
   const BANK_NAME = "Punjab National Bank";
 
-  const fetchPayments = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.get("/admin/payments", {
-        params: {
-          status: statusFilter !== "ALL" ? statusFilter : undefined,
-          search: searchQuery.trim() || undefined,
-        },
-      });
+  const unsubscriberRef = useRef<Unsubscribe | null>(null);
 
+  // 1. Live Real-Time Firestore & Database Telemetry
+  const setupRealtimePayments = () => {
+    if (unsubscriberRef.current) {
+      unsubscriberRef.current();
+    }
+
+    try {
+      const bookingsRef = collection(db, "bookings");
+      const q = query(bookingsRef, orderBy("createdAt", "desc"), limit(50));
+
+      unsubscriberRef.current = onSnapshot(
+        q,
+        (snapshot) => {
+          const list: TransactionItem[] = [];
+          let gmvSum = 0;
+          let verifiedSum = 0;
+          let pendingCount = 0;
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const bookingStatus = (data.status || "PENDING").toUpperCase();
+            const rawAmount = Number(data.pricing?.finalAmount || data.amount || 0);
+            const isVerified =
+              bookingStatus === "SUCCESS" ||
+              bookingStatus === "COMPLETED" ||
+              bookingStatus === "VERIFIED";
+
+            const commission = Math.round(rawAmount * 0.15);
+            const payout = rawAmount - commission;
+
+            const utr =
+              data.paymentDetails?.utrNumber ||
+              data.utrNumber ||
+              (data.paymentId ? `UTR-${data.paymentId.slice(-10)}` : "Pending UTR");
+
+            const txItem: TransactionItem = {
+              _id: docSnap.id,
+              transactionId: data.transactionId || `TXN-${docSnap.id.slice(-8).toUpperCase()}`,
+              bookingId: data.bookingId || docSnap.id,
+              customerName: data.customerName || data.user?.name || "Customer",
+              customerPhone: data.customerPhone || data.user?.phone,
+              providerName: data.providerName || data.partnerName || "Unassigned",
+              providerId: data.providerId || data.partnerId,
+              amount: rawAmount,
+              upiId: COMPANY_UPI,
+              merchantName: MERCHANT_NAME,
+              utrNumber: utr,
+              status: isVerified ? "VERIFIED" : "PENDING",
+              paymentMethod: (data.paymentMethod || "UPI").toUpperCase() as any,
+              commissionRate: 15,
+              commissionAmount: commission,
+              providerPayout: payout,
+              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+            };
+
+            list.push(txItem);
+
+            gmvSum += rawAmount;
+            if (isVerified) {
+              verifiedSum += rawAmount;
+            } else {
+              pendingCount++;
+            }
+          });
+
+          setTransactions(list);
+          setStats({
+            totalGmv: gmvSum,
+            verifiedRevenue: verifiedSum,
+            platformCommission: Math.round(verifiedSum * 0.15),
+            pendingSettlements: pendingCount,
+            totalTransactions: list.length,
+          });
+          setLoading(false);
+        },
+        (err) => {
+          console.warn("[Firestore Payments Notice]:", err.message);
+          fetchBackendPayments();
+        }
+      );
+    } catch (e) {
+      console.warn("Realtime payments setup error, fallback to API:", e);
+      fetchBackendPayments();
+    }
+  };
+
+  // 2. Dual Fallback to Backend Admin API
+  const fetchBackendPayments = async () => {
+    try {
+      const res = await apiClient.get("/admin/payments");
       if (res.data && res.data.success) {
         if (res.data.stats) setStats(res.data.stats);
         if (Array.isArray(res.data.transactions)) {
@@ -85,122 +175,35 @@ export default function AdminPaymentsPage() {
         }
       }
     } catch (err) {
-      console.warn("Using offline master ledger data:", err);
-      // Fallback local dataset
-      setTransactions([
-        {
-          _id: "tx_1",
-          transactionId: "txn_1740998412",
-          bookingId: "bk_98234",
-          customerId: "usr_9812",
-          customerName: "Amrita Sen",
-          customerPhone: "+91 98765 43210",
-          providerId: "INP-8842",
-          providerName: "Rohan Sharma",
-          amount: 1599,
-          upiId: COMPANY_UPI,
-          merchantName: MERCHANT_NAME,
-          utrNumber: "402891827364",
-          status: "VERIFIED",
-          paymentMethod: "UPI",
-          commissionRate: 15,
-          commissionAmount: 240,
-          providerPayout: 1359,
-          verifiedAt: new Date(Date.now() - 3600000).toISOString(),
-          verifiedBy: "Super Admin",
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-        },
-        {
-          _id: "tx_2",
-          transactionId: "txn_1740997109",
-          bookingId: "bk_10923",
-          customerId: "usr_3312",
-          customerName: "Vivek Sharma",
-          customerPhone: "+91 98111 22334",
-          providerId: "INP-8842",
-          providerName: "Rohan Sharma",
-          amount: 2359,
-          upiId: COMPANY_UPI,
-          merchantName: MERCHANT_NAME,
-          utrNumber: "402899120934",
-          status: "VERIFIED",
-          paymentMethod: "UPI",
-          commissionRate: 15,
-          commissionAmount: 354,
-          providerPayout: 2005,
-          verifiedAt: new Date(Date.now() - 14400000).toISOString(),
-          verifiedBy: "Super Admin",
-          createdAt: new Date(Date.now() - 18000000).toISOString(),
-        },
-        {
-          _id: "tx_3",
-          transactionId: "txn_1740999551",
-          bookingId: "bk_84712",
-          customerId: "usr_7721",
-          customerName: "Megha Rao",
-          customerPhone: "+91 99887 66554",
-          providerId: "INP-9912",
-          providerName: "Amit Kumar Verma",
-          amount: 1299,
-          upiId: COMPANY_UPI,
-          merchantName: MERCHANT_NAME,
-          utrNumber: "402878192301",
-          status: "PENDING",
-          paymentMethod: "UPI",
-          commissionRate: 15,
-          commissionAmount: 195,
-          providerPayout: 1104,
-          createdAt: new Date(Date.now() - 900000).toISOString(),
-        },
-        {
-          _id: "tx_4",
-          transactionId: "txn_1740999882",
-          bookingId: "bk_580184",
-          customerId: "usr_1094",
-          customerName: "Deepak Patel",
-          customerPhone: "+91 98222 33445",
-          providerId: "INP-8842",
-          providerName: "Rohan Sharma",
-          amount: 799,
-          upiId: COMPANY_UPI,
-          merchantName: MERCHANT_NAME,
-          utrNumber: "402811449021",
-          status: "PENDING",
-          paymentMethod: "UPI",
-          commissionRate: 15,
-          commissionAmount: 120,
-          providerPayout: 679,
-          createdAt: new Date(Date.now() - 300000).toISOString(),
-        },
-      ]);
+      console.warn("Backend payments sync notice:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPayments();
-    const interval = setInterval(fetchPayments, 20000);
-    return () => clearInterval(interval);
-  }, [statusFilter]);
+    setupRealtimePayments();
+    fetchBackendPayments();
+
+    return () => {
+      if (unsubscriberRef.current) {
+        unsubscriberRef.current();
+      }
+    };
+  }, []);
 
   const handleVerifyAndSettle = async (txId: string) => {
     setVerifyingId(txId);
     try {
       await apiClient.put(`/admin/payments/${txId}/verify`, {
-        notes: "Bank statement verified manually by Admin.",
+        notes: "Verified by Super Admin manually",
       });
 
-      // Optimistic update in UI
+      // Optimistic update
       setTransactions((prev) =>
         prev.map((t) =>
           t._id === txId || t.transactionId === txId
-            ? {
-                ...t,
-                status: "VERIFIED",
-                verifiedAt: new Date().toISOString(),
-                verifiedBy: "Super Admin",
-              }
+            ? { ...t, status: "VERIFIED", verifiedAt: new Date().toISOString() }
             : t
         )
       );
@@ -210,16 +213,10 @@ export default function AdminPaymentsPage() {
         pendingSettlements: Math.max(0, prev.pendingSettlements - 1),
       }));
     } catch (err) {
-      console.warn("Optimistic local verification fallback:", err);
       setTransactions((prev) =>
         prev.map((t) =>
           t._id === txId || t.transactionId === txId
-            ? {
-                ...t,
-                status: "VERIFIED",
-                verifiedAt: new Date().toISOString(),
-                verifiedBy: "Super Admin",
-              }
+            ? { ...t, status: "VERIFIED", verifiedAt: new Date().toISOString() }
             : t
         )
       );
@@ -229,21 +226,24 @@ export default function AdminPaymentsPage() {
   };
 
   const handleCopyUpi = () => {
-    navigator.clipboard?.writeText(COMPANY_UPI);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 3000);
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(COMPANY_UPI);
+      setCopiedUpi(true);
+      setTimeout(() => setCopiedUpi(false), 2500);
+    }
   };
 
   const filteredTransactions = transactions.filter((t) => {
-    if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
+    if (statusFilter === "PENDING" && t.status !== "PENDING") return false;
+    if (statusFilter === "VERIFIED" && t.status !== "VERIFIED") return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      t.utrNumber?.toLowerCase().includes(q) ||
-      t.transactionId?.toLowerCase().includes(q) ||
-      t.bookingId?.toLowerCase().includes(q) ||
-      t.customerName?.toLowerCase().includes(q) ||
-      t.providerName?.toLowerCase().includes(q)
+      (t.utrNumber || "").toLowerCase().includes(q) ||
+      (t.transactionId || "").toLowerCase().includes(q) ||
+      (t.bookingId || "").toLowerCase().includes(q) ||
+      (t.customerName || "").toLowerCase().includes(q) ||
+      (t.providerName || "").toLowerCase().includes(q)
     );
   });
 
@@ -252,46 +252,50 @@ export default function AdminPaymentsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <CreditCard className="text-indigo-400" size={24} />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2.5">
+            <CreditCard className="text-red-600" size={24} />
             UPI Payments & Ledger
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Doorstep direct UPI collection tracking, 12-digit UTR bank reconciliation & partner payouts
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchPayments}
-            className="flex items-center gap-2 bg-[#0f172a] hover:bg-slate-800 border border-slate-800 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 transition"
+            onClick={() => {
+              setLoading(true);
+              setupRealtimePayments();
+              fetchBackendPayments();
+            }}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin text-indigo-400" : "text-slate-400"} />
+            <RefreshCw size={14} className={loading ? "animate-spin text-red-600" : "text-slate-500"} />
             Sync Bank Ledger
           </button>
         </div>
       </div>
 
       {/* Official Master UPI ID Banner */}
-      <div className="bg-gradient-to-r from-emerald-950/40 via-[#0f172a] to-[#0f172a] border border-emerald-500/20 rounded-3xl p-6 mb-8 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-red-50 via-white to-red-50/30 border border-red-200 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-red-600/20 shrink-0">
             <Building2 size={24} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
+              <span className="text-xs font-black text-red-600 uppercase tracking-wider">
                 Official Business UPI Gateway
               </span>
-              <span className="px-2 py-0.5 bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold rounded-md">
+              <span className="px-2 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black rounded-md">
                 ACTIVE
               </span>
             </div>
-            <h3 className="text-xl font-mono font-black text-white mt-1">
+            <h3 className="text-xl font-mono font-black text-slate-900 mt-1">
               {COMPANY_UPI}
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Account: {MERCHANT_NAME} • Bank: {BANK_NAME} (Current A/C)
+            <p className="text-xs text-slate-600 mt-0.5 font-medium">
+              Account: <strong className="text-slate-900">{MERCHANT_NAME}</strong> • Bank: {BANK_NAME} (Current A/C)
             </p>
           </div>
         </div>
@@ -299,7 +303,7 @@ export default function AdminPaymentsPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleCopyUpi}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-600/20"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition shadow-md shadow-red-600/20"
           >
             <Copy size={14} />
             {copiedUpi ? "Copied to Clipboard!" : "Copy UPI ID"}
@@ -308,90 +312,90 @@ export default function AdminPaymentsPage() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* Total GMV */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Gross GMV</span>
-            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Gross GMV</span>
+            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-red-50 text-red-600 border-red-200">
               <DollarSign size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-extrabold text-white">₹{stats.totalGmv.toLocaleString("en-IN")}</h3>
-          <p className="text-2xs text-slate-500 mt-1.5 font-medium">All completed & in-flight bookings</p>
+          <h3 className="text-2xl font-black text-slate-900">₹{stats.totalGmv.toLocaleString("en-IN")}</h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">All completed & in-flight bookings</p>
         </div>
 
         {/* Verified Revenue */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Settled & Verified</span>
-            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Settled & Verified</span>
+            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600 border-emerald-200">
               <CheckCircle2 size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-extrabold text-emerald-400">₹{stats.verifiedRevenue.toLocaleString("en-IN")}</h3>
-          <p className="text-2xs text-slate-500 mt-1.5 font-medium">Reconciled against 12-digit UTRs</p>
+          <h3 className="text-2xl font-black text-emerald-600">₹{stats.verifiedRevenue.toLocaleString("en-IN")}</h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Reconciled against 12-digit UTRs</p>
         </div>
 
         {/* Platform Commission (15%) */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Company Commission (15%)</span>
-            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-purple-500/10 text-purple-400 border-purple-500/20">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Company Commission (15%)</span>
+            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 border-purple-200">
               <TrendingUp size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-extrabold text-purple-400">₹{stats.platformCommission.toLocaleString("en-IN")}</h3>
-          <p className="text-2xs text-slate-500 mt-1.5 font-medium">Platform net revenue retention</p>
+          <h3 className="text-2xl font-black text-purple-600">₹{stats.platformCommission.toLocaleString("en-IN")}</h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Platform net revenue retention</p>
         </div>
 
         {/* Pending Settlements */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending UTR Verification</span>
-            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-400 border-amber-500/20">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending UTR Verification</span>
+            <div className="w-9 h-9 border rounded-xl flex items-center justify-center bg-amber-50 text-amber-600 border-amber-200">
               <Clock size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-extrabold text-amber-400">{stats.pendingSettlements} Transactions</h3>
-          <p className="text-2xs text-slate-500 mt-1.5 font-medium">Awaiting manual bank match</p>
+          <h3 className="text-2xl font-black text-amber-600">{stats.pendingSettlements} Transactions</h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Awaiting bank reconciliation</p>
         </div>
       </div>
 
       {/* Ledger Table Section */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm">
         {/* Table Search & Filters */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <h3 className="font-extrabold text-base text-white">Live Transactions Ledger</h3>
-            <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-full">
+            <h3 className="font-black text-base text-slate-900">Live Transactions Ledger</h3>
+            <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-full border border-slate-200">
               {filteredTransactions.length} records
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Search Input */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3.5 top-3.5 text-slate-500" />
+            <div className="relative flex-1 sm:flex-initial">
+              <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search UTR, Booking, Customer..."
-                className="bg-[#020617] border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-64"
+                className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white w-full sm:w-64 font-medium transition"
               />
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex bg-[#020617] border border-slate-800 p-1 rounded-xl">
+            <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl">
               {(["ALL", "PENDING", "VERIFIED"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
                     statusFilter === tab
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-red-600 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   {tab === "ALL" ? "All" : tab === "PENDING" ? "Pending" : "Verified"}
@@ -402,108 +406,120 @@ export default function AdminPaymentsPage() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                <th className="py-4 px-4">Transaction / Order</th>
-                <th className="py-4 px-4">Customer Details</th>
-                <th className="py-4 px-4">Service Partner</th>
-                <th className="py-4 px-4 text-right">Gross (₹)</th>
-                <th className="py-4 px-4 text-right">15% Cut</th>
-                <th className="py-4 px-4 text-right">Partner Net</th>
-                <th className="py-4 px-4">12-Digit Banking UTR</th>
-                <th className="py-4 px-4 text-center">Status</th>
-                <th className="py-4 px-4 text-center">Settlement Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-500 text-xs font-semibold">
-                    No payment records match your search query.
-                  </td>
-                </tr>
-              ) : (
-                filteredTransactions.map((tx) => (
-                  <tr
-                    key={tx._id || tx.transactionId}
-                    className="border-b border-slate-800/50 hover:bg-slate-800/20 text-xs font-semibold text-slate-300 transition"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="text-indigo-400 font-mono font-bold">{tx.transactionId}</div>
-                      <div className="text-2xs text-slate-500 mt-0.5">Order #{tx.bookingId?.slice(-6)}</div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="text-white font-bold">{tx.customerName}</div>
-                      <div className="text-2xs text-slate-500">{tx.customerPhone || "Mobile verified"}</div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="text-slate-200">{tx.providerName || "Unassigned"}</div>
-                      <div className="text-2xs text-slate-500 font-mono">{tx.providerId || "N/A"}</div>
-                    </td>
-
-                    <td className="py-4 px-4 text-right text-white font-extrabold font-mono">
-                      ₹{tx.amount}
-                    </td>
-
-                    <td className="py-4 px-4 text-right text-purple-400 font-mono font-bold">
-                      ₹{tx.commissionAmount || Math.round(tx.amount * 0.15)}
-                    </td>
-
-                    <td className="py-4 px-4 text-right text-emerald-400 font-mono font-bold">
-                      ₹{tx.providerPayout || tx.amount - Math.round(tx.amount * 0.15)}
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-1.5 font-mono text-slate-200 bg-slate-900/60 border border-slate-800 px-2.5 py-1 rounded-lg w-fit">
-                        <span className="text-indigo-400 font-bold">{tx.utrNumber}</span>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4 text-center">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-                          tx.status === "VERIFIED"
-                            ? "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"
-                            : tx.status === "PENDING"
-                            ? "bg-amber-950/40 text-amber-400 border border-amber-500/20"
-                            : "bg-rose-950/40 text-rose-400 border border-rose-500/20"
-                        }`}
-                      >
-                        {tx.status}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4 text-center">
-                      {tx.status === "VERIFIED" ? (
-                        <div className="flex items-center justify-center gap-1 text-emerald-400 text-2xs font-bold">
-                          <ShieldCheck size={14} />
-                          Settled
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleVerifyAndSettle(tx._id || tx.transactionId)}
-                          disabled={verifyingId === (tx._id || tx.transactionId)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-2xs transition shadow-sm flex items-center justify-center gap-1.5 mx-auto"
-                        >
-                          {verifyingId === (tx._id || tx.transactionId) ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <CheckCircle2 size={12} />
-                          )}
-                          Verify & Settle
-                        </button>
-                      )}
-                    </td>
+        {loading ? (
+          <div className="space-y-3 py-6">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="h-12 bg-slate-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="text-center py-12 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Inbox size={24} />
+            </div>
+            <h4 className="text-slate-900 font-bold text-sm">No transaction records found</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Real-time payment transactions and customer orders will stream here automatically
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <table className="min-w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wider font-black text-slate-500 bg-slate-50">
+                    <th className="py-3.5 px-3 rounded-l-xl">Transaction / Order</th>
+                    <th className="py-3.5 px-3">Customer Details</th>
+                    <th className="py-3.5 px-3">Service Partner</th>
+                    <th className="py-3.5 px-3 text-right">Gross (₹)</th>
+                    <th className="py-3.5 px-3 text-right">15% Cut</th>
+                    <th className="py-3.5 px-3 text-right">Partner Net</th>
+                    <th className="py-3.5 px-3">12-Digit Banking UTR</th>
+                    <th className="py-3.5 px-3 text-center">Status</th>
+                    <th className="py-3.5 px-3 text-center rounded-r-xl">Settlement Action</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                  {filteredTransactions.map((tx) => (
+                    <tr
+                      key={tx._id || tx.transactionId}
+                      className="hover:bg-slate-50/80 transition"
+                    >
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="text-red-600 font-mono font-bold">{tx.transactionId}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Order #{tx.bookingId?.slice(-6)}</div>
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="text-slate-900 font-bold">{tx.customerName}</div>
+                        <div className="text-[10px] text-slate-500">{tx.customerPhone || "Mobile verified"}</div>
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="text-slate-800 font-medium">{tx.providerName || "Unassigned"}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{tx.providerId || "N/A"}</div>
+                      </td>
+
+                      <td className="py-3.5 px-3 text-right text-slate-900 font-black font-mono whitespace-nowrap">
+                        ₹{tx.amount.toLocaleString("en-IN")}
+                      </td>
+
+                      <td className="py-3.5 px-3 text-right text-purple-600 font-mono font-bold whitespace-nowrap">
+                        ₹{(tx.commissionAmount || Math.round(tx.amount * 0.15)).toLocaleString("en-IN")}
+                      </td>
+
+                      <td className="py-3.5 px-3 text-right text-emerald-600 font-mono font-bold whitespace-nowrap">
+                        ₹{(tx.providerPayout || tx.amount - Math.round(tx.amount * 0.15)).toLocaleString("en-IN")}
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 font-mono text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg w-fit">
+                          <span className="text-red-600 font-bold">{tx.utrNumber}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                            tx.status === "VERIFIED"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              : tx.status === "PENDING"
+                              ? "bg-amber-100 text-amber-800 border border-amber-200"
+                              : "bg-red-100 text-red-800 border border-red-200"
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        {tx.status === "VERIFIED" ? (
+                          <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-bold">
+                            <ShieldCheck size={14} />
+                            Settled
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleVerifyAndSettle(tx._id || tx.transactionId)}
+                            disabled={verifyingId === (tx._id || tx.transactionId)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5 mx-auto"
+                          >
+                            {verifyingId === (tx._id || tx.transactionId) ? (
+                              <RefreshCw size={12} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={12} />
+                            )}
+                            Verify & Settle
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

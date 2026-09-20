@@ -10,9 +10,6 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  ShieldCheck,
-  Phone,
-  Layers,
   Inbox,
 } from "lucide-react";
 import {
@@ -21,8 +18,6 @@ import {
   orderBy,
   limit,
   onSnapshot,
-  where,
-  getDocs,
   Unsubscribe,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -71,7 +66,6 @@ export default function AdminDashboard() {
 
   // 1. Production Real-Time Firestore Listeners
   const setupRealtimeListeners = () => {
-    // Clean up existing listeners
     unsubscribersRef.current.forEach((unsub) => {
       try {
         unsub();
@@ -94,14 +88,14 @@ export default function AdminDashboard() {
           let gmvSum = 0;
           let activeCount = 0;
 
-          snapshot.forEach((doc) => {
-            const data = doc.data();
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
             const bookingStatus = (data.status || "PENDING").toUpperCase() as LiveBooking["status"];
             const amount = Number(data.pricing?.finalAmount || data.amount || 0);
 
             liveList.push({
-              id: doc.id,
-              bookingId: data.bookingId || `BK-${doc.id.slice(-6).toUpperCase()}`,
+              id: docSnap.id,
+              bookingId: data.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
               customerName: data.customerName || data.user?.name || data.customer?.name || "Verified Customer",
               customerPhone: data.customerPhone || data.user?.phone || data.customer?.phone,
               serviceTitle: data.serviceName || data.serviceTitle || data.category || "Doorstep Service",
@@ -146,8 +140,8 @@ export default function AdminDashboard() {
         usersQuery,
         (snapshot) => {
           let customerCount = 0;
-          snapshot.forEach((doc) => {
-            const role = String(doc.data().role || "").toLowerCase();
+          snapshot.forEach((docSnap) => {
+            const role = String(docSnap.data().role || "").toLowerCase();
             if (role === "customer" || role === "" || !role) {
               customerCount++;
             }
@@ -165,8 +159,8 @@ export default function AdminDashboard() {
         (snapshot) => {
           let onlineCount = 0;
           let verifiedCount = 0;
-          snapshot.forEach((doc) => {
-            const data = doc.data();
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
             if (data.isApproved !== false && data.kycStatus !== "REJECTED") {
               verifiedCount++;
               if (data.isOnline === true) {
@@ -236,13 +230,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // Lifecycle
   useEffect(() => {
     setupRealtimeListeners();
     fetchBackendFallbackMetrics();
 
     return () => {
-      // Unsubscribe all active listeners on component unmount
       unsubscribersRef.current.forEach((unsub) => {
         try {
           unsub();
@@ -258,35 +250,34 @@ export default function AdminDashboard() {
     await fetchBackendFallbackMetrics();
   };
 
-  // Dynamic KPI Stats Cards
   const stats = [
     {
       name: "Total Gross GMV",
       value: `₹${metrics.totalGMV.toLocaleString("en-IN")}`,
       change: `Platform earnings (15%): ₹${metrics.platformEarnings.toLocaleString("en-IN")}`,
       icon: DollarSign,
-      color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+      color: "bg-red-50 text-red-600 border-red-200",
     },
     {
       name: "Active Service Bookings",
       value: `${metrics.activeBookingsCount} Jobs Live`,
       change: `${metrics.totalBookingsCount} lifetime total bookings`,
       icon: Briefcase,
-      color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+      color: "bg-indigo-50 text-indigo-600 border-indigo-200",
     },
     {
       name: "Registered Customers",
       value: `${metrics.totalCustomersCount} Users`,
       change: "Direct OTP verified mobile users",
       icon: Users,
-      color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      color: "bg-cyan-50 text-cyan-600 border-cyan-200",
     },
     {
       name: "Active Partners",
       value: `${metrics.onlinePartnersCount} Online / ${metrics.totalPartnersCount}`,
       change: "Verified field technicians & pros",
       icon: Hammer,
-      color: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      color: "bg-amber-50 text-amber-600 border-amber-200",
     },
   ];
 
@@ -295,7 +286,7 @@ export default function AdminDashboard() {
       case "SUCCESS":
       case "COMPLETED":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
             <CheckCircle2 size={10} />
             SUCCESS
           </span>
@@ -305,7 +296,7 @@ export default function AdminDashboard() {
       case "EN_ROUTE":
       case "ACCEPTED":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-indigo-950/40 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200 whitespace-nowrap">
             <Clock size={10} />
             {status.replace("_", " ")}
           </span>
@@ -313,14 +304,14 @@ export default function AdminDashboard() {
       case "CANCELLED":
       case "REJECTED":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-950/40 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-200 whitespace-nowrap">
             <XCircle size={10} />
             CANCELLED
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-950/40 text-amber-400 border border-amber-500/20 whitespace-nowrap">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
             <AlertCircle size={10} />
             PENDING
           </span>
@@ -333,14 +324,14 @@ export default function AdminDashboard() {
       {/* Responsive Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <TrendingUp className="text-indigo-400" size={24} />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2.5">
+            <TrendingUp className="text-red-600" size={24} />
             System Overview
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1 flex items-center gap-2">
             <span>Live production telemetry from Firestore & MongoDB</span>
             {lastSyncTime && (
-              <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
+              <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
                 • Synced at {lastSyncTime}
               </span>
             )}
@@ -351,16 +342,16 @@ export default function AdminDashboard() {
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-slate-800 border border-slate-800 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >
             <RefreshCw
               size={14}
-              className={isRefreshing ? "animate-spin text-indigo-400" : "text-slate-400"}
+              className={isRefreshing ? "animate-spin text-red-600" : "text-slate-500"}
             />
             {isRefreshing ? "Syncing..." : "Refresh"}
           </button>
-          <div className="flex items-center gap-2 bg-emerald-950/30 border border-emerald-500/20 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3.5 py-2.5 rounded-xl text-xs font-black text-emerald-700 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="hidden xs:inline">Real-time</span> Live
           </div>
         </div>
@@ -372,14 +363,14 @@ export default function AdminDashboard() {
           ? Array.from({ length: 4 }).map((_, idx) => (
               <div
                 key={idx}
-                className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-5 shadow-lg animate-pulse space-y-4"
+                className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm animate-pulse space-y-4"
               >
                 <div className="flex justify-between items-center">
-                  <div className="h-3 w-24 bg-slate-800 rounded" />
-                  <div className="w-9 h-9 bg-slate-800 rounded-xl" />
+                  <div className="h-3 w-24 bg-slate-100 rounded" />
+                  <div className="w-9 h-9 bg-slate-100 rounded-xl" />
                 </div>
-                <div className="h-7 w-32 bg-slate-800 rounded" />
-                <div className="h-2.5 w-40 bg-slate-800 rounded" />
+                <div className="h-7 w-32 bg-slate-100 rounded" />
+                <div className="h-2.5 w-40 bg-slate-100 rounded" />
               </div>
             ))
           : stats.map((stat) => {
@@ -387,10 +378,10 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={stat.name}
-                  className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-5 shadow-lg flex flex-col justify-between hover:border-slate-700 transition"
+                  className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 shadow-sm flex flex-col justify-between hover:border-slate-300 transition"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {stat.name}
                     </span>
                     <div className={`p-2.5 rounded-xl border ${stat.color}`}>
@@ -398,10 +389,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       {stat.value}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-1 font-medium">{stat.change}</div>
+                    <div className="text-[11px] text-slate-500 mt-1 font-medium">{stat.change}</div>
                   </div>
                 </div>
               );
@@ -409,14 +400,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Live Operations & Dispatch Feed Table */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h3 className="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">
-              <Briefcase className="text-indigo-400" size={18} />
+            <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+              <Briefcase className="text-red-600" size={18} />
               Live Operations & Dispatch Feed
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Real-time incoming customer bookings across Delhi NCR & India ({bookings.length} orders)
             </p>
           </div>
@@ -425,16 +416,16 @@ export default function AdminDashboard() {
         {loading ? (
           <div className="space-y-3 py-4">
             {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="h-12 bg-slate-800/40 rounded-xl animate-pulse" />
+              <div key={idx} className="h-12 bg-slate-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : bookings.length === 0 ? (
-          <div className="text-center py-12 px-4 border border-dashed border-slate-800 rounded-2xl bg-[#020617]/50">
-            <div className="w-12 h-12 bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <div className="text-center py-12 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Inbox size={24} />
             </div>
-            <h4 className="text-white font-bold text-sm">No active orders right now</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            <h4 className="text-slate-900 font-bold text-sm">No active orders right now</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               Incoming bookings from customer app will stream here automatically in real-time via Firestore
             </p>
           </div>
@@ -443,22 +434,22 @@ export default function AdminDashboard() {
             <div className="inline-block min-w-full align-middle px-4 sm:px-0">
               <table className="min-w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                    <th className="py-3 px-3">Booking ID</th>
-                    <th className="py-3 px-3">Customer</th>
-                    <th className="py-3 px-3">Service</th>
-                    <th className="py-3 px-3">Assigned Partner</th>
-                    <th className="py-3 px-3">Amount</th>
-                    <th className="py-3 px-3 text-right">Status</th>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wider font-black text-slate-500 bg-slate-50">
+                    <th className="py-3.5 px-3 rounded-l-xl">Booking ID</th>
+                    <th className="py-3.5 px-3">Customer</th>
+                    <th className="py-3.5 px-3">Service</th>
+                    <th className="py-3.5 px-3">Assigned Partner</th>
+                    <th className="py-3.5 px-3">Amount</th>
+                    <th className="py-3.5 px-3 text-right rounded-r-xl">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50 text-xs font-semibold text-slate-300">
+                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                   {bookings.map((booking) => (
-                    <tr key={booking.id} className="hover:bg-slate-800/20 transition">
-                      <td className="py-3.5 px-3 font-mono text-indigo-400 font-bold whitespace-nowrap">
+                    <tr key={booking.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3.5 px-3 font-mono text-red-600 font-bold whitespace-nowrap">
                         {booking.bookingId}
                       </td>
-                      <td className="py-3.5 px-3 text-white font-bold whitespace-nowrap">
+                      <td className="py-3.5 px-3 text-slate-900 font-bold whitespace-nowrap">
                         <div>{booking.customerName}</div>
                         {booking.customerPhone && (
                           <div className="text-[10px] text-slate-500 font-mono font-normal">
@@ -466,19 +457,19 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3.5 px-3 text-slate-300 whitespace-nowrap">
+                      <td className="py-3.5 px-3 text-slate-800 whitespace-nowrap">
                         {booking.serviceTitle}
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         {booking.partnerName ? (
-                          <span className="text-slate-200 font-medium">{booking.partnerName}</span>
+                          <span className="text-slate-900 font-medium">{booking.partnerName}</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-950/40 text-amber-400 border border-amber-500/20">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                             Unassigned
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-white font-bold whitespace-nowrap">
+                      <td className="py-3.5 px-3 font-mono text-slate-900 font-black whitespace-nowrap">
                         ₹{booking.amount.toLocaleString("en-IN")}
                       </td>
                       <td className="py-3.5 px-3 text-right whitespace-nowrap">

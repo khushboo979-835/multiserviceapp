@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DollarSign, Briefcase, Users, Hammer, ArrowUpRight, TrendingUp, RefreshCw } from "lucide-react";
+import { DollarSign, Briefcase, Users, Hammer, TrendingUp, RefreshCw } from "lucide-react";
 import { apiClient } from "../api/apiClient";
 
 export default function AdminDashboard() {
@@ -73,95 +73,102 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="p-8">
-      {/* Page Heading */}
-      <div className="flex justify-between items-center mb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* Responsive Page Heading */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-white">System Overview</h2>
-          <p className="text-sm text-slate-400 mt-1">Real-time marketplace monitoring metrics & telemetry</p>
+          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">System Overview</h2>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">Real-time marketplace monitoring metrics & telemetry</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 self-stretch sm:self-auto">
           <button
             onClick={fetchMetrics}
-            className="flex items-center gap-2 bg-[#0f172a] hover:bg-slate-800 border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-slate-800 border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 transition"
           >
             <RefreshCw size={14} className={loading ? "animate-spin text-indigo-400" : "text-slate-400"} />
-            Refresh Data
+            Refresh
           </button>
-          <div className="flex gap-2.5 bg-[#0f172a] border border-slate-800 px-4 py-2 rounded-xl text-xs font-semibold text-slate-300">
-            <TrendingUp size={16} className="text-emerald-400" />
-            Marketplace Active
+          <div className="flex items-center gap-2 bg-[#0f172a] border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300">
+            <TrendingUp size={15} className="text-emerald-400" />
+            <span className="hidden xs:inline">Marketplace</span> Active
           </div>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.name} className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stat.name}</span>
-                <div className={`w-9 h-9 border rounded-xl flex items-center justify-center ${stat.color}`}>
+            <div
+              key={stat.name}
+              className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-5 shadow-lg flex flex-col justify-between hover:border-slate-700 transition"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{stat.name}</span>
+                <div className={`p-2.5 rounded-xl border ${stat.color}`}>
                   <Icon size={18} />
                 </div>
               </div>
-              <h3 className="text-2xl font-extrabold text-white">{stat.value}</h3>
-              <p className="text-2xs text-slate-500 mt-1.5 font-medium">{stat.change}</p>
+              <div>
+                <div className="text-xl sm:text-2xl font-black text-white tracking-tight">{stat.value}</div>
+                <div className="text-[11px] text-slate-400 mt-1 font-medium">{stat.change}</div>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Tables Section */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-extrabold text-base text-white">Live Booking & Transactions Log</h3>
-          <span className="text-xs font-bold text-indigo-400 hover:underline cursor-pointer">View All Logs</span>
+      {/* Recent Bookings Live Ledger Card */}
+      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-white">Live Operations & Dispatch Feed</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Real-time incoming customer orders across Delhi NCR & India</p>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                <th className="py-4 px-4">Booking ID</th>
-                <th className="py-4 px-4">Customer</th>
-                <th className="py-4 px-4">Service Provider</th>
-                <th className="py-4 px-4">Requested Service</th>
-                <th className="py-4 px-4 text-right">Amount</th>
-                <th className="py-4 px-4 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.map((tx) => (
-                <tr key={tx.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 text-xs font-semibold text-slate-300">
-                  <td className="py-4 px-4 text-indigo-400 font-bold">{tx.id}</td>
-                  <td className="py-4 px-4 text-white">{tx.customer}</td>
-                  <td className="py-4 px-4">{tx.provider}</td>
-                  <td className="py-4 px-4">{tx.service}</td>
-                  <td className="py-4 px-4 text-right text-white font-bold">{tx.amount}</td>
-                  <td className="py-4 px-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-                      tx.status === "SUCCESS"
-                        ? "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"
-                        : tx.status === "IN_PROGRESS"
-                        ? "bg-blue-950/40 text-blue-400 border border-blue-500/20"
-                        : tx.status === "PENDING"
-                        ? "bg-amber-950/40 text-amber-400 border border-amber-500/20"
-                        : "bg-rose-950/40 text-rose-400 border border-rose-500/20"
-                    }`}>
-                      {tx.status}
-                    </span>
-                  </td>
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+            <table className="min-w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
+                  <th className="py-3 px-3">Booking ID</th>
+                  <th className="py-3 px-3">Customer</th>
+                  <th className="py-3 px-3">Service</th>
+                  <th className="py-3 px-3">Assigned Partner</th>
+                  <th className="py-3 px-3">Amount</th>
+                  <th className="py-3 px-3 text-right">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50 text-xs font-semibold text-slate-300">
+                {recentTransactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-slate-800/20">
+                    <td className="py-3.5 px-3 font-mono text-indigo-400 font-bold">{tx.id}</td>
+                    <td className="py-3.5 px-3 text-white font-bold whitespace-nowrap">{tx.customer}</td>
+                    <td className="py-3.5 px-3 text-slate-300 whitespace-nowrap">{tx.service}</td>
+                    <td className="py-3.5 px-3 text-slate-400 whitespace-nowrap">{tx.provider}</td>
+                    <td className="py-3.5 px-3 font-mono text-white font-bold whitespace-nowrap">{tx.amount}</td>
+                    <td className="py-3.5 px-3 text-right">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold whitespace-nowrap ${
+                          tx.status === "SUCCESS"
+                            ? "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"
+                            : tx.status === "IN_PROGRESS"
+                            ? "bg-indigo-950/40 text-indigo-400 border border-indigo-500/20"
+                            : "bg-amber-950/40 text-amber-400 border border-amber-500/20"
+                        }`}
+                      >
+                        {tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }
-

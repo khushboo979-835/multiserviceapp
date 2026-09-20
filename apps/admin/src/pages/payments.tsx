@@ -248,14 +248,15 @@ export default function AdminPaymentsPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-white">
-            UPI Payments & Reconciliation Ledger
+          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+            <CreditCard className="text-indigo-400" size={24} />
+            UPI Payments & Ledger
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Doorstep direct UPI collection tracking, 12-digit UTR bank reconciliation & partner payouts
           </p>
         </div>

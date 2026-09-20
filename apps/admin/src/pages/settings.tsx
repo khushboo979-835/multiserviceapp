@@ -43,11 +43,14 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Heading */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-extrabold tracking-tight text-white">Platform Settings & UPI Gateway</h2>
-        <p className="text-sm text-slate-400 mt-1">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+          <SettingsIcon className="text-indigo-400" size={24} />
+          Platform Settings & UPI Gateway
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-400 mt-1">
           Configure financial settlement UPI parameters, platform commission, and customer support channels
         </p>
       </div>

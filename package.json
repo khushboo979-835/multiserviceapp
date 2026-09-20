@@ -2,21 +2,25 @@
   "name": "multi-service-app",
   "version": "1.0.0",
   "private": true,
+  "main": "server.js",
   "workspaces": [
     "apps/mobile",
     "apps/backend",
     "apps/admin"
   ],
   "scripts": {
-    "mobile:start": "npm run start --workspace=apps/mobile",
-    "mobile:android": "npm run android --workspace=apps/mobile",
-    "mobile:ios": "npm run ios --workspace=apps/mobile",
-    "mobile:web": "npm run web --workspace=apps/mobile",
+    "build": "npm run build --workspace=apps/backend",
+    "start": "node apps/backend/dist/server.js",
+    "backend:build": "npm run build --workspace=apps/backend",
     "backend:dev": "npm run dev --workspace=apps/backend",
     "backend:start": "npm run start --workspace=apps/backend",
     "admin:dev": "npm run dev --workspace=apps/admin",
     "admin:build": "npm run build --workspace=apps/admin",
     "admin:start": "npm run start --workspace=apps/admin",
+    "mobile:start": "npm run start --workspace=apps/mobile",
+    "mobile:android": "npm run android --workspace=apps/mobile",
+    "mobile:ios": "npm run ios --workspace=apps/mobile",
+    "mobile:web": "npm run web --workspace=apps/mobile",
     "postinstall": "node scripts/patch-hermes-private-props.js"
   }
 }

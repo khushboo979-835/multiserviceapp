@@ -3,7 +3,6 @@ const path = require('path');
 
 function patchFile(filePath, replacements) {
   if (!fs.existsSync(filePath)) {
-    console.log(`File not found: ${filePath}`);
     return;
   }
   let content = fs.readFileSync(filePath, 'utf8');

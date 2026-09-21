@@ -9,26 +9,17 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EAS_PROJECT_ROOT": "apps/mobile"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EAS_PROJECT_ROOT": "apps/mobile"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "EAS_PROJECT_ROOT": "apps/mobile"
       }
     }
   },

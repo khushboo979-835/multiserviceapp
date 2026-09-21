@@ -4,3 +4,14 @@ dist
 build
 .git
 *.log
+
+# Keep the Expo project files in the EAS archive.
+!package.json
+!app.json
+!eas.json
+!app/
+!app/**
+!assets/
+!assets/**
+!src/
+!src/**

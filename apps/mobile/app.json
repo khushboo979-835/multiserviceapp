@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.inishacityservice.app",
+      "package": "com.inishacity.service",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -55,7 +55,7 @@
         "origin": "https://inishacityservice.com"
       },
       "eas": {
-        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
+        "projectId": "0c17c63c-e812-465e-8cf6-9f1debcfb5e9"
       }
     }
   }

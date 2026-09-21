@@ -9,3 +9,11 @@ apps/backend/dist
 apps/backend/build
 .git
 *.log
+
+# Keep the monorepo manifests and mobile project in the EAS archive.
+!package.json
+!package-lock.json
+!eas.json
+!app.json
+!apps/mobile/
+!apps/mobile/**

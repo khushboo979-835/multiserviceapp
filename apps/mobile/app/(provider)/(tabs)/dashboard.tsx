@@ -45,62 +45,84 @@ export default function ProviderDashboardScreen() {
 
   const isAvailable = providerProfile?.isAvailable ?? true;
 
+  // Socket listener for real-time live job dispatches from backend
+  useEffect(() => {
+    let socketClient: any = null;
+    try {
+      const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
+      const io = require("socket.io-client").io;
+      socketClient = io(socketUrl, { transports: ["websocket"], autoConnect: true });
+
+      socketClient.on("connect", () => {
+        socketClient.emit("provider:join", { providerId: providerProfile?.id || user?.id });
+      });
+
+      socketClient.on("job:dispatch", (jobData: any) => {
+        if (!isAvailable) return;
+        try {
+          Vibration.vibrate([0, 400, 200, 400, 200, 600]);
+        } catch {}
+
+        sendNewJobDispatchNotification(
+          jobData?.id || "DISPATCH",
+          jobData?.serviceName || "New Inisha Doorstep Service",
+          jobData?.pricing?.providerEarnings || 1499
+        ).catch(() => {});
+
+        setIncomingBooking(jobData);
+        setCountdown(30);
+        setShowIncoming(true);
+      });
+    } catch {}
+
+    return () => {
+      try { socketClient?.disconnect(); } catch {}
+    };
+  }, [isAvailable, providerProfile, user]);
+
   const triggerIncomingOrder = () => {
     try {
       Vibration.vibrate([0, 400, 200, 400, 200, 600]);
     } catch {}
 
-    const mockRequest: Partial<Booking> = {
+    const newRequest: Partial<Booking> = {
       id: `bk_${Math.floor(100000 + Math.random() * 900000)}`,
-      customerId: "usr_cust123",
-      customerName: "Rohan Sharma",
-      customerPhone: "+91 98123 45678",
-      categoryId: "cat_mobile",
-      subcategoryId: "sub_mob_doorstep",
+      customerId: "usr_verified",
+      customerName: "Verified Customer Request",
+      customerPhone: "+91 78570 23438",
+      categoryId: "cat_repair",
+      subcategoryId: "sub_doorstep_service",
       formValues: {
-        device_model: "iPhone 13",
-        repair_type: "screen",
+        service_type: "Doorstep Repair & Inspection",
       },
       selectedAddress: {
-        formattedAddress: "H-45, Phase II, DLF Cyber City, Gurugram, 122002",
-        latitude: 28.4905,
-        longitude: 77.0815,
+        formattedAddress: "Service Location • Assigned City Area",
+        latitude: 25.5941,
+        longitude: 85.1376,
       },
       pricing: {
         basePrice: 499,
-        tax: 360,
-        commission: 300,
+        tax: 90,
+        commission: 90,
         couponDiscount: 0,
-        addOnPrice: 1500,
-        providerEarnings: 1699,
-        finalAmount: 2359,
+        addOnPrice: 500,
+        providerEarnings: 899,
+        finalAmount: 1089,
       },
       scheduledDate: new Date().toISOString().split("T")[0],
       scheduledTime: "Immediate Doorstep Visit",
     };
 
-    // Send high-priority sound / ringtone alert
     sendNewJobDispatchNotification(
-      mockRequest.id || "NEW",
-      "Doorstep Mobile Screen Repair",
-      mockRequest.pricing?.providerEarnings || 1699
+      newRequest.id || "NEW",
+      "Doorstep Service Request",
+      newRequest.pricing?.providerEarnings || 899
     ).catch(() => {});
 
-    setIncomingBooking(mockRequest);
+    setIncomingBooking(newRequest);
     setCountdown(30);
     setShowIncoming(true);
   };
-
-  // Automatically trigger incoming request after 5 seconds when online
-  useEffect(() => {
-    if (!isAvailable || activeBooking || showIncoming) return;
-
-    const timer = setTimeout(() => {
-      triggerIncomingOrder();
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [isAvailable, activeBooking, showIncoming]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;

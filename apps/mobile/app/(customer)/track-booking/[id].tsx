@@ -21,7 +21,7 @@ export default function TrackBookingScreen() {
   const [chatVisible, setChatVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
-  const vehicleNo = "DL 01 AB 8842";
+  const vehicleNo = (activeBooking as any)?.providerVehicle || "DL 07 " + (activeBooking?.id?.slice(-4) || "8842");
   const partnerRating = "4.9 ★";
 
   useEffect(() => {
@@ -231,14 +231,14 @@ export default function TrackBookingScreen() {
               </View>
               <View style={{ marginLeft: 12, flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={styles.driverName}>{activeBooking.providerName || "Rohan Sharma"}</Text>
+                  <Text style={styles.driverName}>{activeBooking.providerName || "Verified Service Professional"}</Text>
                   <View style={styles.ratingBadge}>
                     <Star size={11} color="#f59e0b" fill="#f59e0b" />
                     <Text style={styles.ratingText}>{partnerRating}</Text>
                   </View>
                 </View>
-                <Text style={styles.vehicleNoText}>Vehicle: {vehicleNo} • Electric Scooter</Text>
-                <Text style={styles.phoneSubtext}>{activeBooking.providerPhone || "+91 98123 45678"}</Text>
+                <Text style={styles.vehicleNoText}>Vehicle: {vehicleNo} • Verified</Text>
+                <Text style={styles.phoneSubtext}>{activeBooking.providerPhone || "+91 78570 23438"}</Text>
               </View>
             </View>
 
@@ -375,7 +375,7 @@ export default function TrackBookingScreen() {
         onClose={() => setChatVisible(false)}
         bookingId={activeBooking.id}
         currentRole="CUSTOMER"
-        recipientName={activeBooking.providerName || "Rohan Sharma (Partner)"}
+        recipientName={activeBooking.providerName || "Service Partner"}
       />
 
       {/* Doorstep UPI Payment Modal */}

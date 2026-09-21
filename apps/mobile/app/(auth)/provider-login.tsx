@@ -49,11 +49,11 @@ export default function ProviderLoginScreen() {
 
     let token = "jwt_prov_" + Date.now();
     let userObj = {
-      id: "usr_prov_8842",
-      phoneNumber: "+91 98123 45678",
+      id: "usr_prov_" + cleanId,
+      phoneNumber: "+91 78570 23438",
       role: "PROVIDER" as const,
-      name: "Rohan Sharma (Master Tech)",
-      email: "rohan.partner@inishacityservice.com",
+      name: "Inisha Service Partner",
+      email: "partner@inishacityservice.com",
       walletBalance: 3450,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

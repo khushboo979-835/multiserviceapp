@@ -13,6 +13,9 @@ export default function Index() {
 
   useEffect(() => {
     initAuth();
+    // Immediate background pre-warm for Render cloud backend
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+    fetch(`${API_URL}/health`).catch(() => {});
   }, [initAuth]);
 
   const performNavigation = () => {

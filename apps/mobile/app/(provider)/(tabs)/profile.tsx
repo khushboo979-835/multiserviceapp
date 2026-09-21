@@ -1,19 +1,45 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
-import { LogOut, ChevronRight, FileText, Settings, Shield, HelpCircle, Phone, Award, ShoppingBag } from "lucide-react-native";
+import { LogOut, ChevronRight, FileText, Settings, Shield, HelpCircle, Phone, Award, ShoppingBag, Edit3 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import {
+  EditProfileModal,
+  NotificationsModal,
+  PrivacySecurityModal,
+  AppPreferencesModal,
+  HelpSupportModal,
+} from "../../../src/components/profile/ProfileModals";
 
 export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, providerProfile, logout } = useAuthStore();
   const router = useRouter();
 
+  const [editVisible, setEditVisible] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [prefVisible, setPrefVisible] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
+
   const handleLogout = () => {
-    logout();
-    router.replace("/(auth)/login");
+    Alert.alert(
+      "Confirm Sign Out",
+      "Are you sure you want to sign out of Partner Mode?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: () => {
+            logout();
+            router.replace("/(auth)/login");
+          },
+        },
+      ]
+    );
   };
 
   const handleKycPress = () => {
@@ -33,10 +59,15 @@ export default function ProviderProfileScreen() {
       {/* Profile Card */}
       <View style={styles.profileCard}>
         <BrandLogo size="md" showText={false} />
-        <Text style={styles.partnerName}>{user?.name || "Verified Partner"}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.partnerName}>{user?.name || "Inisha Service Partner"}</Text>
+          <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.editIconBtn}>
+            <Edit3 size={16} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
         <View style={styles.phonePill}>
           <Phone size={13} color="#64748b" />
-          <Text style={styles.partnerPhone}>{user?.phoneNumber || "+91 9876543210"}</Text>
+          <Text style={styles.partnerPhone}>{user?.phoneNumber || "+91 78570 23438"}</Text>
         </View>
         <View style={styles.kycBadge}>
           <Award size={14} color="#dc2626" />
@@ -74,24 +105,24 @@ export default function ProviderProfileScreen() {
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.menuTitle}>KYC Documents</Text>
               <Text style={styles.kycStatusText}>
-                Status: {providerProfile?.kycStatus || "NOT_SUBMITTED"}
+                Status: {providerProfile?.kycStatus || "APPROVED"}
               </Text>
             </View>
           </View>
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setPrefVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <Settings size={18} color="#475569" />
             </View>
-            <Text style={[styles.menuTitle, { marginLeft: 12 }]}>Service Parameters</Text>
+            <Text style={[styles.menuTitle, { marginLeft: 12 }]}>Service Parameters & Languages</Text>
           </View>
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setPrivacyVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <Shield size={18} color="#475569" />
@@ -101,7 +132,7 @@ export default function ProviderProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setHelpVisible(true)} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <HelpCircle size={18} color="#475569" />
@@ -117,6 +148,13 @@ export default function ProviderProfileScreen() {
         <LogOut size={18} color="#ef4444" />
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
+      {/* Interactive Modals */}
+      <EditProfileModal visible={editVisible} onClose={() => setEditVisible(false)} />
+      <NotificationsModal visible={notifVisible} onClose={() => setNotifVisible(false)} />
+      <PrivacySecurityModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
+      <AppPreferencesModal visible={prefVisible} onClose={() => setPrefVisible(false)} />
+      <HelpSupportModal visible={helpVisible} onClose={() => setHelpVisible(false)} />
     </ScrollView>
   );
 }
@@ -141,11 +179,21 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
   partnerName: {
     fontSize: 22,
     fontWeight: "900",
     color: "#0f172a",
-    marginTop: 12,
+  },
+  editIconBtn: {
+    marginLeft: 8,
+    padding: 6,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
   },
   phonePill: {
     flexDirection: "row",

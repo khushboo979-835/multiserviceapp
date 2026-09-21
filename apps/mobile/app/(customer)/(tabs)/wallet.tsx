@@ -1,17 +1,48 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, ShieldCheck, Clock } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import WalletTopUpModal from "../../../src/components/wallet/WalletTopUpModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+interface TransactionItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  amount: number;
+  type: "CREDIT" | "DEBIT";
+  status: string;
+  date: string;
+}
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { bookingHistory } = useBookingStore();
+  const [topUpModalVisible, setTopUpModalVisible] = useState(false);
+  const [customTransactions, setCustomTransactions] = useState<TransactionItem[]>([]);
 
   const walletBalance = user?.walletBalance ?? 250;
+
+  const loadTransactions = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("@wallet_transactions");
+      if (stored) {
+        setCustomTransactions(JSON.parse(stored));
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadTransactions();
+  }, [user]);
+
+  const handleTopUpSuccess = (amt: number, txId: string) => {
+    loadTransactions();
+  };
 
   return (
     <ScrollView
@@ -38,7 +69,11 @@ export default function WalletScreen() {
         </View>
         <Text style={styles.balanceValue}>₹{walletBalance.toFixed(2)}</Text>
         <View style={styles.actionsRow}>
-          <TouchableOpacity activeOpacity={0.85} style={styles.addMoneyBtn}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setTopUpModalVisible(true)}
+            style={styles.addMoneyBtn}
+          >
             <Plus size={18} color="#ef4444" />
             <Text style={styles.addMoneyText}>Add Money (UPI / Cards)</Text>
           </TouchableOpacity>
@@ -55,6 +90,28 @@ export default function WalletScreen() {
       <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
       <View style={styles.transactionsList}>
+        {/* Custom top-ups */}
+        {customTransactions.map((tx) => (
+          <View key={tx.id} style={styles.txCard}>
+            <View style={styles.txLeft}>
+              <View style={[styles.txIconBox, { backgroundColor: tx.type === "CREDIT" ? "#f0fdf4" : "#fef2f2" }]}>
+                {tx.type === "CREDIT" ? (
+                  <ArrowDownLeft size={20} color="#16a34a" />
+                ) : (
+                  <ArrowUpRight size={20} color="#ef4444" />
+                )}
+              </View>
+              <View style={styles.txDetails}>
+                <Text style={styles.txTitle}>{tx.title}</Text>
+                <Text style={styles.txSubtitle}>{tx.subtitle}</Text>
+              </View>
+            </View>
+            <Text style={tx.type === "CREDIT" ? styles.txCredit : styles.txDebit}>
+              {tx.type === "CREDIT" ? "+" : "-"}₹{tx.amount.toFixed(2)}
+            </Text>
+          </View>
+        ))}
+
         {/* Welcome Credit */}
         <View style={styles.txCard}>
           <View style={styles.txLeft}>
@@ -89,6 +146,13 @@ export default function WalletScreen() {
           </View>
         ))}
       </View>
+
+      {/* Top Up Modal */}
+      <WalletTopUpModal
+        visible={topUpModalVisible}
+        onClose={() => setTopUpModalVisible(false)}
+        onSuccess={handleTopUpSuccess}
+      />
     </ScrollView>
   );
 }

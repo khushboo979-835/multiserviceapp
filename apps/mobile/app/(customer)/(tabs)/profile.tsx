@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import {
   LogOut,
@@ -11,19 +11,48 @@ import {
   Briefcase,
   Sparkles,
   Phone,
+  Edit3,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import {
+  EditProfileModal,
+  NotificationsModal,
+  PrivacySecurityModal,
+  AppPreferencesModal,
+  HelpSupportModal,
+} from "../../../src/components/profile/ProfileModals";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const [editVisible, setEditVisible] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [prefVisible, setPrefVisible] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
+
+  const displayName = user?.name || `Customer ${user?.phoneNumber?.slice(-4) || "User"}`;
+
   const handleLogout = () => {
-    logout();
-    router.replace("/(auth)/login");
+    Alert.alert(
+      "Confirm Sign Out",
+      "Are you sure you want to sign out of Inisha City Service?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: () => {
+            logout();
+            router.replace("/(auth)/login");
+          },
+        },
+      ]
+    );
   };
 
   const handleSwitchToPartner = () => {
@@ -39,10 +68,15 @@ export default function ProfileScreen() {
       {/* User Header Profile Card */}
       <View style={styles.profileCard}>
         <BrandLogo size="md" showText={false} />
-        <Text style={styles.userName}>{user?.name || "Customer Account"}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.userName}>{displayName}</Text>
+          <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.editIconBtn}>
+            <Edit3 size={16} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
         <View style={styles.phonePill}>
           <Phone size={13} color="#64748b" />
-          <Text style={styles.userPhone}>{user?.phoneNumber || "+91 9876543210"}</Text>
+          <Text style={styles.userPhone}>{user?.phoneNumber || "+91 78570 23438"}</Text>
         </View>
         <View style={styles.customerBadge}>
           <Sparkles size={13} color="#ef4444" />
@@ -70,7 +104,7 @@ export default function ProfileScreen() {
 
       {/* Menu Settings Card */}
       <View style={styles.menuCard}>
-        <TouchableOpacity activeOpacity={0.7} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setNotifVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
               <Bell size={18} color="#ef4444" />
@@ -80,7 +114,7 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setPrivacyVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <Shield size={18} color="#475569" />
@@ -90,7 +124,7 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setPrefVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <Settings size={18} color="#475569" />
@@ -100,7 +134,7 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setHelpVisible(true)} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <HelpCircle size={18} color="#475569" />
@@ -120,6 +154,13 @@ export default function ProfileScreen() {
         <LogOut size={18} color="#ef4444" />
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
+      {/* Interactive Modals */}
+      <EditProfileModal visible={editVisible} onClose={() => setEditVisible(false)} />
+      <NotificationsModal visible={notifVisible} onClose={() => setNotifVisible(false)} />
+      <PrivacySecurityModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
+      <AppPreferencesModal visible={prefVisible} onClose={() => setPrefVisible(false)} />
+      <HelpSupportModal visible={helpVisible} onClose={() => setHelpVisible(false)} />
     </ScrollView>
   );
 }
@@ -144,11 +185,21 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
   userName: {
     fontSize: 22,
     fontWeight: "900",
     color: "#0f172a",
-    marginTop: 12,
+  },
+  editIconBtn: {
+    marginLeft: 8,
+    padding: 6,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
   },
   phonePill: {
     flexDirection: "row",

@@ -1,14 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { Wallet, ArrowDownRight, ArrowUpRight, TrendingUp, Building2, ShieldCheck } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import WithdrawModal from "../../../src/components/wallet/WithdrawModal";
 
 export default function ProviderWalletScreen() {
   const insets = useSafeAreaInsets();
   const { providerProfile } = useAuthStore();
+  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
+
   const balance = providerProfile?.walletBalance ?? 3450;
+
+  const handleWithdrawSuccess = (amt: number) => {
+    setWithdrawalHistory((prev) => [
+      {
+        id: "WTH_" + Date.now(),
+        title: "Bank Withdrawal Settlement",
+        sub: "IMPS Instant Transfer • In Progress",
+        amount: amt,
+      },
+      ...prev,
+    ]);
+  };
 
   return (
     <ScrollView
@@ -33,7 +49,11 @@ export default function ProviderWalletScreen() {
           </View>
         </View>
         <Text style={styles.heroValue}>₹{balance.toFixed(2)}</Text>
-        <TouchableOpacity activeOpacity={0.85} style={styles.withdrawBtn}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setWithdrawModalVisible(true)}
+          style={styles.withdrawBtn}
+        >
           <Building2 size={18} color="#ef4444" style={{ marginRight: 6 }} />
           <Text style={styles.withdrawText}>Request Instant Bank Transfer</Text>
         </TouchableOpacity>
@@ -57,6 +77,21 @@ export default function ProviderWalletScreen() {
       {/* History */}
       <Text style={styles.sectionTitle}>Earnings History</Text>
       <View style={styles.txList}>
+        {withdrawalHistory.map((item) => (
+          <View key={item.id} style={styles.txCard}>
+            <View style={styles.txLeft}>
+              <View style={[styles.txIconBox, { backgroundColor: "#fef2f2" }]}>
+                <ArrowUpRight size={20} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.txTitle}>{item.title}</Text>
+                <Text style={styles.txSub}>{item.sub}</Text>
+              </View>
+            </View>
+            <Text style={styles.txDebit}>-₹{item.amount.toFixed(2)}</Text>
+          </View>
+        ))}
+
         <View style={styles.txCard}>
           <View style={styles.txLeft}>
             <View style={[styles.txIconBox, { backgroundColor: "#f0fdf4" }]}>
@@ -83,6 +118,13 @@ export default function ProviderWalletScreen() {
           <Text style={styles.txDebit}>-₹1,000.00</Text>
         </View>
       </View>
+
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        visible={withdrawModalVisible}
+        onClose={() => setWithdrawModalVisible(false)}
+        onSuccess={handleWithdrawSuccess}
+      />
     </ScrollView>
   );
 }

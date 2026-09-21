@@ -21,6 +21,7 @@
     "mobile:android": "npm run android --workspace=apps/mobile",
     "mobile:ios": "npm run ios --workspace=apps/mobile",
     "mobile:web": "npm run web --workspace=apps/mobile",
+    "mobile:build:apk": "npx eas-cli build --platform android --profile preview",
     "postinstall": "node scripts/patch-hermes-private-props.js"
   }
 }

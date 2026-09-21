@@ -49,6 +49,14 @@
         }
       ]
     ],
-    "scheme": "inishacityservice"
+    "scheme": "inishacityservice",
+    "extra": {
+      "router": {
+        "origin": "https://inishacityservice.com"
+      },
+      "eas": {
+        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
+      }
+    }
   }
 }

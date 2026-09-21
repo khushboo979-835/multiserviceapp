@@ -1,0 +1,17 @@
+# Monorepo EAS Ignore Configuration
+node_modules
+.expo
+.next
+apps/admin/.next
+apps/admin/out
+apps/backend/dist
+apps/backend/build
+dist
+build
+web-build
+.git
+.pnp
+.pnp.js
+*.tsbuildinfo
+logs
+*.log

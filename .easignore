@@ -1,0 +1,11 @@
+node_modules
+.expo
+dist
+build
+.next
+apps/admin/.next
+apps/admin/out
+apps/backend/dist
+apps/backend/build
+.git
+*.log

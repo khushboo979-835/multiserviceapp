@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "INISHA CITY SERVICE",
-    "slug": "multi-service-app",
+    "slug": "inisha-city-service",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.inishacity.service",
+      "package": "com.inishacityservice.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -55,7 +55,7 @@
         "origin": "https://inishacityservice.com"
       },
       "eas": {
-        "projectId": "0c17c63c-e812-465e-8cf6-9f1debcfb5e9"
+        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
       }
     }
   }

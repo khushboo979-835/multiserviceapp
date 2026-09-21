@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://10.88.242.61:5000/api";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
 export interface UpiIntentResponse {
   success: boolean;

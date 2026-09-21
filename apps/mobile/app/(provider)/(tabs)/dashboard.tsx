@@ -30,6 +30,8 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 
+import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
+
 export default function ProviderDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -45,7 +47,7 @@ export default function ProviderDashboardScreen() {
 
   const triggerIncomingOrder = () => {
     try {
-      Vibration.vibrate([0, 250, 150, 250]);
+      Vibration.vibrate([0, 400, 200, 400, 200, 600]);
     } catch {}
 
     const mockRequest: Partial<Booking> = {
@@ -76,6 +78,13 @@ export default function ProviderDashboardScreen() {
       scheduledDate: new Date().toISOString().split("T")[0],
       scheduledTime: "Immediate Doorstep Visit",
     };
+
+    // Send high-priority sound / ringtone alert
+    sendNewJobDispatchNotification(
+      mockRequest.id || "NEW",
+      "Doorstep Mobile Screen Repair",
+      mockRequest.pricing?.providerEarnings || 1699
+    ).catch(() => {});
 
     setIncomingBooking(mockRequest);
     setCountdown(30);

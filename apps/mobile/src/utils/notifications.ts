@@ -14,6 +14,33 @@ Notifications.setNotificationHandler({
 });
 
 /**
+ * Setup High Priority Dispatch Notification Channel for Android
+ */
+export async function setupNotificationChannels() {
+  if (Platform.OS === "android") {
+    // 1. High Priority Job Dispatch Alert Channel (with sound & loud vibration)
+    await Notifications.setNotificationChannelAsync("job_dispatches", {
+      name: "New Job Dispatch Alerts",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      lightColor: "#ef4444",
+      sound: "default",
+      enableVibrate: true,
+      showBadge: true,
+    });
+
+    // 2. Default Service Status Channel
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Service & Booking Updates",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#ef4444",
+      sound: "default",
+    });
+  }
+}
+
+/**
  * Request user permission and return the Expo Push Notification Token
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
@@ -22,6 +49,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   if (Platform.OS === "web") {
     return null;
   }
+
+  await setupNotificationChannels();
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -40,7 +69,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
       Constants.easConfig?.projectId;
-      
+
     token = (
       await Notifications.getExpoPushTokenAsync({
         projectId,
@@ -48,16 +77,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     ).data;
     console.log("Expo Push Token obtained successfully:", token);
   } catch (error) {
-    console.error("Failed to fetch Expo push token:", error);
-  }
-
-  if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
-      name: "default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#8b5cf6",
-    });
+    console.warn("Notice fetching Expo push token (requires EAS build in production):", error);
   }
 
   return token;
@@ -69,7 +89,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 export async function triggerLocalNotification(
   title: string,
   body: string,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
+  channelId: string = "default"
 ) {
   await Notifications.scheduleNotificationAsync({
     content: {
@@ -77,9 +98,26 @@ export async function triggerLocalNotification(
       body,
       data,
       sound: true,
+      ...(Platform.OS === "android" ? { channelId } : {}),
     },
     trigger: null, // trigger immediately
   });
+}
+
+/**
+ * Partner New Job Dispatch Alert (High-priority audio ringtone alert)
+ */
+export async function sendNewJobDispatchNotification(
+  bookingId: string,
+  serviceTitle: string,
+  amount: number
+) {
+  await triggerLocalNotification(
+    "🚨 NEW JOB DISPATCHED - TAP TO ACCEPT!",
+    `Order #${bookingId?.slice(-6) || "NEW"}: ${serviceTitle} • Payout: ₹${amount}. Customer waiting for doorstep confirmation!`,
+    { bookingId, event: "NEW_JOB_DISPATCH" },
+    "job_dispatches"
+  );
 }
 
 /**
@@ -118,7 +156,7 @@ export async function sendServiceCompletedNotification(
 export async function sendReceiptNotification(bookingId: string, amount: number) {
   await triggerLocalNotification(
     "Invoiced Receipt Generated 🧾",
-    `Tax invoice copy for booking #${bookingId} is available. Amount Paid: ₹${amount}. Thank you for using Multi-Service Hub!`,
+    `Tax invoice copy for booking #${bookingId} is available. Amount Paid: ₹${amount}. Thank you for using Inisha City Service!`,
     { bookingId, event: "RECEIPT_GENERATED" }
   );
 }

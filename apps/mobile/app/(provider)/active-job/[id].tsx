@@ -79,7 +79,7 @@ export default function ProviderActiveJobScreen() {
             // Broadcast telemetry to backend
             try {
               const API_URL =
-                process.env.EXPO_PUBLIC_API_URL || "http://10.88.242.61:5000/api";
+                process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
               await fetch(`${API_URL}/bookings/${id}/telemetry`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

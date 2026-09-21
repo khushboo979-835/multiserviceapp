@@ -120,7 +120,7 @@ export default function VerifyOtpScreen() {
 
     const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
     const formattedE164 = fullPhone || `+91${cleanPhone}`;
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://10.88.242.61:5000/api";
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
     try {
       const confirmationResult = getConfirmationResult();
@@ -253,7 +253,7 @@ export default function VerifyOtpScreen() {
 
       try {
         const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://10.88.242.61:5000/api";
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
         const res = await fetch(`${API_URL}/auth/customer/send-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

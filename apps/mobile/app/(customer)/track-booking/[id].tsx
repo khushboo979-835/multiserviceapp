@@ -47,7 +47,7 @@ export default function TrackBookingScreen() {
 
     let socketClient: Socket | null = null;
     try {
-      const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "http://10.88.242.61:5000";
+      const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
       socketClient = io(socketUrl, {
         transports: ["websocket"],
         autoConnect: true,

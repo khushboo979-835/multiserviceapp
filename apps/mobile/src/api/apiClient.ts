@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "../store/useAuthStore";
 
 // EXPO_PUBLIC_API_URL is automatically loaded by Expo in SDK 49+ from .env
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
 export const apiClient = axios.create({
   baseURL: API_URL,

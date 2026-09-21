@@ -38,10 +38,10 @@ export default function Index() {
   useEffect(() => {
     if (!isInitialized) return;
 
-    // Fast 500ms splash intro
+    // 1000ms branded splash intro displaying Inisha City logo
     navigationTimeoutRef.current = setTimeout(() => {
       performNavigation();
-    }, 500);
+    }, 1000);
 
     return () => {
       if (navigationTimeoutRef.current) clearTimeout(navigationTimeoutRef.current);

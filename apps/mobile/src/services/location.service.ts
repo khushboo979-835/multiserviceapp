@@ -1,4 +1,4 @@
-﻿import * as Location from "expo-location";
+import * as Location from "expo-location";
 import { GeoLocation } from "../types";
 
 export interface UserAddressDetails {
@@ -143,6 +143,102 @@ export class LocationService {
   }
 
   /**
+   * Geocodes an address string query into GPS coordinates and formatted details
+   */
+  public static async geocodeAddress(query: string): Promise<UserAddressDetails> {
+    const clean = query.trim();
+    if (!clean) {
+      return this.getFallbackLocation();
+    }
+
+    try {
+      const geocodeResults = await Location.geocodeAsync(clean);
+      if (geocodeResults && geocodeResults.length > 0) {
+        const { latitude, longitude } = geocodeResults[0];
+
+        let formattedAddress = clean;
+        let city = clean;
+        let district = "";
+        let region = "India";
+        let postalCode = "";
+        let landmark = clean;
+
+        try {
+          const reverseResults = await Location.reverseGeocodeAsync({
+            latitude,
+            longitude,
+          });
+
+          if (reverseResults && reverseResults.length > 0) {
+            const res = reverseResults[0];
+            const parts = [
+              res.name,
+              res.street,
+              res.district || res.subregion,
+              res.city,
+              res.region,
+              res.postalCode,
+            ].filter(Boolean);
+
+            if (parts.length > 0) {
+              formattedAddress = parts.join(", ");
+            }
+            city = res.city || res.subregion || clean;
+            district = res.district || res.subregion || "";
+            region = res.region || "India";
+            postalCode = res.postalCode || "";
+            landmark = res.name || res.street || clean;
+          }
+        } catch {
+          // Keep query as formatted address
+        }
+
+        return {
+          formattedAddress,
+          latitude,
+          longitude,
+          city,
+          district,
+          region,
+          postalCode,
+          landmark,
+        };
+      }
+    } catch (err) {
+      console.warn("Geocode query error:", err);
+    }
+
+    // Default coordinate offset based on query
+    return {
+      formattedAddress: clean,
+      latitude: 25.5941,
+      longitude: 85.1376,
+      city: clean,
+      landmark: clean,
+      district: "",
+      region: "India",
+      postalCode: "",
+    };
+  }
+
+  /**
+   * Popular serviceable cities
+   */
+  public static getPopularCities(): { name: string; state: string; lat: number; lng: number }[] {
+    return [
+      { name: "Patna", state: "Bihar", lat: 25.5941, lng: 85.1376 },
+      { name: "Delhi NCR", state: "Delhi", lat: 28.6139, lng: 77.209 },
+      { name: "Gurugram", state: "Haryana", lat: 28.4595, lng: 77.0266 },
+      { name: "Noida", state: "Uttar Pradesh", lat: 28.5355, lng: 77.391 },
+      { name: "Lucknow", state: "Uttar Pradesh", lat: 26.8467, lng: 80.9462 },
+      { name: "Bangalore", state: "Karnataka", lat: 12.9716, lng: 77.5946 },
+      { name: "Mumbai", state: "Maharashtra", lat: 19.076, lng: 72.8777 },
+      { name: "Hyderabad", state: "Telangana", lat: 17.385, lng: 78.4867 },
+      { name: "Pune", state: "Maharashtra", lat: 18.5204, lng: 73.8567 },
+    ];
+  }
+
+  /**
    * Calculates heading / bearing angle in degrees between two GPS points
    */
   public static calculateBearing(
@@ -161,3 +257,5 @@ export class LocationService {
     return (brng + 360) % 360;
   }
 }
+
+

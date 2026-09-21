@@ -211,22 +211,18 @@ export default function ProviderDashboardScreen() {
           </View>
         </View>
 
-        {/* Live Incoming Order Simulation Banner (Ola / Uber Style) */}
+        {/* Live Incoming Order Status Banner */}
         {isAvailable && !activeBooking && (
-          <TouchableOpacity
-            onPress={triggerIncomingOrder}
-            style={styles.incomingRequestBanner}
-            activeOpacity={0.85}
-          >
+          <View style={styles.incomingRequestBanner}>
             <View style={styles.radarIconBox}>
               <BellRing size={20} color="#ffffff" />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.radarTitle}>Live Dispatch Radar Active</Text>
-              <Text style={styles.radarSubtitle}>Tap to test incoming customer order popup</Text>
+              <Text style={styles.radarSubtitle}>Listening for doorstep customer service requests in your area</Text>
             </View>
-            <Zap size={18} color="#f59e0b" />
-          </TouchableOpacity>
+            <Zap size={18} color="#22c55e" />
+          </View>
         )}
 
         {/* Dashboard Stat Cards Grid */}
@@ -236,8 +232,8 @@ export default function ProviderDashboardScreen() {
             <View style={styles.statIconBox}>
               <Wallet size={22} color="#ef4444" />
             </View>
-            <Text style={styles.statLabel}>TODAY'S EARNINGS</Text>
-            <Text style={styles.statValue}>₹3,450</Text>
+            <Text style={styles.statLabel}>WALLET BALANCE</Text>
+            <Text style={styles.statValue}>₹{providerProfile?.walletBalance ?? 0}</Text>
           </View>
 
           {/* Jobs Card */}
@@ -246,7 +242,9 @@ export default function ProviderDashboardScreen() {
               <Briefcase size={22} color="#ef4444" />
             </View>
             <Text style={styles.statLabel}>JOBS COMPLETED</Text>
-            <Text style={styles.statValue}>12 Orders</Text>
+            <Text style={styles.statValue}>
+              {bookingHistory.filter((b) => b.status === "COMPLETED").length} Orders
+            </Text>
           </View>
         </View>
 
@@ -258,7 +256,9 @@ export default function ProviderDashboardScreen() {
             </View>
             <View>
               <Text style={styles.statLabel}>RATING & REVIEWS</Text>
-              <Text style={styles.ratingValue}>4.90 ★ (28 Reviews)</Text>
+              <Text style={styles.ratingValue}>
+                {providerProfile?.averageRating ? `${providerProfile.averageRating.toFixed(2)} ★` : "5.00 ★"} ({providerProfile?.reviewCount ?? 0} Reviews)
+              </Text>
             </View>
           </View>
         </View>
@@ -289,23 +289,29 @@ export default function ProviderDashboardScreen() {
             </View>
 
             <Text style={styles.incomingSub}>⚡ NEW LIVE SERVICE REQUEST</Text>
-            <Text style={styles.incomingTitle}>Doorstep Mobile Screen Repair</Text>
+            <Text style={styles.incomingTitle}>
+              {(incomingBooking as any)?.serviceName || incomingBooking?.formValues?.service_type || "Doorstep Service Request"}
+            </Text>
 
             {/* Address & Distance metadata */}
             <View style={styles.requestDetailsBox}>
               <View style={styles.detailRow}>
                 <MapPin size={18} color="#ef4444" />
                 <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={styles.detailLabel}>PICKUP LOCATION • 1.8 KM (5 MIN DRIVE)</Text>
-                  <Text style={styles.detailValue}>{incomingBooking?.selectedAddress?.formattedAddress}</Text>
+                  <Text style={styles.detailLabel}>CUSTOMER LOCATION</Text>
+                  <Text style={styles.detailValue}>
+                    {incomingBooking?.selectedAddress?.formattedAddress || "Customer Address • Inisha City Service"}
+                  </Text>
                 </View>
               </View>
 
               <View style={[styles.detailRow, { borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 10, marginTop: 10 }]}>
                 <Wrench size={18} color="#ef4444" />
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.detailLabel}>SERVICE REQUIREMENT</Text>
-                  <Text style={styles.detailValue}>iPhone 13 (Screen Replacement)</Text>
+                  <Text style={styles.detailLabel}>CUSTOMER DETAILS</Text>
+                  <Text style={styles.detailValue}>
+                    {incomingBooking?.customerName || "Verified Customer"} ({incomingBooking?.customerPhone || "+91 Customer"})
+                  </Text>
                 </View>
               </View>
             </View>
@@ -316,7 +322,7 @@ export default function ProviderDashboardScreen() {
                 <Text style={styles.payoutLabel}>GUARANTEED EARNINGS</Text>
                 <Text style={styles.payoutSub}>Credited immediately to partner wallet</Text>
               </View>
-              <Text style={styles.payoutAmount}>₹{incomingBooking?.pricing?.providerEarnings || 1699}</Text>
+              <Text style={styles.payoutAmount}>₹{incomingBooking?.pricing?.providerEarnings || 899}</Text>
             </View>
 
             {/* Accept / Decline Action Buttons */}

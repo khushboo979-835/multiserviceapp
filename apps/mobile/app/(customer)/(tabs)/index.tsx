@@ -19,6 +19,8 @@ import { Category, Subcategory, Booking, BookingStatus } from "../../../src/type
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
+import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
+import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
 import {
   Smartphone,
   Scissors,
@@ -71,10 +73,12 @@ export default function CustomerHomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [liveLocation, setLiveLocation] = useState<UserAddressDetails | null>(null);
   const [detectingGps, setDetectingGps] = useState(false);
+
 
   // Fetch real device GPS coordinates on mount
   useEffect(() => {
@@ -122,25 +126,23 @@ export default function CustomerHomeScreen() {
   const handleFormSubmit = async (formValues: Record<string, any>) => {
     setBookingLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       const newBookingId = `bk_${Math.floor(100000 + Math.random() * 900000)}`;
       const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
       const defaultAddr = liveLocation || LocationService.getFallbackLocation();
 
       const newBooking: Booking = {
         id: newBookingId,
-        customerId: user?.id || "usr_mock123",
-        customerName: user?.name || "Customer",
-        customerPhone: user?.phoneNumber || "+919876543210",
-        categoryId: draftBooking?.categoryId || "",
-        subcategoryId: draftBooking?.subcategoryId || "",
+        customerId: user?.id || "usr_customer_live",
+        customerName: user?.name || "Verified Customer",
+        customerPhone: user?.phoneNumber || "+91 78570 23438",
+        categoryId: draftBooking?.categoryId || selectedCategory?.id || "cat_repair",
+        subcategoryId: draftBooking?.subcategoryId || selectedSubcategory?.id || "sub_doorstep",
         formValues: formValues,
         selectedAddress: formValues.service_address || {
           formattedAddress: defaultAddr.formattedAddress,
           latitude: defaultAddr.latitude,
           longitude: defaultAddr.longitude,
-          landmark: defaultAddr.landmark,
+          landmark: defaultAddr.landmark || defaultAddr.city,
         },
         status: "PENDING_PROVIDER",
         otp: generatedOtp,
@@ -157,13 +159,40 @@ export default function CustomerHomeScreen() {
         },
         timeline: [
           { status: "DRAFT", timestamp: new Date().toISOString(), note: "Booking Created" },
-          { status: "PENDING_PROVIDER", timestamp: new Date().toISOString(), note: "Searching for nearby service partner" },
+          { status: "PENDING_PROVIDER", timestamp: new Date().toISOString(), note: "Broadcasting request to nearby technicians" },
         ],
         scheduledDate: formValues.preferred_date || new Date().toISOString().split("T")[0],
-        scheduledTime: formValues.preferred_time || "10:00 AM - 12:00 PM",
+        scheduledTime: formValues.preferred_time || "Immediate Doorstep Visit",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      // Real-time backend API dispatch
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+      fetch(`${API_URL}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBooking),
+      }).catch((apiErr) => console.warn("Backend booking dispatch sync:", apiErr));
+
+      // Real-time socket broadcast to online partners
+      try {
+        const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
+        const io = require("socket.io-client").io;
+        const socket = io(socketUrl, { transports: ["websocket"], autoConnect: true });
+        socket.emit("booking:create", newBooking);
+        socket.emit("job:dispatch", {
+          ...newBooking,
+          serviceName: selectedSubcategory?.name || "Doorstep Service",
+        });
+      } catch {}
+
+      // Ring sound / alert notification
+      sendNewJobDispatchNotification(
+        newBooking.id,
+        selectedSubcategory?.name || "Doorstep Service",
+        newBooking.pricing.providerEarnings
+      ).catch(() => {});
 
       setActiveBooking(newBooking);
       addBookingToHistory(newBooking);
@@ -225,9 +254,9 @@ export default function CustomerHomeScreen() {
             <View style={styles.brandTitleContainer}>
               <Text style={styles.brandTitleText}>INISHA CITY SERVICE</Text>
               <TouchableOpacity
-                onPress={fetchLiveGps}
-                disabled={detectingGps}
+                onPress={() => setIsLocationModalOpen(true)}
                 style={styles.locationPill}
+                activeOpacity={0.7}
               >
                 {detectingGps ? (
                   <ActivityIndicator size="small" color="#ef4444" style={{ marginRight: 4 }} />
@@ -243,13 +272,14 @@ export default function CustomerHomeScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={fetchLiveGps}
+            onPress={() => setIsLocationModalOpen(true)}
             style={styles.refreshGpsButton}
             activeOpacity={0.7}
           >
-            <RefreshCw size={16} color="#0f172a" />
+            <Compass size={18} color="#0f172a" />
           </TouchableOpacity>
         </View>
+
 
         {/* User Greeting */}
         <View style={styles.greetingSection}>
@@ -420,6 +450,14 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Interactive Location Picker Modal */}
+      <LocationPickerModal
+        visible={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        currentLocation={liveLocation}
+        onSelectLocation={(loc) => setLiveLocation(loc)}
+      />
     </View>
   );
 }

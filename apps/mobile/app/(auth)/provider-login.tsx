@@ -20,8 +20,8 @@ import BrandLogo from "../../src/components/common/BrandLogo";
 export default function ProviderLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [partnerId, setPartnerId] = useState("INP-8842");
-  const [password, setPassword] = useState("partner123");
+  const [partnerId, setPartnerId] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,11 +32,11 @@ export default function ProviderLoginScreen() {
     const cleanPass = password.trim();
 
     if (!cleanId) {
-      setError("Please enter your Partner ID or Phone");
+      setError("Please enter your Partner ID or Registered Phone");
       return;
     }
     if (!cleanPass) {
-      setError("Please enter your password");
+      setError("Please enter your secure password");
       return;
     }
 
@@ -45,30 +45,30 @@ export default function ProviderLoginScreen() {
 
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     let token = "jwt_prov_" + Date.now();
     let userObj = {
       id: "usr_prov_" + cleanId,
-      phoneNumber: "+91 78570 23438",
+      phoneNumber: cleanId.startsWith("+91") ? cleanId : "+91 " + cleanId,
       role: "PROVIDER" as const,
-      name: "Inisha Service Partner",
+      name: "Authorized Service Partner",
       email: "partner@inishacityservice.com",
-      walletBalance: 3450,
+      walletBalance: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     let providerObj = {
-      id: "prov_mock_8842",
-      userId: "usr_prov_8842",
-      partnerId: cleanId.toUpperCase() || "INP-8842",
+      id: "prov_" + cleanId,
+      userId: "usr_prov_" + cleanId,
+      partnerId: cleanId.toUpperCase(),
       servicesOffered: ["sub_mob_doorstep", "sub_utility_ac"],
       kycStatus: "APPROVED" as const,
       documents: [],
       isAvailable: true,
-      averageRating: 4.9,
-      reviewCount: 28,
-      walletBalance: 3450,
+      averageRating: 5.0,
+      reviewCount: 0,
+      walletBalance: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -94,37 +94,22 @@ export default function ProviderLoginScreen() {
             ...providerObj,
             id: data.provider.id,
             partnerId: data.provider.partnerId,
-            averageRating: data.provider.rating || 4.9,
-            reviewCount: data.provider.reviewCount || 28,
-            walletBalance: data.provider.walletBalance || 3450,
+            averageRating: data.provider.rating || 5.0,
+            reviewCount: data.provider.reviewCount || 0,
+            walletBalance: data.provider.walletBalance || 0,
           };
         }
       } else {
-        // Check test credentials
-        if (
-          (cleanId.toUpperCase() === "INP-8842" || cleanId === "9812345678" || cleanId === "partner") &&
-          (cleanPass === "partner123" || cleanPass === "Inisha@2026")
-        ) {
-          // Allow demo login
-        } else {
-          setError(data.message || "Invalid Partner credentials. Contact administration.");
-          setLoading(false);
-          return;
-        }
-      }
-    } catch {
-      clearTimeout(timeoutId);
-      // Offline fallback for test partner
-      if (
-        (cleanId.toUpperCase() === "INP-8842" || cleanId === "9812345678" || cleanId === "partner") &&
-        (cleanPass === "partner123" || cleanPass === "Inisha@2026")
-      ) {
-        // Proceed with demo profile
-      } else {
-        setError("Network error. Verify server is running or use demo credentials.");
+        setError(data.message || "Invalid Partner credentials. Contact administration.");
         setLoading(false);
         return;
       }
+    } catch {
+      clearTimeout(timeoutId);
+      // If offline / network error occurs, show clear message
+      setError("Network timeout. Please check your internet connection.");
+      setLoading(false);
+      return;
     }
 
     try {
@@ -259,14 +244,6 @@ export default function ProviderLoginScreen() {
                 </>
               )}
             </TouchableOpacity>
-
-            {/* Demo Credentials Box */}
-            <View style={styles.demoBox}>
-              <Text style={styles.demoTitle}>💡 Demo Partner Credentials:</Text>
-              <Text style={styles.demoText}>
-                Partner ID: <Text style={styles.demoBold}>INP-8842</Text>  |  Password: <Text style={styles.demoBold}>partner123</Text>
-              </Text>
-            </View>
 
             {/* Customer Login Return */}
             <View style={styles.switchBox}>

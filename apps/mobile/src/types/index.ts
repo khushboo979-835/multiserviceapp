@@ -261,3 +261,124 @@ export interface SocketEventPayloads {
     timestamp: string;
   };
 }
+
+export type ProductTypeCategory =
+  | "MOBILE_PHONES"
+  | "MOBILE_ACCESSORIES"
+  | "GROCERY"
+  | "HOME_NEEDS"
+  | "ELECTRONICS";
+
+export interface Product {
+  id: string;
+  name: string;
+  category: ProductTypeCategory;
+  categoryName: string;
+  description: string;
+  price: number;
+  originalPrice: number;
+  discountPercentage: number;
+  unit: string;
+  imageUrl: string;
+  inStock: boolean;
+  rating: number;
+  deliveryTimeMins: number;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
+export interface Coupon {
+  code: string;
+  discountType: "PERCENTAGE" | "FLAT";
+  discountValue: number;
+  minOrderValue: number;
+  maxDiscount?: number;
+  description: string;
+  expiresAt: string;
+}
+
+export interface AIChatMessage {
+  id: string;
+  sender: "user" | "ai";
+  text: string;
+  timestamp: string;
+  actionPayload?: {
+    type: "OPEN_SERVICE" | "OPEN_PRODUCT" | "APPLY_COUPON";
+    targetId: string;
+    title: string;
+  };
+}
+
+export interface GSTInvoice {
+  invoiceNumber: string;
+  invoiceDate: string;
+  companyName: string;
+  companyGstin: string;
+  customerName: string;
+  customerPhone: string;
+  serviceAddress: string;
+  serviceName: string;
+  hsnSacCode: string;
+  basePrice: number;
+  cgstAmount: number; // 9%
+  sgstAmount: number; // 9%
+  convenienceFee: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  providerId: string;
+  providerName: string;
+  amount: number;
+  payoutMethod: "UPI" | "BANK_TRANSFER";
+  upiId?: string;
+  bankAccount?: {
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+    accountHolder: string;
+  };
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: string;
+  processedAt?: string;
+}
+
+export interface FranchiseCity {
+  id: string;
+  cityName: string;
+  state: string;
+  isActive: boolean;
+  managerName: string;
+  managerPhone: string;
+  totalProviders: number;
+  monthlyGmv: number;
+}
+
+export interface DisputeTicket {
+  id: string;
+  bookingId: string;
+  customerId: string;
+  customerName: string;
+  providerId?: string;
+  issueType: "POOR_SERVICE" | "OVERCHARGED" | "NO_SHOW" | "DAMAGED_ITEM" | "OTHER";
+  description: string;
+  status: "OPEN" | "INVESTIGATING" | "REFUNDED" | "RESOLVED";
+  refundAmount?: number;
+  createdAt: string;
+}
+
+export interface AttendanceRecord {
+  date: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  totalHours: number;
+  status: "PRESENT" | "HALF_DAY" | "ABSENT";
+}
+

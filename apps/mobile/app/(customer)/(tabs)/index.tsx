@@ -9,18 +9,28 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Linking,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
-import { MOCK_CATEGORIES } from "../../../src/constants/mockData";
+import { MOCK_CATEGORIES, MOCK_COUPONS } from "../../../src/constants/mockData";
 import { Category, Subcategory, Booking, BookingStatus } from "../../../src/types";
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
 import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
+import AIChatSupportModal from "../../../src/components/common/AIChatSupportModal";
+import VoiceBookingModal from "../../../src/components/common/VoiceBookingModal";
+import ProductCatalogModal from "../../../src/components/ecommerce/ProductCatalogModal";
+import GSTInvoiceModal from "../../../src/components/booking/GSTInvoiceModal";
+import RatingReviewModal from "../../../src/components/booking/RatingReviewModal";
+import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
+import CallSimulationModal from "../../../src/components/common/CallSimulationModal";
+import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
 import {
   Smartphone,
   Scissors,
@@ -48,6 +58,16 @@ import {
   Disc,
   Snowflake,
   Bug,
+  Mic,
+  Bot,
+  ShoppingBag,
+  FileText,
+  Phone,
+  Video,
+  Globe,
+  Tag,
+  ShieldAlert,
+  MessageCircle,
 } from "lucide-react-native";
 
 const getCategoryIcon = (iconName: string, color: string, size: number) => {
@@ -143,6 +163,21 @@ export default function CustomerHomeScreen() {
   const [liveLocation, setLiveLocation] = useState<UserAddressDetails | null>(null);
   const [detectingGps, setDetectingGps] = useState(false);
 
+  // New Feature Modals
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [isLangCityOpen, setIsLangCityOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isCallOpen, setIsCallOpen] = useState(false);
+  const [callType, setCallType] = useState<"AUDIO" | "VIDEO">("AUDIO");
+
+  // Preferences State
+  const [selectedCity, setSelectedCity] = useState("Patna");
+  const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
+
   // Fetch dynamic categories from backend API with fallback
   useEffect(() => {
     const fetchCategories = async () => {
@@ -180,7 +215,7 @@ export default function CustomerHomeScreen() {
   };
 
   const userLocationText = liveLocation
-    ? `${liveLocation.landmark ? `${liveLocation.landmark}, ` : ""}${liveLocation.city || "Patna, Bihar"}`
+    ? `${liveLocation.landmark ? `${liveLocation.landmark}, ` : ""}${liveLocation.city || selectedCity || "Patna, Bihar"}`
     : "Detecting Location...";
 
   const filteredCategories = useMemo(() => {
@@ -193,7 +228,7 @@ export default function CustomerHomeScreen() {
 
   const handleCategoryPress = (category: Category) => {
     setSelectedCategory(category);
-    if (category.subcategories.length === 1) {
+    if (category.subcategories.length >= 1) {
       handleSubcategoryPress(category.subcategories[0]);
     }
   };
@@ -299,6 +334,15 @@ export default function CustomerHomeScreen() {
     setSelectedSubcategory(null);
   };
 
+  const openWhatsAppSupport = () => {
+    const message = encodeURIComponent(
+      "Hello Inisha City Service Team! I need doorstep service assistance."
+    );
+    Linking.openURL(`https://wa.me/917857023438?text=${message}`).catch(() => {
+      Alert.alert("WhatsApp Support", "Reach us at +91 78570 23438 on WhatsApp.");
+    });
+  };
+
   const getStatusText = (status: BookingStatus) => {
     switch (status) {
       case "PENDING_PROVIDER":
@@ -323,7 +367,7 @@ export default function CustomerHomeScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 10,
+            paddingTop: insets.top + 8,
             paddingBottom: Math.max(insets.bottom, 24) + 64,
           },
         ]}
@@ -353,39 +397,99 @@ export default function CustomerHomeScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={() => setIsLocationModalOpen(true)}
-            style={styles.refreshGpsButton}
-            activeOpacity={0.7}
-          >
-            <Compass size={18} color="#0f172a" />
-          </TouchableOpacity>
+          {/* Header Action Buttons */}
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              onPress={() => setIsLangCityOpen(true)}
+              style={styles.iconCircleBtn}
+              activeOpacity={0.7}
+            >
+              <Globe size={18} color="#0f172a" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsAdminOpen(true)}
+              style={[styles.iconCircleBtn, { backgroundColor: "#fef2f2", borderColor: "#fca5a5" }]}
+              activeOpacity={0.7}
+            >
+              <ShieldAlert size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-
-        {/* User Greeting */}
+        {/* User Greeting & Switcher */}
         <View style={styles.greetingSection}>
           <Text style={styles.greetingTitle}>
             Hi, {user?.name || "Customer"} 👋
           </Text>
           <Text style={styles.greetingSubtitle}>
-            What service do you need today?
+            Certified doorstep repair, salon & instant delivery in 30 mins.
           </Text>
         </View>
 
-        {/* Search Bar */}
+        {/* Services vs Store Primary Tab Bar */}
+        <View style={styles.primaryTabsRow}>
+          <TouchableOpacity
+            style={[styles.primaryTabBtn, styles.primaryTabBtnActive]}
+            activeOpacity={0.85}
+          >
+            <Sparkles size={16} color="#ffffff" />
+            <Text style={styles.primaryTabBtnTextActive}>15 Doorstep Services</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setIsStoreOpen(true)}
+            style={styles.primaryTabBtn}
+            activeOpacity={0.85}
+          >
+            <ShoppingBag size={16} color="#ef4444" />
+            <Text style={styles.primaryTabBtnText}>Quick Store 🛒</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Bar with Voice Mic & AI */}
         <View style={styles.searchBar}>
           <Search size={18} color="#ef4444" />
           <TextInput
-            placeholder="Search mobile repair, salon, AC, plumbing..."
+            placeholder="Search mobile repair, AC, plumber, grocery..."
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
           />
+          <TouchableOpacity
+            onPress={() => setIsVoiceOpen(true)}
+            style={styles.voiceMicBtn}
+            activeOpacity={0.7}
+          >
+            <Mic size={18} color="#ffffff" />
+          </TouchableOpacity>
         </View>
 
-        {/* Active Booking Floating Card */}
+        {/* AI Assistant Banner */}
+        <TouchableOpacity
+          onPress={() => setIsAIChatOpen(true)}
+          style={styles.aiAssistantBanner}
+          activeOpacity={0.85}
+        >
+          <View style={styles.aiBadgeBox}>
+            <Bot size={20} color="#ffffff" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={styles.aiBannerTitle}>Inisha AI Assistant ⚡</Text>
+              <View style={styles.aiLivePill}>
+                <Text style={styles.aiLiveText}>24x7 Support</Text>
+              </View>
+            </View>
+            <Text style={styles.aiBannerSub}>
+              Ask about repair costs, diagnose phone/AC issues & get instant booking help
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#ef4444" />
+        </TouchableOpacity>
+
+        {/* Active Booking Tracker with Full Actions */}
         {activeBooking && (
           <View style={styles.activeBookingCard}>
             <View style={styles.activeBookingHeader}>
@@ -405,6 +509,47 @@ export default function CustomerHomeScreen() {
               Start OTP: <Text style={styles.otpHighlight}>{activeBooking.otp}</Text>
             </Text>
 
+            {/* Quick Action Pills: Call, Video Call, Invoice, Rate */}
+            <View style={styles.bookingQuickActionsRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  setCallType("AUDIO");
+                  setIsCallOpen(true);
+                }}
+                style={styles.quickActionPill}
+              >
+                <Phone size={14} color="#0f172a" />
+                <Text style={styles.quickActionText}>Audio Call</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setCallType("VIDEO");
+                  setIsCallOpen(true);
+                }}
+                style={styles.quickActionPill}
+              >
+                <Video size={14} color="#0f172a" />
+                <Text style={styles.quickActionText}>Video Call</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setIsInvoiceOpen(true)}
+                style={styles.quickActionPill}
+              >
+                <FileText size={14} color="#0f172a" />
+                <Text style={styles.quickActionText}>GST Invoice</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setIsRatingOpen(true)}
+                style={styles.quickActionPill}
+              >
+                <Star size={14} color="#f59e0b" fill="#f59e0b" />
+                <Text style={styles.quickActionText}>Review</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               onPress={() => {
                 router.push({
@@ -415,31 +560,21 @@ export default function CustomerHomeScreen() {
               style={styles.trackBookingButton}
               activeOpacity={0.85}
             >
-              <Text style={styles.trackBookingText}>Track Live Booking</Text>
+              <Text style={styles.trackBookingText}>Live GPS Map & Route</Text>
               <ArrowRight size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Hero Promo Banner (Urban Company Style) */}
-        <View style={styles.heroPromoBanner}>
-          <View style={styles.promoBadge}>
-            <Zap size={12} color="#ffffff" />
-            <Text style={styles.promoBadgeText}>INSTANT DOORSTEP SERVICE</Text>
-          </View>
-          <Text style={styles.promoHeading}>Professional Services in 30 Mins ⚡</Text>
-          <Text style={styles.promoSubheading}>
-            Screen repair, home salon, AC service & electricians at your doorstep with 30-day warranty.
+        {/* Promo Coupon Bar */}
+        <View style={styles.couponBannerRow}>
+          <Tag size={16} color="#ef4444" />
+          <Text style={styles.couponBannerText}>
+            Use code <Text style={{ fontWeight: "900", color: "#ef4444" }}>INISHA50</Text> for 20% OFF on all services!
           </Text>
-          <View style={styles.promoOfferRow}>
-            <View style={styles.offerTag}>
-              <Text style={styles.offerTagText}>UP TO 40% OFF</Text>
-            </View>
-            <Text style={styles.offerSubtext}>Verified & Background Checked Pros</Text>
-          </View>
         </View>
 
-        {/* Services Grid (2x2 Cards) */}
+        {/* Services Grid (All 15 Core Home & Repair Services) */}
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Explore Services</Text>
@@ -455,9 +590,11 @@ export default function CustomerHomeScreen() {
                 style={styles.categoryCard}
               >
                 <View style={styles.categoryIconBox}>
-                  {getCategoryIcon(cat.imageUrl, "#ef4444", 26)}
+                  {getCategoryIcon(cat.imageUrl, "#ef4444", 24)}
                 </View>
-                <Text style={styles.categoryName}>{cat.name}</Text>
+                <Text style={styles.categoryName} numberOfLines={1}>
+                  {cat.name}
+                </Text>
                 <Text style={styles.categoryDesc} numberOfLines={2}>
                   {cat.description}
                 </Text>
@@ -470,6 +607,24 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
         </View>
+
+        {/* WhatsApp Direct Help Banner */}
+        <TouchableOpacity
+          onPress={openWhatsAppSupport}
+          style={styles.whatsappBanner}
+          activeOpacity={0.85}
+        >
+          <View style={styles.whatsappIconBox}>
+            <MessageCircle size={22} color="#ffffff" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.whatsappTitle}>Instant WhatsApp Support 💬</Text>
+            <Text style={styles.whatsappSub}>
+              Chat directly with our Patna operations hub for custom bookings
+            </Text>
+          </View>
+          <ArrowRight size={16} color="#16a34a" />
+        </TouchableOpacity>
 
         {/* Quality Assurance Guarantees */}
         <View style={styles.guaranteeCard}>
@@ -533,12 +688,74 @@ export default function CustomerHomeScreen() {
         </View>
       </Modal>
 
-      {/* Interactive Location Picker Modal */}
+      {/* Interactive Modals */}
       <LocationPickerModal
         visible={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
         currentLocation={liveLocation}
         onSelectLocation={(loc) => setLiveLocation(loc)}
+      />
+
+      <AIChatSupportModal
+        visible={isAIChatOpen}
+        onClose={() => setIsAIChatOpen(false)}
+        onSelectService={(catId) => {
+          const found = categories.find((c) => c.id === catId);
+          if (found) handleCategoryPress(found);
+          else if (catId === "GROCERY") setIsStoreOpen(true);
+        }}
+      />
+
+      <VoiceBookingModal
+        visible={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        onServiceDetected={(catId) => {
+          const found = categories.find((c) => c.id === catId);
+          if (found) handleCategoryPress(found);
+        }}
+      />
+
+      <ProductCatalogModal
+        visible={isStoreOpen}
+        onClose={() => setIsStoreOpen(false)}
+        onOrderPlaced={() => {}}
+      />
+
+      <GSTInvoiceModal
+        visible={isInvoiceOpen}
+        onClose={() => setIsInvoiceOpen(false)}
+        booking={activeBooking}
+      />
+
+      <RatingReviewModal
+        visible={isRatingOpen}
+        onClose={() => setIsRatingOpen(false)}
+        bookingId={activeBooking?.id || "bk_demo"}
+        providerName={activeBooking?.providerName || "Verified Technician"}
+        onSubmit={() => {}}
+      />
+
+      <LanguageCitySelectorModal
+        visible={isLangCityOpen}
+        onClose={() => setIsLangCityOpen(false)}
+        selectedCity={selectedCity}
+        selectedLanguage={selectedLanguage}
+        onSelectCity={setSelectedCity}
+        onSelectLanguage={setSelectedLanguage}
+      />
+
+      <CallSimulationModal
+        visible={isCallOpen}
+        onClose={() => setIsCallOpen(false)}
+        technicianName={activeBooking?.providerName || "Verified Technician"}
+        technicianPhone={activeBooking?.providerPhone || "+91 78570 23438"}
+        callType={callType}
+      />
+
+      <InAppAdminPortalModal
+        visible={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        onAddCategory={(newCat) => setCategories([newCat, ...categories])}
       />
     </View>
   );
@@ -556,26 +773,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
   topHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
   brandTitleContainer: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
   },
   brandTitleText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
     color: "#0f172a",
     letterSpacing: -0.3,
@@ -593,30 +810,65 @@ const styles = StyleSheet.create({
     marginRight: 4,
     flexShrink: 1,
   },
-  refreshGpsButton: {
-    width: 42,
-    height: 42,
+  headerRightActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  iconCircleBtn: {
+    width: 38,
+    height: 38,
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
-    borderRadius: 21,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
   greetingSection: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   greetingTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "900",
     color: "#0f172a",
     letterSpacing: -0.5,
   },
   greetingSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#64748b",
     marginTop: 2,
+  },
+  primaryTabsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  primaryTabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    paddingVertical: 10,
+    borderRadius: 14,
+    gap: 6,
+  },
+  primaryTabBtnActive: {
+    backgroundColor: "#ef4444",
+    borderColor: "#ef4444",
+  },
+  primaryTabBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  primaryTabBtnTextActive: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#ffffff",
   },
   searchBar: {
     flexDirection: "row",
@@ -625,25 +877,72 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     borderRadius: 18,
-    paddingHorizontal: 16,
-    height: 52,
-    marginBottom: 20,
+    paddingHorizontal: 14,
+    height: 48,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#0f172a",
-    marginLeft: 10,
+    marginLeft: 8,
     padding: 0,
+  },
+  voiceMicBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiAssistantBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderWidth: 1.5,
+    borderColor: "#fca5a5",
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 14,
+  },
+  aiBadgeBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiBannerTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+  aiLivePill: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiLiveText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  aiBannerSub: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
   },
   activeBookingCard: {
     backgroundColor: "#fef2f2",
     borderWidth: 1.5,
     borderColor: "#fca5a5",
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 20,
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 14,
     shadowColor: "#ef4444",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -654,225 +953,215 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   activeBookingTitleRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   activeBookingTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     color: "#0f172a",
-    marginLeft: 8,
+    marginLeft: 6,
   },
   statusBadge: {
     backgroundColor: "#ef4444",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   statusBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#ffffff",
   },
   activeBookingId: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#0f172a",
-    marginBottom: 2,
   },
   activeBookingOtp: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#64748b",
-    marginBottom: 14,
+    marginTop: 2,
   },
   otpHighlight: {
-    fontSize: 14,
-    fontWeight: "900",
     color: "#ef4444",
+    fontWeight: "900",
+    letterSpacing: 2,
   },
-  trackBookingButton: {
-    backgroundColor: "#ef4444",
-    borderRadius: 14,
-    paddingVertical: 12,
+  bookingQuickActionsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginVertical: 10,
+  },
+  quickActionPill: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ef4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  quickActionText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  trackBookingButton: {
+    backgroundColor: "#ef4444",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
   },
   trackBookingText: {
     color: "#ffffff",
     fontSize: 13,
     fontWeight: "800",
-    marginRight: 6,
   },
-  heroPromoBanner: {
-    backgroundColor: "#0f172a",
-    borderRadius: 26,
-    padding: 22,
-    marginBottom: 24,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  promoBadge: {
+  couponBannerRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ef4444",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  promoBadgeText: {
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    marginLeft: 4,
-  },
-  promoHeading: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#ffffff",
-    marginBottom: 6,
-  },
-  promoSubheading: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#94a3b8",
-    lineHeight: 18,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 14,
+    gap: 8,
   },
-  promoOfferRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  offerTag: {
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  offerTagText: {
-    color: "#0f172a",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  offerSubtext: {
-    color: "#cbd5e1",
-    fontSize: 11,
+  couponBannerText: {
+    fontSize: 12,
+    color: "#475569",
     fontWeight: "600",
     flex: 1,
   },
   servicesSection: {
-    marginBottom: 24,
+    marginBottom: 14,
   },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "900",
     color: "#0f172a",
   },
   sectionCountText: {
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#ef4444",
   },
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 14,
+    gap: 10,
   },
   categoryCard: {
     width: cardWidth,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
-    borderRadius: 24,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 180,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    borderRadius: 18,
+    padding: 12,
   },
   categoryIconBox: {
-    width: 54,
-    height: 54,
-    backgroundColor: "#fef2f2",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
     borderWidth: 1.5,
-    borderColor: "#fecaca",
-    borderRadius: 18,
+    borderColor: "#fee2e2",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
   categoryName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "800",
     color: "#0f172a",
-    textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   categoryDesc: {
-    fontSize: 11,
-    fontWeight: "500",
+    fontSize: 10,
     color: "#64748b",
-    textAlign: "center",
-    lineHeight: 15,
-    marginBottom: 10,
+    lineHeight: 14,
+    height: 28,
   },
   categoryPricePill: {
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: "auto",
+    marginTop: 8,
+    alignSelf: "flex-start",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   categoryPriceText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
-    color: "#334155",
+    color: "#ef4444",
+  },
+  whatsappBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1.5,
+    borderColor: "#bbf7d0",
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 14,
+  },
+  whatsappIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#22c55e",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  whatsappTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+  whatsappSub: {
+    fontSize: 11,
+    color: "#16a34a",
+    marginTop: 2,
   },
   guaranteeCard: {
     backgroundColor: "#f8fafc",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#e2e8f0",
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 18,
+    padding: 14,
     marginBottom: 20,
   },
   guaranteeHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    gap: 6,
+    marginBottom: 10,
   },
   guaranteeTitle: {
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 13,
+    fontWeight: "800",
     color: "#0f172a",
-    marginLeft: 8,
   },
   guaranteePillsRow: {
     flexDirection: "row",
@@ -881,76 +1170,55 @@ const styles = StyleSheet.create({
   guaranteeItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-    flex: 1,
-    marginHorizontal: 3,
-    justifyContent: "center",
+    gap: 4,
   },
   guaranteeItemText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#334155",
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#475569",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: "90%",
-    paddingHorizontal: 22,
-    paddingTop: 14,
-    paddingBottom: 28,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
   modalDragHandle: {
-    width: 48,
+    width: 40,
     height: 5,
-    backgroundColor: "#cbd5e1",
+    backgroundColor: "#e2e8f0",
     borderRadius: 3,
     alignSelf: "center",
-    marginBottom: 14,
+    marginVertical: 10,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-    paddingBottom: 12,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "900",
     color: "#0f172a",
   },
   modalSubtitle: {
     fontSize: 12,
-    fontWeight: "600",
     color: "#64748b",
-    marginTop: 2,
   },
   modalCloseButton: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#f1f5f9",
-    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
 });
-

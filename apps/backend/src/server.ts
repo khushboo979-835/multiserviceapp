@@ -10,6 +10,7 @@ import authRouter from "./routes/auth.routes";
 import adminRouter from "./routes/admin.routes";
 import bookingRouter from "./routes/booking.routes";
 import categoryRouter from "./routes/category.routes";
+import ecommerceRouter from "./routes/ecommerce.routes";
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,7 @@ app.use("/api/payment", paymentRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/categories", categoryRouter);
+app.use("/api/ecommerce", ecommerceRouter);
 
 
 // Initialize MongoDB Atlas connection

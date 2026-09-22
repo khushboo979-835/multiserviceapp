@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore, Firestore, memoryLocalCache } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
 
 // Production Firebase Configuration for Inisha City Service
@@ -17,7 +17,18 @@ export const firebaseConfig = {
 export const app: FirebaseApp =
   getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const db: Firestore = getFirestore(app);
+// Use memory caching & auto detect long polling to eliminate unnecessary channel spam
+export const db: Firestore = (() => {
+  try {
+    return initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+      experimentalAutoDetectLongPolling: true,
+    });
+  } catch {
+    return getFirestore(app);
+  }
+})();
+
 export const auth: Auth = getAuth(app);
 
 export default app;

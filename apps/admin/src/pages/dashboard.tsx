@@ -64,7 +64,7 @@ export default function AdminDashboard() {
 
   const unsubscribersRef = useRef<Unsubscribe[]>([]);
 
-  // 1. Production Real-Time Firestore Listeners
+  // 1. Production Real-Time Firestore Listeners (Optimized single dispatch stream)
   const setupRealtimeListeners = () => {
     unsubscribersRef.current.forEach((unsub) => {
       try {
@@ -73,8 +73,13 @@ export default function AdminDashboard() {
     });
     unsubscribersRef.current = [];
 
+    // Instant Loading Safeguard
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 600);
+
     try {
-      // Listener A: Live Operations & Dispatch Feed (Latest 20 Bookings)
+      // Single live dispatch feed for bookings
       const bookingsQuery = query(
         collection(db, "bookings"),
         orderBy("createdAt", "desc"),
@@ -84,6 +89,7 @@ export default function AdminDashboard() {
       const unsubBookings = onSnapshot(
         bookingsQuery,
         (snapshot) => {
+          clearTimeout(safetyTimer);
           const liveList: LiveBooking[] = [];
           let gmvSum = 0;
           let activeCount = 0;
@@ -114,7 +120,9 @@ export default function AdminDashboard() {
             }
           });
 
-          setBookings(liveList);
+          if (liveList.length > 0) {
+            setBookings(liveList);
+          }
           setMetrics((prev) => ({
             ...prev,
             totalGMV: gmvSum > 0 ? gmvSum : prev.totalGMV,
@@ -128,59 +136,16 @@ export default function AdminDashboard() {
         },
         (error) => {
           console.warn("[Firestore Bookings Listener Notice]:", error.message);
-          fetchBackendFallbackMetrics();
+          clearTimeout(safetyTimer);
+          setLoading(false);
         }
       );
 
       unsubscribersRef.current.push(unsubBookings);
-
-      // Listener B: Registered Customers Count
-      const usersQuery = query(collection(db, "users"));
-      const unsubUsers = onSnapshot(
-        usersQuery,
-        (snapshot) => {
-          let customerCount = 0;
-          snapshot.forEach((docSnap) => {
-            const role = String(docSnap.data().role || "").toLowerCase();
-            if (role === "customer" || role === "" || !role) {
-              customerCount++;
-            }
-          });
-          setMetrics((prev) => ({ ...prev, totalCustomersCount: Math.max(customerCount, snapshot.size) }));
-        },
-        (err) => console.warn("[Firestore Users Notice]:", err.message)
-      );
-      unsubscribersRef.current.push(unsubUsers);
-
-      // Listener C: Active & Online Partners Fleet
-      const providersQuery = query(collection(db, "providers"));
-      const unsubProviders = onSnapshot(
-        providersQuery,
-        (snapshot) => {
-          let onlineCount = 0;
-          let verifiedCount = 0;
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if (data.isApproved !== false && data.kycStatus !== "REJECTED") {
-              verifiedCount++;
-              if (data.isOnline === true) {
-                onlineCount++;
-              }
-            }
-          });
-          setMetrics((prev) => ({
-            ...prev,
-            totalPartnersCount: verifiedCount || snapshot.size,
-            onlinePartnersCount: onlineCount,
-          }));
-        },
-        (err) => console.warn("[Firestore Providers Notice]:", err.message)
-      );
-      unsubscribersRef.current.push(unsubProviders);
-
     } catch (err: any) {
-      console.warn("Real-time listener setup error, switching to backend sync:", err);
-      fetchBackendFallbackMetrics();
+      console.warn("Real-time listener setup error:", err);
+      clearTimeout(safetyTimer);
+      setLoading(false);
     }
   };
 
@@ -234,7 +199,13 @@ export default function AdminDashboard() {
     setupRealtimeListeners();
     fetchBackendFallbackMetrics();
 
+    // Refresh telemetry every 30 seconds
+    const interval = setInterval(() => {
+      fetchBackendFallbackMetrics();
+    }, 30000);
+
     return () => {
+      clearInterval(interval);
       unsubscribersRef.current.forEach((unsub) => {
         try {
           unsub();
@@ -243,6 +214,7 @@ export default function AdminDashboard() {
       unsubscribersRef.current = [];
     };
   }, []);
+
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);

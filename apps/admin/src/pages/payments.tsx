@@ -182,10 +182,12 @@ export default function AdminPaymentsPage() {
   };
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 800);
     setupRealtimePayments();
     fetchBackendPayments();
 
     return () => {
+      clearTimeout(safetyTimer);
       if (unsubscriberRef.current) {
         unsubscriberRef.current();
       }

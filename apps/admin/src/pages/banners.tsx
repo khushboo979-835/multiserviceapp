@@ -127,8 +127,10 @@ export default function BannerManagementPage() {
   };
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 800);
     setupBannersListener();
     return () => {
+      clearTimeout(safetyTimer);
       if (unsubRef.current) unsubRef.current();
     };
   }, []);

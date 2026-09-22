@@ -163,7 +163,7 @@ export default function BookingsManagementPage() {
   const fetchBackendBookings = async () => {
     try {
       const res = await apiClient.get("/bookings/admin/all");
-      if (res.data?.bookings) {
+      if (res.data?.bookings && res.data.bookings.length > 0) {
         setBookings(res.data.bookings);
       }
     } catch (e) {
@@ -172,6 +172,18 @@ export default function BookingsManagementPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 800);
+    setupBookingsListener();
+    fetchBackendBookings();
+    fetchProviders();
+
+    return () => {
+      clearTimeout(safetyTimer);
+      if (unsubRef.current) unsubRef.current();
+    };
+  }, []);
 
   const fetchProviders = async () => {
     try {

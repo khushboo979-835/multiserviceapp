@@ -137,8 +137,11 @@ export default function WalletAndPayoutsPage() {
   };
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 800);
     setupPayoutsListener();
+    fetchBackendPayouts();
     return () => {
+      clearTimeout(safetyTimer);
       if (unsubRef.current) unsubRef.current();
     };
   }, []);

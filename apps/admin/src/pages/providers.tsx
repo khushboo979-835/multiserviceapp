@@ -136,10 +136,12 @@ export default function AdminProviders() {
   };
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 800);
     setupProvidersListener();
     fetchBackendFallback();
 
     return () => {
+      clearTimeout(safetyTimer);
       if (unsubscriberRef.current) {
         unsubscriberRef.current();
       }

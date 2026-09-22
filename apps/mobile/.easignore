@@ -5,10 +5,16 @@ build
 .git
 *.log
 
-# Keep the Expo project files in the EAS archive.
+# Keep essential project files in EAS archive
 !package.json
+!package-lock.json
 !app.json
 !eas.json
+!babel.config.js
+!metro.config.js
+!tailwind.config.js
+!tsconfig.json
+!global.css
 !app/
 !app/**
 !assets/

@@ -39,18 +39,81 @@ import {
   Clock,
   Award,
   Zap,
+  Wind,
+  Droplets,
+  Hammer,
+  Paintbrush,
+  Camera,
+  Droplet,
+  Disc,
+  Snowflake,
+  Bug,
 } from "lucide-react-native";
 
 const getCategoryIcon = (iconName: string, color: string, size: number) => {
-  switch (iconName) {
+  const normalized = (iconName || "").toLowerCase().trim();
+  switch (normalized) {
     case "phone":
+    case "smartphone":
+    case "mobile":
       return <Smartphone size={size} color={color} />;
+    case "wind":
+    case "ac":
+    case "air-conditioner":
+      return <Wind size={size} color={color} />;
+    case "zap":
+    case "electrician":
+    case "electricity":
+      return <Zap size={size} color={color} />;
+    case "droplets":
+    case "plumber":
+    case "plumbing":
+      return <Droplets size={size} color={color} />;
+    case "hammer":
+    case "carpenter":
+    case "carpentry":
+      return <Hammer size={size} color={color} />;
+    case "sparkles":
+    case "cleaning":
+    case "home-cleaning":
+      return <Sparkles size={size} color={color} />;
     case "scissors":
+    case "salon":
+    case "beauty":
       return <Scissors size={size} color={color} />;
     case "wrench":
+    case "appliance":
+    case "appliance-repair":
       return <Wrench size={size} color={color} />;
+    case "paint-brush":
+    case "paintbrush":
+    case "painting":
+      return <Paintbrush size={size} color={color} />;
+    case "camera":
+    case "cctv":
+    case "cctv-installation":
+      return <Camera size={size} color={color} />;
+    case "droplet":
+    case "ro":
+    case "water":
+    case "ro-service":
+      return <Droplet size={size} color={color} />;
     case "monitor":
+    case "computer":
+    case "laptop":
       return <Monitor size={size} color={color} />;
+    case "disc":
+    case "washing":
+    case "washing-machine":
+      return <Disc size={size} color={color} />;
+    case "snowflake":
+    case "fridge":
+    case "refrigerator":
+      return <Snowflake size={size} color={color} />;
+    case "bug":
+    case "pest":
+    case "pest-control":
+      return <Bug size={size} color={color} />;
     default:
       return <Sparkles size={size} color={color} />;
   }
@@ -69,6 +132,7 @@ export default function CustomerHomeScreen() {
     bookingHistory,
   } = useBookingStore();
 
+  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
@@ -79,6 +143,24 @@ export default function CustomerHomeScreen() {
   const [liveLocation, setLiveLocation] = useState<UserAddressDetails | null>(null);
   const [detectingGps, setDetectingGps] = useState(false);
 
+  // Fetch dynamic categories from backend API with fallback
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+        const res = await fetch(`${API_URL}/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCategories(data);
+          }
+        }
+      } catch (err) {
+        console.log("Using cached/fallback categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // Fetch real device GPS coordinates on mount
   useEffect(() => {
@@ -102,12 +184,12 @@ export default function CustomerHomeScreen() {
     : "Detecting Location...";
 
   const filteredCategories = useMemo(() => {
-    if (!searchQuery) return MOCK_CATEGORIES;
-    return MOCK_CATEGORIES.filter((cat) =>
+    if (!searchQuery) return categories;
+    return categories.filter((cat) =>
       cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cat.subcategories.some((sub) => sub.name.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }, [searchQuery]);
+  }, [categories, searchQuery]);
 
   const handleCategoryPress = (category: Category) => {
     setSelectedCategory(category);
@@ -361,7 +443,7 @@ export default function CustomerHomeScreen() {
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Explore Services</Text>
-            <Text style={styles.sectionCountText}>4 Categories</Text>
+            <Text style={styles.sectionCountText}>{filteredCategories.length} Categories</Text>
           </View>
 
           <View style={styles.categoryGrid}>

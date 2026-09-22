@@ -1,7 +1,9 @@
 import axios from "axios";
 
-// NEXT_PUBLIC_API_URL is loaded by Next.js from .env.local
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+// Production Render backend API URL for Inisha City Service
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://multiserviceapp-4pdw.onrender.com/api";
 
 export const apiClient = axios.create({
   baseURL: API_URL,

@@ -290,3 +290,36 @@ export const updateStatus = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * 6. Get All Bookings for Admin & Live Dispatch
+ * GET /api/bookings/admin/all & GET /api/bookings/all
+ */
+export const getAllBookings = async (req: Request, res: Response) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 }).limit(50);
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      bookings: bookings.map((b) => ({
+        id: b._id,
+        _id: b._id,
+        bookingId: `BK-${b._id.toString().slice(-6).toUpperCase()}`,
+        customerName: b.customerName,
+        customerPhone: b.customerPhone,
+        serviceTitle: b.categoryId || "Doorstep Service",
+        serviceName: b.categoryId || "Doorstep Service",
+        partnerName: b.providerName || null,
+        partnerId: b.providerId || null,
+        providerName: b.providerName || null,
+        providerId: b.providerId || null,
+        amount: b.pricing?.finalAmount || 0,
+        pricing: b.pricing,
+        status: b.status,
+        createdAt: b.createdAt,
+      })),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

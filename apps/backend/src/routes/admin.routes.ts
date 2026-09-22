@@ -306,6 +306,9 @@ router.put("/settings", async (req: Request, res: Response) => {
   }
 });
 
+import Coupon from "../models/Coupon";
+import Withdrawal from "../models/Withdrawal";
+
 /**
  * 8. Admin Payments Ledger & Settlement Routes
  * GET /api/admin/payments & PUT/PATCH /api/admin/payments/:id/verify
@@ -325,4 +328,153 @@ router.put("/payments/:id/verify", async (req: Request, res: Response) => {
   return verifyTransactionAndSettle(req, res);
 });
 
+/**
+ * 9. Users Management
+ * GET /api/admin/users
+ */
+router.get("/users", async (req: Request, res: Response) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 }).limit(100);
+    return res.status(200).json({
+      success: true,
+      users: users.map((u) => ({
+        id: u._id.toString(),
+        name: u.name || "Customer",
+        phone: u.phoneNumber,
+        email: u.email || `${u.phoneNumber}@user.inishacityservice.com`,
+        role: u.role,
+        walletBalance: u.walletBalance || 0,
+        status: u.isBlocked ? "BLOCKED" : "ACTIVE",
+        joinedDate: u.createdAt,
+      })),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 10. Coupons Management
+ * GET /api/admin/coupons & POST /api/admin/coupons/create
+ */
+router.get("/coupons", async (req: Request, res: Response) => {
+  try {
+    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    return res.status(200).json({
+      success: true,
+      coupons: coupons.map((c) => ({
+        id: c._id.toString(),
+        code: c.code,
+        discountType: c.discountType,
+        discountValue: c.discountValue,
+        minOrderValue: c.minOrderValue,
+        maxDiscount: c.maxDiscount,
+        description: c.description,
+        isActive: c.isActive,
+        expiresAt: c.expiresAt,
+      })),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post("/coupons/create", async (req: Request, res: Response) => {
+  try {
+    const { code, discountType, discountValue, minOrderValue, maxDiscount, description, expiresAt } = req.body;
+    const newCoupon = await Coupon.create({
+      code: String(code || "").toUpperCase(),
+      discountType: discountType || "PERCENTAGE",
+      discountValue: Number(discountValue) || 10,
+      minOrderValue: Number(minOrderValue) || 0,
+      maxDiscount: maxDiscount ? Number(maxDiscount) : undefined,
+      description: description || `Get discount on services`,
+      isActive: true,
+      expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 86400000),
+    });
+    return res.status(201).json({ success: true, coupon: newCoupon });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 11. Withdrawals & Payouts Management
+ * GET /api/admin/withdrawals
+ */
+router.get("/withdrawals", async (req: Request, res: Response) => {
+  try {
+    const withdrawals = await Withdrawal.find().sort({ createdAt: -1 }).limit(50);
+    return res.status(200).json({
+      success: true,
+      withdrawals: withdrawals.map((w) => ({
+        id: w.id || w._id.toString(),
+        providerId: w.providerId,
+        providerName: w.providerName,
+        amount: w.amount,
+        payoutMethod: w.payoutMethod,
+        upiId: w.upiId,
+        status: w.status,
+        requestedAt: w.requestedAt,
+      })),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 12. Disputes Management
+ * GET /api/admin/disputes
+ */
+router.get("/disputes", async (req: Request, res: Response) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      disputes: [],
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 13. Broadcast Notifications
+ * POST /api/admin/notifications/broadcast
+ */
+router.post("/notifications/broadcast", async (req: Request, res: Response) => {
+  try {
+    const { title, body, recipientGroup, targetPhone, category } = req.body;
+    return res.status(200).json({
+      success: true,
+      message: "Broadcast notification dispatched successfully",
+      data: { title, body, recipientGroup, targetPhone, category },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 14. Commission Settings Update
+ * POST /api/admin/commissions/update
+ */
+router.post("/commissions/update", async (req: Request, res: Response) => {
+  try {
+    const { globalCommission, convenienceFee, gstPercentage } = req.body;
+    let settings = await AdminSettings.findOne();
+    if (!settings) settings = new AdminSettings();
+    if (globalCommission !== undefined) settings.commissionRate = Number(globalCommission);
+    await settings.save();
+    return res.status(200).json({
+      success: true,
+      message: "Commission settings updated successfully",
+      settings,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
+

@@ -18,22 +18,18 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Configure Cross-Origin Resource Sharing
-const getCorsOrigins = () => {
-  const envOrigin = process.env.CORS_ORIGIN;
-  if (!envOrigin || envOrigin === "*") return "*";
-  return envOrigin.split(",").map((o) => o.trim());
-};
-
 app.use(
   cors({
-    origin: getCorsOrigins(),
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     credentials: true,
   })
 );
 
+app.options("*", cors());
 app.use(express.json());
+
 
 // Mount API routes
 app.use("/api/auth", authRouter);
@@ -55,7 +51,7 @@ app.get("/health", (req, res) => {
 // Configure Socket.io server wrapping the http server instance
 const io = new Server(server, {
   cors: {
-    origin: getCorsOrigins(),
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true,
   },

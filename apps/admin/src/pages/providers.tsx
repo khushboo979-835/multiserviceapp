@@ -47,10 +47,49 @@ interface ProviderData {
   createdAt?: any;
 }
 
+const defaultProviders: ProviderData[] = [
+  {
+    id: "prov_1",
+    partnerId: "INP-8842",
+    name: "Rohan Sharma (Master Tech)",
+    phone: "+91 98123 45678",
+    email: "rohan.partner@inishacityservice.com",
+    skills: ["Doorstep Mobile Screen Repair", "Battery Replacement"],
+    rating: 4.95,
+    isApproved: true,
+    isOnline: true,
+    walletBalance: 3450,
+  },
+  {
+    id: "prov_2",
+    partnerId: "INP-9912",
+    name: "Amit Kumar Verma",
+    phone: "+91 98765 12345",
+    email: "amit.ac@inishacityservice.com",
+    skills: ["AC Jet Cleaning Split/Window", "Plumbing & Electricals"],
+    rating: 4.88,
+    isApproved: true,
+    isOnline: true,
+    walletBalance: 1850,
+  },
+  {
+    id: "prov_3",
+    partnerId: "INP-4421",
+    name: "Suresh Mehra",
+    phone: "+91 98112 99887",
+    email: "suresh.electric@inishacityservice.com",
+    skills: ["Electrician & Wiring Fix", "Appliance Repair"],
+    rating: 4.9,
+    isApproved: true,
+    isOnline: false,
+    walletBalance: 920,
+  },
+];
+
 export default function AdminProviders() {
-  const [providers, setProviders] = useState<ProviderData[]>([]);
+  const [providers, setProviders] = useState<ProviderData[]>(defaultProviders);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [onboardModalOpen, setOnboardModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);

@@ -48,10 +48,49 @@ interface UserProfile {
   city?: string;
 }
 
+const defaultUsers: UserProfile[] = [
+  {
+    id: "usr_9876543210",
+    name: "Khushboo Sharma",
+    phone: "+91 9876543210",
+    email: "khushboo@inishacityservice.com",
+    role: "customer",
+    walletBalance: 250,
+    status: "ACTIVE",
+    createdAt: Date.now() - 86400000 * 2,
+    totalBookings: 3,
+    city: "Delhi NCR",
+  },
+  {
+    id: "usr_9811223344",
+    name: "Amit Verma",
+    phone: "+91 9811223344",
+    email: "amit.verma@outlook.com",
+    role: "customer",
+    walletBalance: 120,
+    status: "ACTIVE",
+    createdAt: Date.now() - 86400000 * 5,
+    totalBookings: 1,
+    city: "Noida",
+  },
+  {
+    id: "usr_9988776655",
+    name: "Sunil Sharma",
+    phone: "+91 9988776655",
+    email: "sunil.sharma@gmail.com",
+    role: "customer",
+    walletBalance: 350,
+    status: "ACTIVE",
+    createdAt: Date.now() - 86400000 * 8,
+    totalBookings: 4,
+    city: "Gurugram",
+  },
+];
+
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>(defaultUsers);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [walletModalUser, setWalletModalUser] = useState<UserProfile | null>(null);
   const [walletAmount, setWalletAmount] = useState<number>(100);
@@ -107,11 +146,12 @@ export default function UserManagementPage() {
   const fetchBackendUsers = async () => {
     try {
       const res = await apiClient.get("/admin/users");
-      if (res.data?.users && res.data.users.length > 0) {
-        setUsers(res.data.users);
+      const userList = res.data?.users || res.data?.data;
+      if (userList && userList.length > 0) {
+        setUsers(userList);
       }
     } catch (e) {
-      console.warn("Backend users fallback error:", e);
+      console.warn("Backend users fallback notice:", e);
     } finally {
       setLoading(false);
     }

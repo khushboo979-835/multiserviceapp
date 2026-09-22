@@ -24,6 +24,8 @@ import {
   collection,
   query,
   orderBy,
+  limit,
+  getDocs,
   onSnapshot,
   doc,
   setDoc,
@@ -67,82 +69,45 @@ export default function UserManagementPage() {
 
   const unsubRef = useRef<Unsubscribe | null>(null);
 
-  // 1. Realtime Firestore Users Listener
-  const setupUsersListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Data Loader (Eliminates continuous channel ping loops)
+  const fetchUsers = async () => {
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, orderBy("createdAt", "desc"));
+      const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50)));
+      const list: UserProfile[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          name: data.name || data.fullName || "Customer",
+          phone: data.phone || data.phoneNumber || "Verified User",
+          email: data.email || `${data.phone || docSnap.id}@user.inishacityservice.com`,
+          role: data.role || "customer",
+          walletBalance: Number(data.walletBalance || data.balance || 0),
+          status: data.isBlocked ? "BLOCKED" : (data.status || "ACTIVE").toUpperCase(),
+          createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+          totalBookings: data.totalBookings || 0,
+          city: data.city || data.location?.city || "Delhi NCR",
+        });
+      });
 
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: UserProfile[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              name: data.name || data.fullName || "Customer",
-              phone: data.phone || data.phoneNumber || data.mobile || "N/A",
-              email: data.email || "",
-              role: data.role || "customer",
-              walletBalance: Number(data.walletBalance || data.wallet || 0),
-              status: data.isBlocked ? "BLOCKED" : "ACTIVE",
-              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
-              totalBookings: data.totalBookings || 0,
-              city: data.city || data.location?.city || "Delhi NCR",
-            });
-          });
-
-          // Also merge standard test customers if list is empty
-          if (list.length === 0) {
-            setUsers([
-              {
-                id: "usr_9876543210",
-                name: "Khushboo Sharma",
-                phone: "+91 9876543210",
-                email: "khushboo@gmail.com",
-                role: "customer",
-                walletBalance: 250,
-                status: "ACTIVE",
-                createdAt: Date.now() - 86400000 * 2,
-                totalBookings: 3,
-                city: "Delhi",
-              },
-              {
-                id: "usr_9811223344",
-                name: "Amit Verma",
-                phone: "+91 9811223344",
-                email: "amit.verma@outlook.com",
-                role: "customer",
-                walletBalance: 120,
-                status: "ACTIVE",
-                createdAt: Date.now() - 86400000 * 5,
-                totalBookings: 1,
-                city: "Noida",
-              },
-            ]);
-          } else {
-            setUsers(list);
-          }
-          setLoading(false);
-        },
-        (error) => {
-          console.warn("[Firestore Users Listener Notice]:", error.message);
-          fetchBackendUsers();
-        }
-      );
+      if (list.length > 0) {
+        setUsers(list);
+        setLoading(false);
+      } else {
+        await fetchBackendUsers();
+      }
     } catch (err) {
-      console.warn("Firestore listener setup error:", err);
-      fetchBackendUsers();
+      console.warn("Firestore fetch notice, using backend:", err);
+      await fetchBackendUsers();
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchBackendUsers = async () => {
     try {
       const res = await apiClient.get("/admin/users");
-      if (res.data?.users) {
+      if (res.data?.users && res.data.users.length > 0) {
         setUsers(res.data.users);
       }
     } catch (e) {
@@ -153,13 +118,7 @@ export default function UserManagementPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupUsersListener();
-    fetchBackendUsers();
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubRef.current) unsubRef.current();
-    };
+    fetchUsers();
   }, []);
 
   // Toggle Block Status
@@ -284,7 +243,7 @@ export default function UserManagementPage() {
           <button
             onClick={() => {
               setLoading(true);
-              setupUsersListener();
+              fetchUsers();
             }}
             className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

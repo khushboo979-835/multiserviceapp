@@ -21,6 +21,8 @@ import {
   collection,
   query,
   orderBy,
+  limit,
+  getDocs,
   onSnapshot,
   doc,
   updateDoc,
@@ -61,90 +63,50 @@ export default function DisputeAndRefundPage() {
 
   const unsubRef = useRef<Unsubscribe | null>(null);
 
-  const setupDisputesListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Disputes Loader (Eliminates continuous channel ping loops)
+  const fetchDisputes = async () => {
     try {
-      const q = query(collection(db, "disputes"), orderBy("createdAt", "desc"));
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: DisputeTicket[] = [];
-          snapshot.forEach((docSnap) => {
-            const d = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              bookingId: d.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
-              customerName: d.customerName || d.userName || "Customer",
-              customerPhone: d.customerPhone || d.phone || "+91 9876543210",
-              customerUserId: d.userId || d.customerUserId || "usr_9876543210",
-              serviceTitle: d.serviceTitle || d.serviceName || "Doorstep Service",
-              partnerName: d.partnerName || d.providerName || "Assigned Technician",
-              amount: Number(d.amount || 499),
-              reason: d.reason || "Service quality issue",
-              customerComment: d.customerComment || d.description || "Technician arrived late and work was incomplete.",
-              status: (d.status || "OPEN").toUpperCase() as DisputeTicket["status"],
-              refundAmount: d.refundAmount,
-              adminNotes: d.adminNotes,
-              createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : d.createdAt || Date.now(),
-              resolvedAt: d.resolvedAt,
-            });
-          });
+      const snap = await getDocs(query(collection(db, "disputes"), orderBy("createdAt", "desc"), limit(50)));
+      const list: DisputeTicket[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          bookingId: d.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
+          customerName: d.customerName || d.userName || "Customer",
+          customerPhone: d.customerPhone || d.userPhone || "+91 9876543210",
+          customerUserId: d.userId || d.customerUserId || "usr_9876543210",
+          serviceTitle: d.serviceTitle || d.serviceName || "Doorstep Service",
+          partnerName: d.partnerName || d.providerName || "Assigned Technician",
+          amount: Number(d.amount || 499),
+          reason: d.reason || "Service quality issue",
+          customerComment: d.customerComment || d.description || "Technician arrived late and work was incomplete.",
+          status: (d.status || "OPEN").toUpperCase() as DisputeTicket["status"],
+          refundAmount: d.refundAmount,
+          adminNotes: d.adminNotes,
+          createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : d.createdAt || Date.now(),
+          resolvedAt: d.resolvedAt,
+        });
+      });
 
-          if (list.length === 0) {
-            setDisputes([
-              {
-                id: "disp_101",
-                bookingId: "BK-882910",
-                customerName: "Khushboo Sharma",
-                customerPhone: "+91 9876543210",
-                customerUserId: "usr_9876543210",
-                serviceTitle: "AC Jet Cleaning Split/Window",
-                partnerName: "Rajesh Kumar",
-                amount: 499,
-                reason: "AC Still Leaking Water After Service",
-                customerComment: "Technician washed the AC filter but cooling issue and water leakage remained unsolved. Requesting refund.",
-                status: "OPEN",
-                createdAt: Date.now() - 3600000 * 6,
-              },
-              {
-                id: "disp_102",
-                bookingId: "BK-882911",
-                customerName: "Sunil Verma",
-                customerPhone: "+91 9988776655",
-                customerUserId: "usr_9988776655",
-                serviceTitle: "Doorstep Mobile Screen Repair",
-                partnerName: "Amit Sharma",
-                amount: 1299,
-                reason: "Technician delayed arrival by 3 hours",
-                customerComment: "Technician promised 2 PM visit but arrived at 5 PM without prior intimation.",
-                status: "RESOLVED_REFUNDED",
-                refundAmount: 1299,
-                adminNotes: "Full refund credited to wallet and complimentary voucher issued.",
-                createdAt: Date.now() - 86400000 * 2,
-                resolvedAt: Date.now() - 86400000,
-              },
-            ]);
-          } else {
-            setDisputes(list);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Disputes listener fallback:", err);
-          fetchBackendDisputes();
-        }
-      );
+      if (list.length > 0) {
+        setDisputes(list);
+        setLoading(false);
+      } else {
+        await fetchBackendDisputes();
+      }
     } catch (e) {
-      console.warn("Disputes setup fallback:", e);
-      fetchBackendDisputes();
+      console.warn("Firestore disputes fallback:", e);
+      await fetchBackendDisputes();
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchBackendDisputes = async () => {
     try {
       const res = await apiClient.get("/admin/disputes");
-      if (res.data?.disputes) {
+      if (res.data?.disputes && res.data.disputes.length > 0) {
         setDisputes(res.data.disputes);
       }
     } catch (e) {
@@ -155,13 +117,7 @@ export default function DisputeAndRefundPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupDisputesListener();
-    fetchBackendDisputes();
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubRef.current) unsubRef.current();
-    };
+    fetchDisputes();
   }, []);
 
   // Process Refund & Resolve Dispute
@@ -266,7 +222,7 @@ export default function DisputeAndRefundPage() {
         <button
           onClick={() => {
             setLoading(true);
-            setupDisputesListener();
+            fetchDisputes();
           }}
           className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition self-stretch sm:self-auto"
         >

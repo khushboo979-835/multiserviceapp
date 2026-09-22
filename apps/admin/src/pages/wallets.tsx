@@ -21,6 +21,8 @@ import {
   collection,
   query,
   orderBy,
+  limit,
+  getDocs,
   onSnapshot,
   doc,
   updateDoc,
@@ -54,79 +56,45 @@ export default function WalletAndPayoutsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const unsubRef = useRef<Unsubscribe | null>(null);
-
-  const setupPayoutsListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Payouts Loader (Eliminates continuous channel ping loops)
+  const fetchPayouts = async () => {
     try {
-      const q = query(collection(db, "withdrawals"), orderBy("requestedAt", "desc"));
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: PayoutRequest[] = [];
-          snapshot.forEach((docSnap) => {
-            const d = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              partnerId: d.partnerId || d.providerId || "INP-4446",
-              partnerName: d.partnerName || d.providerName || "Service Partner",
-              partnerPhone: d.partnerPhone || d.phone || "+91 9811223344",
-              amount: Number(d.amount || 1500),
-              upiId: d.upiId || d.paymentDetails?.upiId || "technician@oksbi",
-              bankAccount: d.bankAccount || d.paymentDetails?.accountNumber,
-              ifsc: d.ifsc || d.paymentDetails?.ifsc,
-              status: (d.status || "PENDING").toUpperCase() as PayoutRequest["status"],
-              utrNumber: d.utrNumber,
-              requestedAt: d.requestedAt?.toMillis ? d.requestedAt.toMillis() : d.requestedAt || Date.now(),
-              processedAt: d.processedAt,
-            });
-          });
+      const snap = await getDocs(query(collection(db, "withdrawals"), orderBy("requestedAt", "desc"), limit(50)));
+      const list: PayoutRequest[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          partnerId: d.partnerId || d.providerId || "INP-0000",
+          partnerName: d.partnerName || d.providerName || "Service Partner",
+          partnerPhone: d.partnerPhone || d.providerPhone || "",
+          amount: Number(d.amount || 0),
+          upiId: d.upiId || d.payoutDetails?.upiId || "UPI",
+          status: d.status || "PENDING",
+          utrNumber: d.utrNumber || d.referenceId,
+          requestedAt: d.requestedAt?.toMillis ? d.requestedAt.toMillis() : d.requestedAt || Date.now(),
+          processedAt: d.processedAt,
+        });
+      });
 
-          if (list.length === 0) {
-            setPayouts([
-              {
-                id: "wth_101",
-                partnerId: "INP-4446",
-                partnerName: "Rajesh Kumar (AC Specialist)",
-                partnerPhone: "+91 9811223344",
-                amount: 2450,
-                upiId: "rajesh.ac@paytm",
-                status: "PENDING",
-                requestedAt: Date.now() - 7200000,
-              },
-              {
-                id: "wth_102",
-                partnerId: "INP-5582",
-                partnerName: "Amit Sharma (Mobile Tech)",
-                partnerPhone: "+91 9877665544",
-                amount: 3800,
-                upiId: "amitsharma@oksbi",
-                status: "PAID",
-                utrNumber: "UPI-428910482910",
-                requestedAt: Date.now() - 86400000,
-                processedAt: Date.now() - 43200000,
-              },
-            ]);
-          } else {
-            setPayouts(list);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Firestore payouts listener fallback:", err);
-          fetchBackendPayouts();
-        }
-      );
+      if (list.length > 0) {
+        setPayouts(list);
+        setLoading(false);
+      } else {
+        await fetchBackendPayouts();
+      }
     } catch (e) {
-      console.warn("Payouts setup fallback:", e);
-      fetchBackendPayouts();
+      console.warn("Firestore payouts fallback:", e);
+      await fetchBackendPayouts();
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchBackendPayouts = async () => {
     try {
       const res = await apiClient.get("/admin/withdrawals");
-      if (res.data?.withdrawals) {
+      if (res.data?.withdrawals && res.data.withdrawals.length > 0) {
         setPayouts(res.data.withdrawals);
       }
     } catch (e) {
@@ -137,13 +105,7 @@ export default function WalletAndPayoutsPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupPayoutsListener();
-    fetchBackendPayouts();
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubRef.current) unsubRef.current();
-    };
+    fetchPayouts();
   }, []);
 
   // Process Payout Action
@@ -219,7 +181,7 @@ export default function WalletAndPayoutsPage() {
         <button
           onClick={() => {
             setLoading(true);
-            setupPayoutsListener();
+            fetchPayouts();
           }}
           className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition self-stretch sm:self-auto"
         >

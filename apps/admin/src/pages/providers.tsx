@@ -19,6 +19,8 @@ import {
   collection,
   query,
   orderBy,
+  limit,
+  getDocs,
   onSnapshot,
   doc,
   setDoc,
@@ -75,49 +77,40 @@ export default function AdminProviders() {
     "Women Salon & Parlor",
   ];
 
-  // 1. Real-Time Firestore Listener for Providers Collection
-  const setupProvidersListener = () => {
-    if (unsubscriberRef.current) {
-      unsubscriberRef.current();
-    }
-
+  // 1. Fast On-Demand Providers Loader (Eliminates continuous channel ping loops)
+  const fetchProviders = async () => {
     try {
-      const providersRef = collection(db, "providers");
-      const q = query(providersRef, orderBy("createdAt", "desc"));
+      const snap = await getDocs(query(collection(db, "providers"), orderBy("createdAt", "desc"), limit(50)));
+      const list: ProviderData[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          partnerId: data.partnerId || `INP-${docSnap.id.slice(-4).toUpperCase()}`,
+          name: data.name || "Technician",
+          phone: data.phone || data.phoneNumber || "",
+          email: data.email,
+          skills: Array.isArray(data.skills) ? data.skills : (data.skills ? [data.skills] : []),
+          rating: data.rating ?? 5.0,
+          isApproved: data.isApproved !== false,
+          isOnline: data.isOnline === true,
+          walletBalance: data.walletBalance ?? 0,
+          temporaryPassword: data.temporaryPassword,
+          createdAt: data.createdAt,
+        });
+      });
 
-      unsubscriberRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: ProviderData[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              partnerId: data.partnerId || `INP-${docSnap.id.slice(-4).toUpperCase()}`,
-              name: data.name || "Technician",
-              phone: data.phone || data.phoneNumber || "",
-              email: data.email,
-              skills: Array.isArray(data.skills) ? data.skills : (data.skills ? [data.skills] : []),
-              rating: data.rating ?? 5.0,
-              isApproved: data.isApproved !== false,
-              isOnline: data.isOnline === true,
-              walletBalance: data.walletBalance ?? 0,
-              temporaryPassword: data.temporaryPassword,
-              createdAt: data.createdAt,
-            });
-          });
-
-          setProviders(list);
-          setLoading(false);
-        },
-        (error) => {
-          console.warn("[Firestore Providers Listener Notice]:", error.message);
-          fetchBackendFallback();
-        }
-      );
+      if (list.length > 0) {
+        setProviders(list);
+        setLoading(false);
+      } else {
+        await fetchBackendFallback();
+      }
     } catch (err) {
-      console.warn("Firestore listener setup error:", err);
-      fetchBackendFallback();
+      console.warn("Firestore fetch notice, using backend:", err);
+      await fetchBackendFallback();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,7 +118,7 @@ export default function AdminProviders() {
   const fetchBackendFallback = async () => {
     try {
       const res = await apiClient.get("/admin/providers");
-      if (res.data && res.data.providers) {
+      if (res.data && res.data.providers && res.data.providers.length > 0) {
         setProviders(res.data.providers);
       }
     } catch (apiErr) {
@@ -136,17 +129,9 @@ export default function AdminProviders() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupProvidersListener();
-    fetchBackendFallback();
-
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubscriberRef.current) {
-        unsubscriberRef.current();
-      }
-    };
+    fetchProviders();
   }, []);
+
 
   // 3. Create Partner (Guaranteed Single-Submission & Sync to Firestore + Backend)
   const handleCreatePartner = async (e: React.FormEvent) => {
@@ -284,8 +269,7 @@ export default function AdminProviders() {
           <button
             onClick={() => {
               setLoading(true);
-              setupProvidersListener();
-              fetchBackendFallback();
+              fetchProviders();
             }}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

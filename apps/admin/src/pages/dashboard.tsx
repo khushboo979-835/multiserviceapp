@@ -17,6 +17,7 @@ import {
   query,
   orderBy,
   limit,
+  getDocs,
   onSnapshot,
   Unsubscribe,
 } from "firebase/firestore";
@@ -64,88 +65,58 @@ export default function AdminDashboard() {
 
   const unsubscribersRef = useRef<Unsubscribe[]>([]);
 
-  // 1. Production Real-Time Firestore Listeners (Optimized single dispatch stream)
-  const setupRealtimeListeners = () => {
-    unsubscribersRef.current.forEach((unsub) => {
-      try {
-        unsub();
-      } catch {}
-    });
-    unsubscribersRef.current = [];
-
-    // Instant Loading Safeguard
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-    }, 600);
-
+  // 1. Fast On-Demand Dashboard Telemetry & Dispatch Loader
+  const fetchDashboardData = async () => {
     try {
-      // Single live dispatch feed for bookings
-      const bookingsQuery = query(
-        collection(db, "bookings"),
-        orderBy("createdAt", "desc"),
-        limit(20)
-      );
+      // 1. Fetch live dispatch bookings from Firestore
+      const snap = await getDocs(query(collection(db, "bookings"), orderBy("createdAt", "desc"), limit(20)));
+      const liveList: LiveBooking[] = [];
+      let gmvSum = 0;
+      let activeCount = 0;
 
-      const unsubBookings = onSnapshot(
-        bookingsQuery,
-        (snapshot) => {
-          clearTimeout(safetyTimer);
-          const liveList: LiveBooking[] = [];
-          let gmvSum = 0;
-          let activeCount = 0;
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const bookingStatus = (data.status || "PENDING").toUpperCase() as LiveBooking["status"];
+        const amount = Number(data.pricing?.finalAmount || data.amount || 0);
 
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const bookingStatus = (data.status || "PENDING").toUpperCase() as LiveBooking["status"];
-            const amount = Number(data.pricing?.finalAmount || data.amount || 0);
+        liveList.push({
+          id: docSnap.id,
+          bookingId: data.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
+          customerName: data.customerName || data.user?.name || data.customer?.name || "Verified Customer",
+          customerPhone: data.customerPhone || data.user?.phone || data.customer?.phone,
+          serviceTitle: data.serviceName || data.serviceTitle || data.category || "Doorstep Service",
+          partnerName: data.providerName || data.partnerName || data.partner?.name || (data.assignedPartner ? data.assignedPartner.name : null),
+          partnerId: data.providerId || data.partnerId,
+          amount,
+          status: bookingStatus,
+          createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+        });
 
-            liveList.push({
-              id: docSnap.id,
-              bookingId: data.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
-              customerName: data.customerName || data.user?.name || data.customer?.name || "Verified Customer",
-              customerPhone: data.customerPhone || data.user?.phone || data.customer?.phone,
-              serviceTitle: data.serviceName || data.serviceTitle || data.category || "Doorstep Service",
-              partnerName: data.providerName || data.partnerName || data.partner?.name || (data.assignedPartner ? data.assignedPartner.name : null),
-              partnerId: data.providerId || data.partnerId,
-              amount,
-              status: bookingStatus,
-              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
-            });
-
-            if (bookingStatus === "SUCCESS" || bookingStatus === "COMPLETED") {
-              gmvSum += amount;
-            }
-            if (["PENDING", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "PENDING_PROVIDER"].includes(bookingStatus)) {
-              activeCount++;
-            }
-          });
-
-          if (liveList.length > 0) {
-            setBookings(liveList);
-          }
-          setMetrics((prev) => ({
-            ...prev,
-            totalGMV: gmvSum > 0 ? gmvSum : prev.totalGMV,
-            platformEarnings: Math.round((gmvSum > 0 ? gmvSum : prev.totalGMV) * 0.15),
-            activeBookingsCount: activeCount,
-            totalBookingsCount: Math.max(liveList.length, prev.totalBookingsCount),
-          }));
-
-          setLoading(false);
-          setLastSyncTime(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-        },
-        (error) => {
-          console.warn("[Firestore Bookings Listener Notice]:", error.message);
-          clearTimeout(safetyTimer);
-          setLoading(false);
+        if (bookingStatus === "SUCCESS" || bookingStatus === "COMPLETED") {
+          gmvSum += amount;
         }
-      );
+        if (["PENDING", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "PENDING_PROVIDER"].includes(bookingStatus)) {
+          activeCount++;
+        }
+      });
 
-      unsubscribersRef.current.push(unsubBookings);
+      if (liveList.length > 0) {
+        setBookings(liveList);
+        setMetrics((prev) => ({
+          ...prev,
+          totalGMV: gmvSum > 0 ? gmvSum : prev.totalGMV,
+          platformEarnings: Math.round((gmvSum > 0 ? gmvSum : prev.totalGMV) * 0.15),
+          activeBookingsCount: activeCount,
+          totalBookingsCount: Math.max(liveList.length, prev.totalBookingsCount),
+        }));
+      }
     } catch (err: any) {
-      console.warn("Real-time listener setup error:", err);
-      clearTimeout(safetyTimer);
+      console.warn("Firestore dashboard fetch notice, using backend:", err);
+    } finally {
+      await fetchBackendFallbackMetrics();
       setLoading(false);
+      setIsRefreshing(false);
+      setLastSyncTime(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     }
   };
 
@@ -158,6 +129,7 @@ export default function AdminDashboard() {
       ]);
 
       if (metricsRes.status === "fulfilled" && metricsRes.value?.data?.metrics) {
+
         const m = metricsRes.value.data.metrics;
         setMetrics((prev) => ({
           ...prev,
@@ -196,31 +168,23 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    setupRealtimeListeners();
-    fetchBackendFallbackMetrics();
+    fetchDashboardData();
 
     // Refresh telemetry every 30 seconds
     const interval = setInterval(() => {
-      fetchBackendFallbackMetrics();
+      fetchDashboardData();
     }, 30000);
 
     return () => {
       clearInterval(interval);
-      unsubscribersRef.current.forEach((unsub) => {
-        try {
-          unsub();
-        } catch {}
-      });
-      unsubscribersRef.current = [];
     };
   }, []);
 
-
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    setupRealtimeListeners();
-    await fetchBackendFallbackMetrics();
+    await fetchDashboardData();
   };
+
 
   const stats = [
     {

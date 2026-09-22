@@ -19,6 +19,8 @@ import {
   collection,
   query,
   orderBy,
+  limit,
+  getDocs,
   onSnapshot,
   doc,
   setDoc,
@@ -64,91 +66,47 @@ export default function CouponManagementPage() {
   });
 
   const unsubRef = useRef<Unsubscribe | null>(null);
-
-  const setupCouponsListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Coupons Loader (Eliminates continuous channel ping loops)
+  const fetchCoupons = async () => {
     try {
-      const q = query(collection(db, "coupons"), orderBy("createdAt", "desc"));
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: Coupon[] = [];
-          snapshot.forEach((docSnap) => {
-            const d = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              code: d.code || docSnap.id.toUpperCase(),
-              title: d.title || d.code || "Special Offer",
-              description: d.description || "",
-              discountType: d.discountType || "PERCENTAGE",
-              discountValue: Number(d.discountValue || 10),
-              minOrderAmount: Number(d.minOrderAmount || 0),
-              maxDiscount: d.maxDiscount ? Number(d.maxDiscount) : undefined,
-              validTill: d.validTill || "2026-12-31",
-              isActive: d.isActive !== false,
-              usageCount: d.usageCount || 0,
-              createdAt: d.createdAt || Date.now(),
-            });
-          });
+      const snap = await getDocs(query(collection(db, "coupons"), orderBy("createdAt", "desc"), limit(50)));
+      const list: Coupon[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          code: d.code || docSnap.id.toUpperCase(),
+          title: d.title || d.description || `Special Discount Voucher`,
+          description: d.description || "Applicable at checkout",
+          discountType: d.discountType || "PERCENTAGE",
+          discountValue: Number(d.discountValue || 10),
+          minOrderAmount: Number(d.minOrderAmount || d.minOrderValue || 0),
+          maxDiscount: d.maxDiscount ? Number(d.maxDiscount) : undefined,
+          isActive: d.isActive !== false,
+          validTill: d.validTill || d.expiresAt,
+          usageCount: d.usageCount || 0,
+          createdAt: d.createdAt || Date.now(),
+        });
+      });
 
-          if (list.length === 0) {
-            setCoupons([
-              {
-                id: "c_welcome100",
-                code: "WELCOME100",
-                title: "Flat ₹100 Off on First Service",
-                description: "Welcome voucher for new users",
-                discountType: "FLAT",
-                discountValue: 100,
-                minOrderAmount: 399,
-                isActive: true,
-                usageCount: 42,
-              },
-              {
-                id: "c_inisha20",
-                code: "INISHA20",
-                title: "20% Off Mega Discount",
-                description: "Save up to ₹200 on all repairs",
-                discountType: "PERCENTAGE",
-                discountValue: 20,
-                minOrderAmount: 499,
-                maxDiscount: 200,
-                isActive: true,
-                usageCount: 118,
-              },
-              {
-                id: "c_acclean50",
-                code: "ACCLEAN50",
-                title: "₹50 Off AC Servicing",
-                description: "Exclusive for summer bookings",
-                discountType: "FLAT",
-                discountValue: 50,
-                minOrderAmount: 299,
-                isActive: true,
-                usageCount: 89,
-              },
-            ]);
-          } else {
-            setCoupons(list);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Firestore coupons error:", err);
-          fetchBackendCoupons();
-        }
-      );
+      if (list.length > 0) {
+        setCoupons(list);
+        setLoading(false);
+      } else {
+        await fetchBackendCoupons();
+      }
     } catch (e) {
-      console.warn("Coupons setup fallback:", e);
-      fetchBackendCoupons();
+      console.warn("Firestore coupons error:", e);
+      await fetchBackendCoupons();
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchBackendCoupons = async () => {
     try {
       const res = await apiClient.get("/admin/coupons");
-      if (res.data?.coupons) {
+      if (res.data?.coupons && res.data.coupons.length > 0) {
         setCoupons(res.data.coupons);
       }
     } catch (e) {
@@ -159,11 +117,8 @@ export default function CouponManagementPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupCouponsListener();
-    fetchBackendCoupons();
+    fetchCoupons();
     return () => {
-      clearTimeout(safetyTimer);
       if (unsubRef.current) unsubRef.current();
     };
   }, []);
@@ -262,7 +217,7 @@ export default function CouponManagementPage() {
           <button
             onClick={() => {
               setLoading(true);
-              setupCouponsListener();
+              fetchCoupons();
             }}
             className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

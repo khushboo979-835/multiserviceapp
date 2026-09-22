@@ -19,6 +19,7 @@ import {
   query,
   orderBy,
   limit,
+  getDocs,
   onSnapshot,
   Unsubscribe,
 } from "firebase/firestore";
@@ -78,89 +79,80 @@ export default function AdminPaymentsPage() {
 
   const unsubscriberRef = useRef<Unsubscribe | null>(null);
 
-  // 1. Live Real-Time Firestore & Database Telemetry
-  const setupRealtimePayments = () => {
-    if (unsubscriberRef.current) {
-      unsubscriberRef.current();
-    }
-
+  // 1. Fast On-Demand Payments Loader (Eliminates continuous channel ping loops)
+  const fetchPayments = async () => {
     try {
-      const bookingsRef = collection(db, "bookings");
-      const q = query(bookingsRef, orderBy("createdAt", "desc"), limit(50));
+      const snap = await getDocs(query(collection(db, "bookings"), orderBy("createdAt", "desc"), limit(50)));
+      const list: TransactionItem[] = [];
+      let gmvSum = 0;
+      let verifiedSum = 0;
+      let pendingCount = 0;
 
-      unsubscriberRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: TransactionItem[] = [];
-          let gmvSum = 0;
-          let verifiedSum = 0;
-          let pendingCount = 0;
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const bookingStatus = (data.status || "PENDING").toUpperCase();
+        const rawAmount = Number(data.pricing?.finalAmount || data.amount || 0);
+        const isVerified =
+          bookingStatus === "SUCCESS" ||
+          bookingStatus === "COMPLETED" ||
+          bookingStatus === "VERIFIED";
 
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const bookingStatus = (data.status || "PENDING").toUpperCase();
-            const rawAmount = Number(data.pricing?.finalAmount || data.amount || 0);
-            const isVerified =
-              bookingStatus === "SUCCESS" ||
-              bookingStatus === "COMPLETED" ||
-              bookingStatus === "VERIFIED";
+        const commission = Math.round(rawAmount * 0.15);
+        const payout = rawAmount - commission;
 
-            const commission = Math.round(rawAmount * 0.15);
-            const payout = rawAmount - commission;
+        const utr =
+          data.paymentDetails?.utrNumber ||
+          data.utrNumber ||
+          (data.paymentId ? `UTR-${data.paymentId.slice(-10)}` : "Pending UTR");
 
-            const utr =
-              data.paymentDetails?.utrNumber ||
-              data.utrNumber ||
-              (data.paymentId ? `UTR-${data.paymentId.slice(-10)}` : "Pending UTR");
+        const txItem: TransactionItem = {
+          _id: docSnap.id,
+          transactionId: data.transactionId || `TXN-${docSnap.id.slice(-8).toUpperCase()}`,
+          bookingId: data.bookingId || docSnap.id,
+          customerName: data.customerName || data.user?.name || "Customer",
+          customerPhone: data.customerPhone || data.user?.phone,
+          providerName: data.providerName || data.partnerName || "Unassigned",
+          providerId: data.providerId || data.partnerId,
+          amount: rawAmount,
+          upiId: COMPANY_UPI,
+          merchantName: MERCHANT_NAME,
+          utrNumber: utr,
+          status: isVerified ? "VERIFIED" : "PENDING",
+          paymentMethod: (data.paymentMethod || "UPI").toUpperCase() as any,
+          commissionRate: 15,
+          commissionAmount: commission,
+          providerPayout: payout,
+          createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+        };
 
-            const txItem: TransactionItem = {
-              _id: docSnap.id,
-              transactionId: data.transactionId || `TXN-${docSnap.id.slice(-8).toUpperCase()}`,
-              bookingId: data.bookingId || docSnap.id,
-              customerName: data.customerName || data.user?.name || "Customer",
-              customerPhone: data.customerPhone || data.user?.phone,
-              providerName: data.providerName || data.partnerName || "Unassigned",
-              providerId: data.providerId || data.partnerId,
-              amount: rawAmount,
-              upiId: COMPANY_UPI,
-              merchantName: MERCHANT_NAME,
-              utrNumber: utr,
-              status: isVerified ? "VERIFIED" : "PENDING",
-              paymentMethod: (data.paymentMethod || "UPI").toUpperCase() as any,
-              commissionRate: 15,
-              commissionAmount: commission,
-              providerPayout: payout,
-              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
-            };
+        list.push(txItem);
 
-            list.push(txItem);
-
-            gmvSum += rawAmount;
-            if (isVerified) {
-              verifiedSum += rawAmount;
-            } else {
-              pendingCount++;
-            }
-          });
-
-          setTransactions(list);
-          setStats({
-            totalGmv: gmvSum,
-            verifiedRevenue: verifiedSum,
-            platformCommission: Math.round(verifiedSum * 0.15),
-            pendingSettlements: pendingCount,
-            totalTransactions: list.length,
-          });
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("[Firestore Payments Notice]:", err.message);
-          fetchBackendPayments();
+        gmvSum += rawAmount;
+        if (isVerified) {
+          verifiedSum += rawAmount;
+        } else {
+          pendingCount++;
         }
-      );
+      });
+
+      if (list.length > 0) {
+        setTransactions(list);
+        setStats({
+          totalGmv: gmvSum,
+          verifiedRevenue: verifiedSum,
+          platformCommission: Math.round(verifiedSum * 0.15),
+          pendingSettlements: pendingCount,
+          totalTransactions: list.length,
+        });
+        setLoading(false);
+      } else {
+        await fetchBackendPayments();
+      }
     } catch (e) {
-      console.warn("Realtime payments setup error, fallback to API:", e);
-      fetchBackendPayments();
+      console.warn("Payments fetch notice, using backend:", e);
+      await fetchBackendPayments();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,7 +162,7 @@ export default function AdminPaymentsPage() {
       const res = await apiClient.get("/admin/payments");
       if (res.data && res.data.success) {
         if (res.data.stats) setStats(res.data.stats);
-        if (Array.isArray(res.data.transactions)) {
+        if (Array.isArray(res.data.transactions) && res.data.transactions.length > 0) {
           setTransactions(res.data.transactions);
         }
       }
@@ -182,17 +174,9 @@ export default function AdminPaymentsPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupRealtimePayments();
-    fetchBackendPayments();
-
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubscriberRef.current) {
-        unsubscriberRef.current();
-      }
-    };
+    fetchPayments();
   }, []);
+
 
   const handleVerifyAndSettle = async (txId: string) => {
     setVerifyingId(txId);
@@ -267,8 +251,7 @@ export default function AdminPaymentsPage() {
           <button
             onClick={() => {
               setLoading(true);
-              setupRealtimePayments();
-              fetchBackendPayments();
+              fetchPayments();
             }}
             className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

@@ -16,6 +16,7 @@ import {
   collection,
   query,
   orderBy,
+  getDocs,
   onSnapshot,
   doc,
   setDoc,
@@ -53,87 +54,40 @@ export default function BannerManagementPage() {
 
   const unsubRef = useRef<Unsubscribe | null>(null);
 
-  const setupBannersListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Banners Loader (Eliminates continuous channel ping loops)
+  const fetchBanners = async () => {
     try {
-      const q = query(collection(db, "banners"), orderBy("createdAt", "desc"));
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: BannerItem[] = [];
-          snapshot.forEach((docSnap) => {
-            const d = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              title: d.title || "Special Promotional Offer",
-              subtitle: d.subtitle || "Book verified professionals at home",
-              tag: d.tag || "OFFER",
-              imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
-              targetCategory: d.targetCategory || "All Services",
-              isActive: d.isActive !== false,
-              order: d.order || 1,
-              createdAt: d.createdAt || Date.now(),
-            });
-          });
+      const snap = await getDocs(query(collection(db, "banners"), orderBy("createdAt", "desc")));
+      const list: BannerItem[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          title: d.title || "Special Promotional Offer",
+          subtitle: d.subtitle || "Book verified professionals at home",
+          tag: d.tag || "OFFER",
+          imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
+          targetCategory: d.targetCategory || "All Services",
+          isActive: d.isActive !== false,
+          order: d.order || 1,
+          createdAt: d.createdAt || Date.now(),
+        });
+      });
 
-          if (list.length === 0) {
-            setBanners([
-              {
-                id: "b_1",
-                title: "Doorstep Mobile Screen Repair",
-                subtitle: "Certified OEM parts with 6-month warranty",
-                tag: "UP TO 40% OFF",
-                imageUrl: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=800&q=80",
-                targetCategory: "Mobile Repair",
-                isActive: true,
-                order: 1,
-              },
-              {
-                id: "b_2",
-                title: "AC Deep Foam Jet Cleaning",
-                subtitle: "Instant cooling with power jet cleaning",
-                tag: "STARTING ₹399",
-                imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80",
-                targetCategory: "AC Repair",
-                isActive: true,
-                order: 2,
-              },
-              {
-                id: "b_3",
-                title: "Home Salon & Spa for Women",
-                subtitle: "Top beauticians with single-use hygienic kits",
-                tag: "FLAT 20% OFF",
-                imageUrl: "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=800&q=80",
-                targetCategory: "Home Salon",
-                isActive: true,
-                order: 3,
-              },
-            ]);
-          } else {
-            setBanners(list);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Firestore banners listener fallback:", err);
-          setLoading(false);
-        }
-      );
+      if (list.length > 0) {
+        setBanners(list);
+      }
     } catch (e) {
-      console.warn("Banners listener error:", e);
+      console.warn("Banners fetch error:", e);
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupBannersListener();
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubRef.current) unsubRef.current();
-    };
+    fetchBanners();
   }, []);
+
 
   const handleToggleActive = async (id: string, current: boolean) => {
     const nextVal = !current;
@@ -212,7 +166,7 @@ export default function BannerManagementPage() {
           <button
             onClick={() => {
               setLoading(true);
-              setupBannersListener();
+              fetchBanners();
             }}
             className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

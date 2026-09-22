@@ -25,6 +25,7 @@ import {
   collection,
   query,
   orderBy,
+  limit,
   onSnapshot,
   doc,
   updateDoc,
@@ -69,94 +70,47 @@ export default function BookingsManagementPage() {
 
   const unsubRef = useRef<Unsubscribe | null>(null);
 
-  // 1. Realtime Listeners
-  const setupBookingsListener = () => {
-    if (unsubRef.current) unsubRef.current();
-
+  // 1. Fast On-Demand Bookings Loader (Eliminates continuous channel ping loops)
+  const fetchBookings = async () => {
     try {
-      const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
-      unsubRef.current = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: BookingItem[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            list.push({
-              id: docSnap.id,
-              bookingId: data.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
-              customerName: data.customerName || data.user?.name || data.customer?.name || "Customer",
-              customerPhone: data.customerPhone || data.user?.phone || data.customer?.phone || "+91 9876543210",
-              customerAddress: data.address || data.serviceAddress || data.location?.address || "Connaught Place, New Delhi",
-              serviceTitle: data.serviceName || data.serviceTitle || data.category || "Doorstep Service",
-              category: data.category || "Home Services",
-              partnerName: data.providerName || data.partnerName || (data.assignedPartner ? data.assignedPartner.name : null),
-              partnerPhone: data.providerPhone || data.partnerPhone,
-              partnerId: data.providerId || data.partnerId,
-              amount: Number(data.pricing?.finalAmount || data.amount || 499),
-              convenienceFee: Number(data.convenienceFee || 29),
-              discount: Number(data.discount || 0),
-              paymentMethod: data.paymentMethod || "UPI / Online",
-              paymentStatus: data.paymentStatus || "PAID",
-              status: (data.status || "PENDING").toUpperCase(),
-              otp: data.otp || "4821",
-              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
-              notes: data.notes || data.specialInstructions || "",
-            });
-          });
+      const snap = await getDocs(query(collection(db, "bookings"), orderBy("createdAt", "desc"), limit(50)));
+      const list: BookingItem[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          bookingId: data.bookingId || `BK-${docSnap.id.slice(-6).toUpperCase()}`,
+          customerName: data.customerName || data.user?.name || data.customer?.name || "Customer",
+          customerPhone: data.customerPhone || data.user?.phone || data.customer?.phone || "+91 9876543210",
+          customerAddress: data.address || data.serviceAddress || data.location?.address || "Connaught Place, New Delhi",
+          serviceTitle: data.serviceName || data.serviceTitle || data.category || "Doorstep Service",
+          category: data.category || "Home Services",
+          partnerName: data.providerName || data.partnerName || (data.assignedPartner ? data.assignedPartner.name : null),
+          partnerPhone: data.providerPhone || data.partnerPhone,
+          partnerId: data.providerId || data.partnerId,
+          amount: Number(data.pricing?.finalAmount || data.amount || 499),
+          convenienceFee: Number(data.convenienceFee || 29),
+          discount: Number(data.discount || 0),
+          paymentMethod: data.paymentMethod || "UPI / Online",
+          paymentStatus: data.paymentStatus || "PAID",
+          status: (data.status || "PENDING").toUpperCase(),
+          otp: data.otp || "4821",
+          createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+          notes: data.notes || data.specialInstructions || "",
+        });
+      });
 
-          // Seed samples if empty
-          if (list.length === 0) {
-            setBookings([
-              {
-                id: "bk_101",
-                bookingId: "BK-882910",
-                customerName: "Khushboo Sharma",
-                customerPhone: "+91 9876543210",
-                customerAddress: "Flat 402, Green Glen Heights, Rohini Sec 14, Delhi",
-                serviceTitle: "AC Jet Cleaning Split/Window",
-                category: "AC Repair",
-                partnerName: "Rajesh Kumar",
-                partnerPhone: "+91 9811223344",
-                partnerId: "INP-4446",
-                amount: 499,
-                convenienceFee: 29,
-                paymentMethod: "UPI (GooglePay)",
-                paymentStatus: "PAID",
-                status: "IN_PROGRESS",
-                otp: "8392",
-                createdAt: Date.now() - 3600000,
-              },
-              {
-                id: "bk_102",
-                bookingId: "BK-882911",
-                customerName: "Sunil Verma",
-                customerPhone: "+91 9988776655",
-                customerAddress: "Sector 62, Noida, UP",
-                serviceTitle: "Doorstep Mobile Screen Repair",
-                category: "Mobile Repair",
-                partnerName: null,
-                amount: 1299,
-                convenienceFee: 29,
-                paymentMethod: "Cash on Service",
-                paymentStatus: "PENDING",
-                status: "PENDING",
-                otp: "1284",
-                createdAt: Date.now() - 1800000,
-              },
-            ]);
-          } else {
-            setBookings(list);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Firestore bookings listener notice:", err.message);
-          fetchBackendBookings();
-        }
-      );
-    } catch (e) {
-      console.warn("Bookings listener setup fallback:", e);
-      fetchBackendBookings();
+      if (list.length > 0) {
+        setBookings(list);
+        setLoading(false);
+      } else {
+        await fetchBackendBookings();
+      }
+    } catch (err) {
+      console.warn("Firestore fetch notice, using backend:", err);
+      await fetchBackendBookings();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -174,16 +128,10 @@ export default function BookingsManagementPage() {
   };
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setLoading(false), 800);
-    setupBookingsListener();
-    fetchBackendBookings();
+    fetchBookings();
     fetchProviders();
-
-    return () => {
-      clearTimeout(safetyTimer);
-      if (unsubRef.current) unsubRef.current();
-    };
   }, []);
+
 
   const fetchProviders = async () => {
     try {
@@ -210,11 +158,8 @@ export default function BookingsManagementPage() {
   };
 
   useEffect(() => {
-    setupBookingsListener();
+    fetchBookings();
     fetchProviders();
-    return () => {
-      if (unsubRef.current) unsubRef.current();
-    };
   }, []);
 
   // Update Status
@@ -369,7 +314,7 @@ export default function BookingsManagementPage() {
           <button
             onClick={() => {
               setLoading(true);
-              setupBookingsListener();
+              fetchBookings();
             }}
             className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition"
           >

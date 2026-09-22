@@ -1,15 +1,56 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { useBookingStore } from "../../../src/store/useBookingStore";
-import { Calendar, Clock, ArrowRight } from "lucide-react-native";
+import { useAuthStore } from "../../../src/store/useAuthStore";
+import { Calendar, Clock, ArrowRight, RefreshCw } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import { db } from "../../../src/config/firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bookingHistory, activeBooking } = useBookingStore();
+  const { bookingHistory, activeBooking, setBookingHistory } = useBookingStore();
+  const { user } = useAuthStore();
+  const [liveBookings, setLiveBookings] = useState<any[]>([]);
+
+  // Real-time Firestore sync
+  useEffect(() => {
+    try {
+      const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
+      const unsub = onSnapshot(q, (snapshot) => {
+        const list: any[] = [];
+        const cleanUserPhone = (user?.phoneNumber || "").replace(/\D/g, "").slice(-10);
+
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          const dPhone = (d.customerPhone || "").replace(/\D/g, "").slice(-10);
+
+          // If booking belongs to current customer or if user not logged in
+          if (
+            !cleanUserPhone ||
+            dPhone === cleanUserPhone ||
+            d.customerId === user?.id ||
+            d.customerName === user?.name
+          ) {
+            list.push({
+              id: docSnap.id,
+              ...d,
+            });
+          }
+        });
+
+        if (list.length > 0) {
+          setLiveBookings(list);
+          setBookingHistory(list);
+        }
+      });
+
+      return () => unsub();
+    } catch {}
+  }, [user]);
 
   // Deduplicate bookings by ID so keys are strictly unique
   const displayBookings = useMemo(() => {
@@ -21,7 +62,8 @@ export default function BookingsScreen() {
       seenIds.add(activeBooking.id);
     }
 
-    bookingHistory.forEach((item) => {
+    const merged = [...liveBookings, ...bookingHistory];
+    merged.forEach((item) => {
       if (item && item.id && !seenIds.has(item.id)) {
         seenIds.add(item.id);
         list.push(item);
@@ -29,7 +71,7 @@ export default function BookingsScreen() {
     });
 
     return list;
-  }, [activeBooking, bookingHistory]);
+  }, [activeBooking, bookingHistory, liveBookings]);
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity

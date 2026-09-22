@@ -8,6 +8,9 @@ import BrandLogo from "../../../src/components/common/BrandLogo";
 import WalletTopUpModal from "../../../src/components/wallet/WalletTopUpModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { db } from "../../../src/config/firebase";
+import { collection, query, orderBy, onSnapshot, doc } from "firebase/firestore";
+
 interface TransactionItem {
   id: string;
   title: string;
@@ -20,28 +23,62 @@ interface TransactionItem {
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const { bookingHistory } = useBookingStore();
   const [topUpModalVisible, setTopUpModalVisible] = useState(false);
   const [customTransactions, setCustomTransactions] = useState<TransactionItem[]>([]);
+  const [liveBalance, setLiveBalance] = useState<number>(user?.walletBalance ?? 250);
 
-  const walletBalance = user?.walletBalance ?? 250;
+  const walletBalance = liveBalance;
 
-  const loadTransactions = async () => {
-    try {
-      const stored = await AsyncStorage.getItem("@wallet_transactions");
-      if (stored) {
-        setCustomTransactions(JSON.parse(stored));
-      }
-    } catch {}
-  };
-
+  // Real-time Firestore user wallet balance sync
   useEffect(() => {
-    loadTransactions();
+    if (!user?.id && !user?.phoneNumber) return;
+    const userId = user.id || `usr_${(user.phoneNumber || "").replace(/\D/g, "").slice(-10)}`;
+
+    try {
+      const unsubUser = onSnapshot(doc(db, "users", userId), (docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          if (d.walletBalance !== undefined) {
+            setLiveBalance(d.walletBalance);
+            updateUser({ walletBalance: d.walletBalance });
+          }
+        }
+      });
+
+      // Real-time wallet transactions from Firestore
+      const q = query(collection(db, "wallet_transactions"), orderBy("createdAt", "desc"));
+      const unsubTx = onSnapshot(q, (snapshot) => {
+        const txList: TransactionItem[] = [];
+        snapshot.forEach((snap) => {
+          const d = snap.data();
+          if (d.userId === userId || !d.userId || d.userName === user.name) {
+            txList.push({
+              id: snap.id,
+              title: d.type === "CREDIT" ? "Wallet Top-up / Cashback" : "Service Payment",
+              subtitle: d.description || "Inisha City Service Wallet",
+              amount: Number(d.amount || 0),
+              type: d.type || "CREDIT",
+              status: "COMPLETED",
+              date: new Date(d.createdAt || Date.now()).toLocaleDateString("en-IN"),
+            });
+          }
+        });
+        if (txList.length > 0) {
+          setCustomTransactions(txList);
+        }
+      });
+
+      return () => {
+        unsubUser();
+        unsubTx();
+      };
+    } catch {}
   }, [user]);
 
   const handleTopUpSuccess = (amt: number, txId: string) => {
-    loadTransactions();
+    setLiveBalance((prev) => prev + amt);
   };
 
   return (

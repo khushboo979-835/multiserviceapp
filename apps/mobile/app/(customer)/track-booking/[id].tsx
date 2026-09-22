@@ -11,6 +11,9 @@ import { ArrowLeft, Phone, MessageSquare, ShieldCheck, Star, CheckCircle2, Bike,
 import { LocationService } from "../../../src/services/location.service";
 import PaymentModal from "../../../src/components/payment/PaymentModal";
 
+import { db } from "../../../src/config/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+
 export default function TrackBookingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -23,6 +26,36 @@ export default function TrackBookingScreen() {
 
   const vehicleNo = (activeBooking as any)?.providerVehicle || "DL 07 " + (activeBooking?.id?.slice(-4) || "8842");
   const partnerRating = "4.9 ★";
+
+  // 1. Real-time Firestore Booking Sync
+  useEffect(() => {
+    if (!id) return;
+
+    let unsubFs: any = null;
+    try {
+      unsubFs = onSnapshot(doc(db, "bookings", id), (docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          if (d.status) {
+            updateActiveBookingStatus(d.status as BookingStatus, d.timeline || []);
+            if (d.providerName || d.partnerName) {
+              setActiveBooking({
+                ...(activeBooking || ({} as any)),
+                ...d,
+                providerName: d.providerName || d.partnerName,
+                providerPhone: d.providerPhone || d.partnerPhone,
+                status: d.status,
+              });
+            }
+          }
+        }
+      });
+    } catch {}
+
+    return () => {
+      if (unsubFs) unsubFs();
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!activeBooking) {

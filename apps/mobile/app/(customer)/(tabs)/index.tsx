@@ -23,6 +23,16 @@ import BrandLogo from "../../../src/components/common/BrandLogo";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
 import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
+import { db } from "../../../src/config/firebase";
+import {
+  collection,
+  doc,
+  setDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import AIChatSupportModal from "../../../src/components/common/AIChatSupportModal";
 import VoiceBookingModal from "../../../src/components/common/VoiceBookingModal";
 import ProductCatalogModal from "../../../src/components/ecommerce/ProductCatalogModal";
@@ -178,8 +188,9 @@ export default function CustomerHomeScreen() {
   const [selectedCity, setSelectedCity] = useState("Patna");
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
 
-  // Fetch dynamic categories from backend API with fallback
+  // 1. Fetch dynamic categories and listen to real-time Firestore updates
   useEffect(() => {
+    // A. Backend API Sync
     const fetchCategories = async () => {
       try {
         const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
@@ -195,6 +206,53 @@ export default function CustomerHomeScreen() {
       }
     };
     fetchCategories();
+
+    // B. Real-time Firestore Categories Listener
+    try {
+      const unsubCat = onSnapshot(collection(db, "categories"), (snap) => {
+        if (!snap.empty) {
+          const liveCats: Category[] = [];
+          snap.forEach((doc) => {
+            const d = doc.data();
+            liveCats.push({
+              id: doc.id,
+              name: d.name || "Service",
+              imageUrl: d.imageUrl || "sparkles",
+              description: d.description || "",
+              subcategories: d.subcategories || [
+                {
+                  id: `sub_${doc.id}`,
+                  categoryId: doc.id,
+                  name: d.name || "Doorstep Service",
+                  basePrice: d.basePrice || 499,
+                  formConfig: d.fields || [],
+                },
+              ],
+            });
+          });
+          if (liveCats.length > 0) setCategories(liveCats);
+        }
+      });
+
+      // C. Real-time Push Notifications listener from Admin
+      const unsubNotif = onSnapshot(
+        query(collection(db, "broadcast_notifications"), orderBy("sentAt", "desc"), limit(1)),
+        (snap) => {
+          if (!snap.empty) {
+            const notif = snap.docs[0].data();
+            // Show in-app banner if created within last 2 minutes
+            if (notif.sentAt && Date.now() - notif.sentAt < 120000) {
+              Alert.alert(notif.title || "Inisha Alert", notif.body || "");
+            }
+          }
+        }
+      );
+
+      return () => {
+        unsubCat();
+        unsubNotif();
+      };
+    } catch {}
   }, []);
 
   // Fetch real device GPS coordinates on mount
@@ -284,7 +342,24 @@ export default function CustomerHomeScreen() {
         updatedAt: new Date().toISOString(),
       };
 
-      // Real-time backend API dispatch
+      // 1. Direct Real-Time Firestore Save (instantly streams to Admin Dashboard)
+      try {
+        await setDoc(doc(db, "bookings", newBookingId), {
+          ...newBooking,
+          bookingId: `BK-${newBookingId.replace("bk_", "").toUpperCase()}`,
+          serviceName: selectedSubcategory?.name || "Doorstep Service",
+          serviceTitle: selectedSubcategory?.name || "Doorstep Service",
+          amount: newBooking.pricing.finalAmount,
+          customerName: newBooking.customerName,
+          customerPhone: newBooking.customerPhone,
+          address: newBooking.selectedAddress.formattedAddress,
+          createdAt: Date.now(),
+        });
+      } catch (fsErr) {
+        console.warn("Firestore booking sync notice:", fsErr);
+      }
+
+      // 2. Real-time backend API dispatch
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
       fetch(`${API_URL}/bookings`, {
         method: "POST",
@@ -292,7 +367,7 @@ export default function CustomerHomeScreen() {
         body: JSON.stringify(newBooking),
       }).catch((apiErr) => console.warn("Backend booking dispatch sync:", apiErr));
 
-      // Real-time socket broadcast to online partners
+      // 3. Real-time socket broadcast to online partners
       try {
         const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
         const io = require("socket.io-client").io;

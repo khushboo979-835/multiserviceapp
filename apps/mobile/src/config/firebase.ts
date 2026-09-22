@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getFirestore, Firestore } from "firebase/firestore";
 import {
   initializeAuth,
   // @ts-ignore - getReactNativePersistence is exported by React Native entrypoint in Firebase
@@ -23,6 +24,8 @@ export const firebaseConfig = {
 // 1. Singleton Firebase App instance
 export const app: FirebaseApp =
   getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+export const db: Firestore = getFirestore(app);
 
 // 2. Initialize Firebase Auth with React Native AsyncStorage persistence
 let authInstance: Auth;

@@ -30,7 +30,8 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 
-import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
+import { db } from "../../../src/config/firebase";
+import { collection, query, orderBy, onSnapshot, limit, doc, updateDoc } from "firebase/firestore";
 
 export default function ProviderDashboardScreen() {
   const router = useRouter();
@@ -45,10 +46,13 @@ export default function ProviderDashboardScreen() {
 
   const isAvailable = providerProfile?.isAvailable ?? true;
 
-  // Socket listener for real-time live job dispatches from backend
+  // 1. Dual Real-time Listeners: Firestore + WebSocket Dispatch
   useEffect(() => {
     let socketClient: any = null;
+    let unsubFirestore: any = null;
+
     try {
+      // A. Socket connection
       const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
       const io = require("socket.io-client").io;
       socketClient = io(socketUrl, { transports: ["websocket"], autoConnect: true });
@@ -58,7 +62,7 @@ export default function ProviderDashboardScreen() {
       });
 
       socketClient.on("job:dispatch", (jobData: any) => {
-        if (!isAvailable) return;
+        if (!isAvailable || activeBooking) return;
         try {
           Vibration.vibrate([0, 400, 200, 400, 200, 600]);
         } catch {}
@@ -73,12 +77,69 @@ export default function ProviderDashboardScreen() {
         setCountdown(30);
         setShowIncoming(true);
       });
+
+      // B. Firestore Real-Time Listener for New & Assigned Bookings
+      const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"), limit(5));
+      unsubFirestore = onSnapshot(q, (snapshot) => {
+        if (!isAvailable || activeBooking) return;
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added" || change.type === "modified") {
+            const data = change.doc.data();
+            const isFresh = Date.now() - (data.createdAt || Date.now()) < 60000;
+            const isAssignedToMe =
+              data.providerId === providerProfile?.id ||
+              data.partnerId === providerProfile?.id ||
+              data.partnerPhone === user?.phoneNumber;
+
+            if (isFresh && (data.status === "PENDING" || data.status === "PENDING_PROVIDER" || isAssignedToMe)) {
+              try {
+                Vibration.vibrate([0, 400, 200, 400, 200, 600]);
+              } catch {}
+
+              const formattedJob: Partial<Booking> = {
+                id: change.doc.id,
+                customerId: data.customerId || "usr_customer",
+                customerName: data.customerName || "Verified Customer",
+                customerPhone: data.customerPhone || "+91 9876543210",
+                categoryId: data.categoryId || "cat_repair",
+                subcategoryId: data.subcategoryId || "sub_doorstep",
+                formValues: data.formValues || { service_type: data.serviceTitle || "Doorstep Service" },
+                selectedAddress: {
+                  formattedAddress: data.address || data.customerAddress || "Patna, Bihar",
+                  latitude: data.selectedAddress?.latitude || 25.5941,
+                  longitude: data.selectedAddress?.longitude || 85.1376,
+                },
+                pricing: {
+                  basePrice: data.amount || 499,
+                  tax: Math.round((data.amount || 499) * 0.18),
+                  commission: Math.round((data.amount || 499) * 0.15),
+                  couponDiscount: 0,
+                  addOnPrice: 0,
+                  providerEarnings: Math.round((data.amount || 499) * 0.85),
+                  finalAmount: data.amount || 499,
+                },
+                scheduledDate: data.scheduledDate || new Date().toISOString().split("T")[0],
+                scheduledTime: data.scheduledTime || "Immediate Doorstep Visit",
+                otp: data.otp || "5273",
+              };
+
+              setIncomingBooking(formattedJob);
+              setCountdown(30);
+              setShowIncoming(true);
+            }
+          }
+        });
+      });
     } catch {}
 
     return () => {
-      try { socketClient?.disconnect(); } catch {}
+      try {
+        socketClient?.disconnect();
+        if (unsubFirestore) unsubFirestore();
+      } catch {}
     };
-  }, [isAvailable, providerProfile, user]);
+  }, [isAvailable, providerProfile, user, activeBooking]);
 
   const triggerIncomingOrder = () => {
     try {
@@ -161,6 +222,24 @@ export default function ProviderDashboardScreen() {
         updatedAt: new Date().toISOString(),
         otp: "5273",
       };
+
+      // Sync accepted status to Firestore
+      try {
+        if (incomingBooking.id) {
+          await updateDoc(doc(db, "bookings", incomingBooking.id), {
+            status: "ACCEPTED",
+            providerId: acceptedBooking.providerId,
+            providerName: acceptedBooking.providerName,
+            providerPhone: acceptedBooking.providerPhone,
+            partnerId: acceptedBooking.providerId,
+            partnerName: acceptedBooking.providerName,
+            partnerPhone: acceptedBooking.providerPhone,
+            updatedAt: Date.now(),
+          });
+        }
+      } catch (fsErr) {
+        console.warn("Firestore accept sync notice:", fsErr);
+      }
 
       setActiveBooking(acceptedBooking);
       addBookingToHistory(acceptedBooking);

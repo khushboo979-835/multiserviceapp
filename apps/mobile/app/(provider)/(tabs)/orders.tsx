@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { useBookingStore } from "../../../src/store/useBookingStore";
 import { useAuthStore } from "../../../src/store/useAuthStore";
@@ -7,11 +7,13 @@ import { Clock, MapPin, ShieldAlert, ArrowRight, MessageSquare, CheckCircle2, Us
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ChatModal from "../../../src/components/chat/ChatModal";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import { db } from "../../../src/config/firebase";
+import { doc, updateDoc, collection, query, orderBy, onSnapshot, setDoc } from "firebase/firestore";
 
 export default function ProviderOrdersScreen() {
   const insets = useSafeAreaInsets();
   const { activeBooking, setActiveBooking, bookingHistory, setBookingHistory } = useBookingStore();
-  const { providerProfile, updateProviderProfile } = useAuthStore();
+  const { providerProfile, updateProviderProfile, user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [otpModalVisible, setOtpModalVisible] = useState(false);
@@ -19,6 +21,26 @@ export default function ProviderOrdersScreen() {
   const [enteredOtp, setEnteredOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 1. Real-time Firestore sync for active booking assigned to this provider
+  useEffect(() => {
+    if (!activeBooking?.id) return;
+    try {
+      const unsub = onSnapshot(doc(db, "bookings", activeBooking.id), (docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          if (d.status && d.status !== activeBooking.status) {
+            setActiveBooking({
+              ...activeBooking,
+              status: d.status as BookingStatus,
+              timeline: d.timeline || activeBooking.timeline,
+            });
+          }
+        }
+      });
+      return () => unsub();
+    } catch {}
+  }, [activeBooking?.id]);
 
   const handleUpdateStatus = async (nextStatus: BookingStatus, note: string) => {
     if (!activeBooking) return;
@@ -38,14 +60,42 @@ export default function ProviderOrdersScreen() {
         timeline: updatedTimeline,
       };
 
+      // Sync status to Firestore in real-time
+      try {
+        await updateDoc(doc(db, "bookings", activeBooking.id), {
+          status: nextStatus,
+          timeline: updatedTimeline,
+          updatedAt: Date.now(),
+        });
+      } catch (fsErr) {
+        console.warn("Firestore update error:", fsErr);
+      }
+
       setActiveBooking(updatedBooking);
 
       if (nextStatus === "COMPLETED") {
         const earnings = activeBooking.pricing.providerEarnings;
         if (providerProfile) {
+          const newBal = (providerProfile.walletBalance || 0) + earnings;
           updateProviderProfile({
-            walletBalance: (providerProfile.walletBalance || 0) + earnings,
+            walletBalance: newBal,
           });
+
+          // Also record transaction in Firestore
+          try {
+            const provId = providerProfile.id || `prov_${(user?.phoneNumber || "").replace(/\D/g, "").slice(-10)}`;
+            await updateDoc(doc(db, "providers", provId), {
+              walletBalance: newBal,
+            });
+            await setDoc(doc(collection(db, "wallet_transactions")), {
+              userId: provId,
+              userName: user?.name || "Service Partner",
+              amount: earnings,
+              type: "CREDIT",
+              description: `Earnings for Job #${activeBooking.id.slice(-6)}`,
+              createdAt: Date.now(),
+            });
+          } catch {}
         }
 
         setBookingHistory([updatedBooking, ...bookingHistory]);

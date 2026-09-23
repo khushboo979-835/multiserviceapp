@@ -38,6 +38,7 @@ import VoiceBookingModal from "../../../src/components/common/VoiceBookingModal"
 import ProductCatalogModal from "../../../src/components/ecommerce/ProductCatalogModal";
 import GSTInvoiceModal from "../../../src/components/booking/GSTInvoiceModal";
 import RatingReviewModal from "../../../src/components/booking/RatingReviewModal";
+import AllServicesModal from "../../../src/components/booking/AllServicesModal";
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import CallSimulationModal from "../../../src/components/common/CallSimulationModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
@@ -176,6 +177,7 @@ export default function CustomerHomeScreen() {
   // New Feature Modals
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isAllServicesOpen, setIsAllServicesOpen] = useState(false);
   const [isStoreOpen, setIsStoreOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
@@ -212,20 +214,23 @@ export default function CustomerHomeScreen() {
       const unsubCat = onSnapshot(collection(db, "categories"), (snap) => {
         if (!snap.empty) {
           const liveCats: Category[] = [];
-          snap.forEach((doc) => {
-            const d = doc.data();
+          snap.forEach((docSnap) => {
+            const d = docSnap.data();
             liveCats.push({
-              id: doc.id,
+              id: docSnap.id,
               name: d.name || "Service",
+              slug: d.slug || docSnap.id,
+              isActive: d.isActive ?? true,
               imageUrl: d.imageUrl || "sparkles",
               description: d.description || "",
               subcategories: d.subcategories || [
                 {
-                  id: `sub_${doc.id}`,
-                  categoryId: doc.id,
+                  id: `sub_${docSnap.id}`,
+                  categoryId: docSnap.id,
                   name: d.name || "Doorstep Service",
+                  slug: `sub_${docSnap.id}`,
                   basePrice: d.basePrice || 499,
-                  formConfig: d.fields || [],
+                  formConfig: d.fields || { fields: [] },
                 },
               ],
             });
@@ -652,8 +657,17 @@ export default function CustomerHomeScreen() {
         {/* Services Grid (All 15 Core Home & Repair Services) */}
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Explore Services</Text>
-            <Text style={styles.sectionCountText}>{filteredCategories.length} Categories</Text>
+            <View>
+              <Text style={styles.sectionTitle}>Explore Services</Text>
+              <Text style={styles.sectionCountText}>{filteredCategories.length} Categories Available</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setIsAllServicesOpen(true)}
+              style={styles.viewAllBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllBtnText}>सभी Services ➔</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.categoryGrid}>
@@ -831,6 +845,18 @@ export default function CustomerHomeScreen() {
         visible={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
         onAddCategory={(newCat) => setCategories([newCat, ...categories])}
+      />
+
+      <AllServicesModal
+        visible={isAllServicesOpen}
+        onClose={() => setIsAllServicesOpen(false)}
+        categories={categories}
+        onSelectService={(cat, sub) => {
+          setSelectedCategory(cat);
+          setSelectedSubcategory(sub);
+          setCurrentPrice(sub.basePrice);
+          setIsFormOpen(true);
+        }}
       />
     </View>
   );
@@ -1137,7 +1163,21 @@ const styles = StyleSheet.create({
   },
   sectionCountText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "600",
+    color: "#64748b",
+    marginTop: 1,
+  },
+  viewAllBtn: {
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  viewAllBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
     color: "#ef4444",
   },
   categoryGrid: {

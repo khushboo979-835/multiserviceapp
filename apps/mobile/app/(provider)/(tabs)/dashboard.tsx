@@ -25,10 +25,20 @@ import {
   Zap,
   Navigation,
   BellRing,
+  Building2,
+  CalendarCheck2,
+  TrendingUp,
+  FileBarChart,
+  ShieldCheck,
+  Timer,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
+import AttendanceModal from "../../../src/components/provider/AttendanceModal";
+import BankAccountModal from "../../../src/components/provider/BankAccountModal";
+import PerformanceReportsModal from "../../../src/components/provider/PerformanceReportsModal";
 
 import { db } from "../../../src/config/firebase";
 import { collection, query, orderBy, onSnapshot, limit, doc, updateDoc } from "firebase/firestore";
@@ -43,6 +53,11 @@ export default function ProviderDashboardScreen() {
   const [countdown, setCountdown] = useState(30);
   const [showIncoming, setShowIncoming] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // New Provider Modal States
+  const [attendanceVisible, setAttendanceVisible] = useState(false);
+  const [bankVisible, setBankVisible] = useState(false);
+  const [reportsVisible, setReportsVisible] = useState(false);
 
   const isAvailable = providerProfile?.isAvailable ?? true;
 
@@ -342,6 +357,62 @@ export default function ProviderDashboardScreen() {
           </View>
         </View>
 
+        {/* Quick Operational Management Grid */}
+        <Text style={styles.sectionHeaderTitle}>Operational Tools & Services</Text>
+        <View style={styles.toolsGrid}>
+          {/* Daily Attendance & Shift Punch */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setAttendanceVisible(true)}
+            style={styles.toolCard}
+          >
+            <View style={[styles.toolIconBox, { backgroundColor: "#f0fdf4" }]}>
+              <CalendarCheck2 size={22} color="#16a34a" />
+            </View>
+            <Text style={styles.toolTitle}>Attendance & Shifts</Text>
+            <Text style={styles.toolSub}>Daily punch-in, duty hours & logs</Text>
+          </TouchableOpacity>
+
+          {/* Daily / Weekly Reports & Telemetry */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setReportsVisible(true)}
+            style={styles.toolCard}
+          >
+            <View style={[styles.toolIconBox, { backgroundColor: "#eff6ff" }]}>
+              <FileBarChart size={22} color="#3b82f6" />
+            </View>
+            <Text style={styles.toolTitle}>Performance Reports</Text>
+            <Text style={styles.toolSub}>Weekly earnings & ratings analytics</Text>
+          </TouchableOpacity>
+
+          {/* Bank Account Management */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setBankVisible(true)}
+            style={styles.toolCard}
+          >
+            <View style={[styles.toolIconBox, { backgroundColor: "#fef2f2" }]}>
+              <Building2 size={22} color="#ef4444" />
+            </View>
+            <Text style={styles.toolTitle}>Bank Account</Text>
+            <Text style={styles.toolSub}>IMPS settlement details & UPI</Text>
+          </TouchableOpacity>
+
+          {/* Incoming Dispatch Simulator */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={triggerIncomingOrder}
+            style={styles.toolCard}
+          >
+            <View style={[styles.toolIconBox, { backgroundColor: "#fffbeb" }]}>
+              <Zap size={22} color="#f59e0b" />
+            </View>
+            <Text style={styles.toolTitle}>Test Dispatch</Text>
+            <Text style={styles.toolSub}>Simulate live customer order alert</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Guidelines Card */}
         <View style={styles.guidelinesCard}>
           <Text style={styles.guidelinesTitle}>Partner Availability Guidelines</Text>
@@ -351,6 +422,24 @@ export default function ProviderDashboardScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* 1. Daily Attendance & Shift Modal */}
+      <AttendanceModal
+        visible={attendanceVisible}
+        onClose={() => setAttendanceVisible(false)}
+      />
+
+      {/* 2. Bank Account Setup Modal */}
+      <BankAccountModal
+        visible={bankVisible}
+        onClose={() => setBankVisible(false)}
+      />
+
+      {/* 3. Performance Analytics & Weekly Reports Modal */}
+      <PerformanceReportsModal
+        visible={reportsVisible}
+        onClose={() => setReportsVisible(false)}
+      />
 
       {/* Ola/Uber Style Incoming Request Fullscreen Drawer */}
       <Modal visible={showIncoming} transparent={true} animationType="slide">
@@ -751,5 +840,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     color: "#ffffff",
+  },
+  sectionHeaderTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginTop: 18,
+    marginBottom: 12,
+  },
+  toolsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 16,
+  },
+  toolCard: {
+    width: "48%",
+    backgroundColor: "#f8fafc",
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  toolIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  toolTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  toolSub: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+    lineHeight: 14,
   },
 });

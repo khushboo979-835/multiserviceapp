@@ -22,12 +22,17 @@ import {
   Menu,
   X,
   Shield,
+  Smartphone,
+  DownloadCloud,
+  QrCode,
+  ExternalLink,
 } from "lucide-react";
 import Logo from "../components/Logo";
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [apkModalOpen, setApkModalOpen] = useState(false);
 
   // Auto-close mobile drawer on route change
   useEffect(() => {
@@ -152,6 +157,15 @@ export default function App({ Component, pageProps }: AppProps) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Direct Mobile App & APK Hub Trigger */}
+            <button
+              onClick={() => setApkModalOpen(true)}
+              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition"
+            >
+              <Smartphone size={14} className="text-emerald-600" />
+              <span>📱 Download APK & App</span>
+            </button>
+
             <div className="w-8 h-8 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-xs font-black text-red-600">
               AD
             </div>
@@ -166,6 +180,88 @@ export default function App({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         </div>
       </main>
+
+      {/* Mobile App & APK Download Hub Modal */}
+      {apkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
+                  <Smartphone size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">
+                    Inisha City Service Mobile App & APK
+                  </h3>
+                  <p className="text-xs text-slate-500">Android APK Build & Expo Testing Hub</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setApkModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content Cards */}
+            <div className="space-y-3">
+              {/* Option 1: EAS Cloud Build Dashboard */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <DownloadCloud size={16} className="text-red-600" />
+                    <span className="font-black text-xs text-slate-900">Expo EAS Cloud APK Dashboard</span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                    Android APK
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  Directly download the latest compiled Android <code className="bg-white px-1.5 py-0.5 rounded font-bold">.apk</code> installable file from Expo Cloud.
+                </p>
+                <a
+                  href="https://expo.dev/projects/237a6fd9-ca52-4cbf-ac0f-8813a528723b"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                >
+                  <ExternalLink size={14} />
+                  Open Expo Cloud APK Dashboard
+                </a>
+              </div>
+
+              {/* Option 2: Live Testing via Expo Go QR Code */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <QrCode size={16} className="text-indigo-600" />
+                  <span className="font-black text-xs text-slate-900">Instant Phone Testing (Expo Go)</span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  1. Download <b>Expo Go</b> app on your Android/iPhone from Play Store.<br />
+                  2. Run <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold">npx expo start --tunnel</code> in <code className="bg-white px-1.5 py-0.5 rounded font-bold">apps/mobile</code>.<br />
+                  3. Scan the QR code to open the full app live on your phone!
+                </p>
+              </div>
+
+              {/* Technical Details */}
+              <div className="bg-slate-100/70 rounded-xl p-3 text-[11px] text-slate-600 space-y-1 font-mono">
+                <div><b>App Name:</b> INISHA CITY SERVICE</div>
+                <div><b>Package:</b> com.inishacityservice.app</div>
+                <div><b>Official Helpline:</b> +91 73520 82614</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setApkModalOpen(false)}
+              className="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-xl text-xs transition"
+            >
+              Close Hub
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

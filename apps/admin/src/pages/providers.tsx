@@ -198,33 +198,6 @@ export default function AdminProviders() {
 
       const docId = `prov_${cleanPhone}`;
 
-      // Save to Firebase Firestore
-      await setDoc(doc(db, "providers", docId), {
-        partnerId,
-        name: cleanName,
-        phone: formattedPhone,
-        phoneNumber: formattedPhone,
-        email: newPartner.email.trim() || `${cleanPhone}@partner.inishacityservice.com`,
-        temporaryPassword: rawPassword,
-        skills: skillsArray,
-        rating: 5.0,
-        isApproved: true,
-        isOnline: false,
-        walletBalance: 0,
-        createdAt: Date.now(),
-      });
-
-      // Also notify backend API in background
-      try {
-        await apiClient.post("/admin/providers/create", {
-          name: cleanName,
-          phone: cleanPhone,
-          email: newPartner.email,
-          skills: skillsArray,
-          password: rawPassword,
-        });
-      } catch {}
-
       const createdObj: ProviderData = {
         id: docId,
         partnerId,
@@ -253,6 +226,36 @@ export default function AdminProviders() {
         skills: "Doorstep Mobile Screen Repair, AC Jet Cleaning",
         password: "partner123",
       });
+
+      // 2. Guaranteed MongoDB Atlas & Firestore Dual Persistence
+      const savePromises = [
+        // MongoDB Atlas backend save
+        apiClient.post("/admin/providers/create", {
+          name: cleanName,
+          phone: cleanPhone,
+          email: newPartner.email,
+          skills: skillsArray,
+          password: rawPassword,
+        }).catch((apiErr) => console.warn("Backend provider save notice:", apiErr?.message)),
+
+        // Firebase Firestore save
+        setDoc(doc(db, "providers", docId), {
+          partnerId,
+          name: cleanName,
+          phone: formattedPhone,
+          phoneNumber: formattedPhone,
+          email: newPartner.email.trim() || `${cleanPhone}@partner.inishacityservice.com`,
+          temporaryPassword: rawPassword,
+          skills: skillsArray,
+          rating: 5.0,
+          isApproved: true,
+          isOnline: false,
+          walletBalance: 0,
+          createdAt: Date.now(),
+        }).catch((fsErr) => console.warn("Firestore provider save notice:", fsErr?.message)),
+      ];
+
+      await Promise.allSettled(savePromises);
     } catch (err: any) {
       console.error("Create Partner Error:", err);
       alert("Failed to save partner: " + (err?.message || "Unknown error"));

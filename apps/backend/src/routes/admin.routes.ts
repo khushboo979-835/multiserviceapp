@@ -119,56 +119,103 @@ router.get("/bookings/live", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * 3. Onboard New Service Partner
- * POST /api/admin/providers/create
- */
-router.post("/providers/create", async (req: Request, res: Response) => {
+const handleProviderOnboarding = async (req: Request, res: Response) => {
   try {
     const { name, phone, email, skills, password } = req.body;
     const cleanPhone = String(phone || "").replace(/\D/g, "").slice(-10);
 
-    if (!name || !cleanPhone) {
+    if (!name || !cleanPhone || cleanPhone.length !== 10) {
       return res.status(400).json({
         success: false,
-        message: "Partner Name and 10-digit Phone are required",
+        message: "Valid Partner Name and 10-digit Phone are required",
       });
     }
 
-    const partnerId = "INP-" + Math.floor(1000 + Math.random() * 9000);
+    const formattedPhone = `+91 ${cleanPhone}`;
     const rawPass = password || "partner123";
     const passwordHash = hashPassword(rawPass);
+    const skillsArray = Array.isArray(skills) && skills.length > 0 ? skills : ["Mobile Repair", "Home Utility"];
 
-    const newProvider = await ProviderProfile.create({
-      userId: `usr_prov_${cleanPhone}`,
-      partnerId,
-      name,
-      phone: `+91 ${cleanPhone}`,
-      email: email || `${cleanPhone}@partner.inishacityservice.com`,
-      passwordHash,
-      skills: Array.isArray(skills) && skills.length > 0 ? skills : ["Mobile Repair", "Home Utility"],
-      rating: 5.0,
-      reviewCount: 0,
-      isOnline: false,
-      isApproved: true,
-      walletBalance: 0,
+    // 1. Upsert ProviderProfile in MongoDB
+    let provider = await ProviderProfile.findOne({
+      $or: [
+        { phone: formattedPhone },
+        { phone: cleanPhone },
+        { userId: `usr_prov_${cleanPhone}` },
+      ],
     });
+
+    if (provider) {
+      provider.name = name;
+      if (email) provider.email = email;
+      provider.skills = skillsArray;
+      provider.passwordHash = passwordHash;
+      provider.isApproved = true;
+      await provider.save();
+    } else {
+      const partnerId = "INP-" + Math.floor(1000 + Math.random() * 9000);
+      provider = await ProviderProfile.create({
+        userId: `usr_prov_${cleanPhone}`,
+        partnerId,
+        name,
+        phone: formattedPhone,
+        email: email || `${cleanPhone}@partner.inishacityservice.com`,
+        passwordHash,
+        skills: skillsArray,
+        rating: 5.0,
+        reviewCount: 0,
+        isOnline: false,
+        isApproved: true,
+        walletBalance: 0,
+      });
+    }
+
+    // 2. Also ensure User record in MongoDB
+    try {
+      let user = await User.findOne({ phoneNumber: formattedPhone });
+      if (user) {
+        user.name = name;
+        user.role = "PROVIDER";
+        if (email) user.email = email;
+        await user.save();
+      } else {
+        await User.create({
+          phoneNumber: formattedPhone,
+          role: "PROVIDER",
+          name: name,
+          email: email || `${cleanPhone}@partner.inishacityservice.com`,
+          walletBalance: 0,
+          isVerified: true,
+          isBlocked: false,
+        });
+      }
+    } catch (uErr) {
+      console.warn("User sync notice for provider:", uErr);
+    }
 
     return res.status(201).json({
       success: true,
-      message: "Service Partner successfully onboarded",
+      message: "Service Partner successfully saved to MongoDB database",
       partner: {
-        partnerId: newProvider.partnerId,
-        name: newProvider.name,
-        phone: newProvider.phone,
+        partnerId: provider.partnerId,
+        name: provider.name,
+        phone: provider.phone,
         temporaryPassword: rawPass,
-        skills: newProvider.skills,
+        skills: provider.skills,
       },
     });
   } catch (error: any) {
+    console.error("Provider onboarding error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
-});
+};
+
+/**
+ * 3. Onboard New Service Partner (Supports /providers/create and /providers)
+ * POST /api/admin/providers/create & POST /api/admin/providers
+ */
+router.post("/providers/create", handleProviderOnboarding);
+router.post("/providers", handleProviderOnboarding);
 
 /**
  * 4. List All Providers

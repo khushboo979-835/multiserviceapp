@@ -19,6 +19,11 @@ import {
   CreditCard,
   Inbox,
   Eye,
+  Key,
+  Copy,
+  Check,
+  Share2,
+  ExternalLink,
 } from "lucide-react";
 import {
   collection,
@@ -46,6 +51,7 @@ interface UserProfile {
   createdAt: number | string;
   totalBookings?: number;
   city?: string;
+  password?: string;
 }
 
 const defaultUsers: UserProfile[] = [
@@ -60,6 +66,7 @@ const defaultUsers: UserProfile[] = [
     createdAt: Date.now() - 86400000 * 2,
     totalBookings: 3,
     city: "Delhi NCR",
+    password: "user123",
   },
   {
     id: "usr_9811223344",
@@ -72,6 +79,7 @@ const defaultUsers: UserProfile[] = [
     createdAt: Date.now() - 86400000 * 5,
     totalBookings: 1,
     city: "Noida",
+    password: "user123",
   },
   {
     id: "usr_9988776655",
@@ -84,6 +92,7 @@ const defaultUsers: UserProfile[] = [
     createdAt: Date.now() - 86400000 * 8,
     totalBookings: 4,
     city: "Gurugram",
+    password: "user123",
   },
 ];
 
@@ -92,23 +101,35 @@ export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+
+  // Wallet Modal
   const [walletModalUser, setWalletModalUser] = useState<UserProfile | null>(null);
   const [walletAmount, setWalletAmount] = useState<number>(100);
   const [walletActionType, setWalletActionType] = useState<"ADD" | "DEDUCT">("ADD");
   const [walletReason, setWalletReason] = useState("Admin Promotional Cashback");
   const [isProcessingWallet, setIsProcessingWallet] = useState(false);
+
+  // Add Customer Modal
   const [newUserModalOpen, setNewUserModalOpen] = useState(false);
   const [newUserData, setNewUserData] = useState({
     name: "",
     phone: "",
     email: "",
     initialWallet: 50,
+    password: "user123",
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
+  // Credentials Modals
+  const [createdUserSuccess, setCreatedUserSuccess] = useState<UserProfile | null>(null);
+  const [viewCredentialsUser, setViewCredentialsUser] = useState<UserProfile | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
+  const [copiedPass, setCopiedPass] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
+
   const unsubRef = useRef<Unsubscribe | null>(null);
 
-  // 1. Fast On-Demand Data Loader (Eliminates continuous channel ping loops)
+  // 1. Fast On-Demand Data Loader
   const fetchUsers = async () => {
     try {
       const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50)));
@@ -126,6 +147,7 @@ export default function UserManagementPage() {
           createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
           totalBookings: data.totalBookings || 0,
           city: data.city || data.location?.city || "Delhi NCR",
+          password: data.password || "user123",
         });
       });
 
@@ -148,7 +170,12 @@ export default function UserManagementPage() {
       const res = await apiClient.get("/admin/users");
       const userList = res.data?.users || res.data?.data;
       if (userList && userList.length > 0) {
-        setUsers(userList);
+        setUsers(
+          userList.map((u: any) => ({
+            ...u,
+            password: u.password || "user123",
+          }))
+        );
       }
     } catch (e) {
       console.warn("Backend users fallback notice:", e);
@@ -166,12 +193,10 @@ export default function UserManagementPage() {
     const nextBlocked = currentStatus === "ACTIVE";
     const nextStatus = nextBlocked ? "BLOCKED" : "ACTIVE";
 
-    // 1. Immediate UI update
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
     );
 
-    // 2. Dual Background Sync
     try {
       await Promise.race([
         updateDoc(doc(db, "users", userId), {
@@ -205,14 +230,12 @@ export default function UserManagementPage() {
     const targetUserId = walletModalUser.id;
     const targetUserName = walletModalUser.name;
 
-    // 1. Immediate UI update
     setUsers((prev) =>
       prev.map((u) => (u.id === targetUserId ? { ...u, walletBalance: newBalance } : u))
     );
     setWalletModalUser(null);
     setIsProcessingWallet(false);
 
-    // 2. Dual Background Sync
     try {
       await Promise.race([
         updateDoc(doc(db, "users", targetUserId), {
@@ -245,7 +268,7 @@ export default function UserManagementPage() {
     }
   };
 
-  // Create User Manually (Instant UI update + Dual Sync)
+  // Create User Manually & Display Credentials
   const handleCreateNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = newUserData.phone.replace(/\D/g, "").slice(-10);
@@ -258,6 +281,7 @@ export default function UserManagementPage() {
     const userId = `usr_${cleanPhone}`;
     const formattedPhone = `+91 ${cleanPhone}`;
     const initialBal = Number(newUserData.initialWallet || 50);
+    const userPass = newUserData.password.trim() || "user123";
 
     const newUser: UserProfile = {
       id: userId,
@@ -270,15 +294,17 @@ export default function UserManagementPage() {
       createdAt: Date.now(),
       totalBookings: 0,
       city: "Delhi NCR",
+      password: userPass,
     };
 
     // 1. Immediate UI state injection so it appears instantly in the table
     setUsers((prev) => [newUser, ...prev.filter((u) => u.id !== userId && u.phone !== formattedPhone)]);
     setNewUserModalOpen(false);
-    setNewUserData({ name: "", phone: "", email: "", initialWallet: 50 });
+    setCreatedUserSuccess(newUser);
+    setNewUserData({ name: "", phone: "", email: "", initialWallet: 50, password: "user123" });
     setIsCreatingUser(false);
 
-    // 2. Dual Background Persistence (Firestore + Backend Express API)
+    // 2. Dual Background Persistence
     try {
       await Promise.race([
         setDoc(doc(db, "users", userId), {
@@ -288,6 +314,7 @@ export default function UserManagementPage() {
           email: newUser.email,
           role: "customer",
           walletBalance: initialBal,
+          password: userPass,
           isBlocked: false,
           createdAt: Date.now(),
         }),
@@ -304,10 +331,53 @@ export default function UserManagementPage() {
         phoneNumber: formattedPhone,
         email: newUser.email,
         walletBalance: initialBal,
+        password: userPass,
       });
     } catch (apiErr) {
       console.warn("Backend customer create notice:", apiErr);
     }
+  };
+
+  const copyToClipboard = (text: string, type: "id" | "pass" | "all") => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    if (type === "id") {
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } else if (type === "pass") {
+      setCopiedPass(true);
+      setTimeout(() => setCopiedPass(false), 2000);
+    } else {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    }
+  };
+
+  const shareOnWhatsApp = (user: UserProfile) => {
+    const cleanNumber = user.phone.replace(/\D/g, "").slice(-10);
+    const pass = user.password || "user123";
+    const msg = `🌟 *Welcome to Inisha City Service!* 🌟
+
+Hello *${user.name}*, your customer account is now active!
+
+📱 *Login Mobile:* +91 ${cleanNumber}
+🔑 *Password / OTP:* ${pass} (or instant OTP: 123456)
+💰 *Wallet Balance:* ₹${user.walletBalance}
+📲 *Open Customer Portal:* https://multiserviceapp-mobile.vercel.app
+
+Book 15+ verified home repair & doorstep services anytime.`;
+
+    const url = `https://wa.me/91${cleanNumber}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
   };
 
   const filteredUsers = users.filter((u) => {
@@ -332,7 +402,7 @@ export default function UserManagementPage() {
             Customer & User Management
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Monitor registered customers, wallet reserves, account security & customer support
+            Manage customer accounts, instant login credentials, wallet balances & account security
           </p>
         </div>
 
@@ -367,7 +437,7 @@ export default function UserManagementPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2">{users.length} Registered</div>
-          <div className="text-[11px] text-slate-500 mt-1">Verified OTP mobile users</div>
+          <div className="text-[11px] text-slate-500 mt-1">Verified OTP & password users</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -422,6 +492,7 @@ export default function UserManagementPage() {
           <h3 className="text-sm sm:text-base font-black text-slate-900">
             Customer Directory ({filteredUsers.length})
           </h3>
+          <span className="text-xs text-slate-400">Click 🔑 Credentials to copy ID & Password</span>
         </div>
 
         {loading ? (
@@ -507,6 +578,19 @@ export default function UserManagementPage() {
                         </td>
                         <td className="py-3.5 px-3 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
+                            {/* Key / Credentials Button */}
+                            <button
+                              onClick={() => {
+                                setViewCredentialsUser(user);
+                                setCopiedAll(false);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5 transition shadow-sm"
+                              title="View & Copy Login Credentials"
+                            >
+                              <Key size={13} className="text-amber-600" />
+                              <span>Credentials</span>
+                            </button>
+
                             <button
                               onClick={() => handleToggleBlock(user.id, user.status)}
                               className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
@@ -518,7 +602,7 @@ export default function UserManagementPage() {
                               {isActive ? (
                                 <>
                                   <ShieldAlert size={12} />
-                                  Block User
+                                  Block
                                 </>
                               ) : (
                                 <>
@@ -539,7 +623,7 @@ export default function UserManagementPage() {
         )}
       </div>
 
-      {/* Wallet Adjustment Modal */}
+      {/* 1. Wallet Adjustment Modal */}
       {walletModalUser && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -550,7 +634,7 @@ export default function UserManagementPage() {
                   Adjust Customer Wallet
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {walletModalUser.name} ({walletModalUser.phone})
+                  Update balance for <span className="font-bold text-slate-900">{walletModalUser.name}</span>
                 </p>
               </div>
               <button
@@ -561,37 +645,35 @@ export default function UserManagementPage() {
               </button>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex justify-between items-center text-xs">
-              <span className="text-slate-500 font-medium">Current Balance:</span>
-              <span className="text-emerald-700 font-mono font-black text-base">
-                ₹{walletModalUser.walletBalance}
-              </span>
-            </div>
-
             <form onSubmit={handleSaveWalletAdjustment} className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setWalletActionType("ADD")}
-                  className={`py-2 rounded-xl text-xs font-bold transition border ${
-                    walletActionType === "ADD"
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                  }`}
-                >
-                  + Credit / Cashback
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWalletActionType("DEDUCT")}
-                  className={`py-2 rounded-xl text-xs font-bold transition border ${
-                    walletActionType === "DEDUCT"
-                      ? "bg-red-600 text-white border-red-600 shadow-sm"
-                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                  }`}
-                >
-                  - Debit / Correction
-                </button>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  Action Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWalletActionType("ADD")}
+                    className={`py-2 rounded-xl text-xs font-bold border transition ${
+                      walletActionType === "ADD"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-black shadow-sm"
+                        : "bg-slate-50 border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    + Credit (Add)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWalletActionType("DEDUCT")}
+                    className={`py-2 rounded-xl text-xs font-bold border transition ${
+                      walletActionType === "DEDUCT"
+                        ? "bg-red-50 border-red-500 text-red-700 font-black shadow-sm"
+                        : "bg-slate-50 border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    - Debit (Deduct)
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -642,7 +724,7 @@ export default function UserManagementPage() {
         </div>
       )}
 
-      {/* Add New Customer Modal */}
+      {/* 2. Add New Customer Modal */}
       {newUserModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -652,7 +734,7 @@ export default function UserManagementPage() {
                   <UserPlus className="text-red-600" size={18} />
                   Add New Customer
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Register customer directly into system</p>
+                <p className="text-xs text-slate-500 mt-0.5">Register customer & generate login credentials</p>
               </div>
               <button
                 onClick={() => setNewUserModalOpen(false)}
@@ -662,10 +744,10 @@ export default function UserManagementPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewUser} className="space-y-4">
+            <form onSubmit={handleCreateNewUser} className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Full Name *
+                  Customer Full Name *
                 </label>
                 <input
                   type="text"
@@ -673,13 +755,13 @@ export default function UserManagementPage() {
                   placeholder="e.g. Khushboo Sharma"
                   value={newUserData.name}
                   onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:border-red-500"
                 />
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  10-Digit Mobile Number *
+                  10-Digit Mobile Number (Login ID) *
                 </label>
                 <input
                   type="tel"
@@ -690,34 +772,50 @@ export default function UserManagementPage() {
                   onChange={(e) =>
                     setNewUserData({ ...newUserData, phone: e.target.value.replace(/\D/g, "") })
                   }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-red-500"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Login Password / PIN
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="user123"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-red-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Welcome Bonus (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={newUserData.initialWallet}
+                    onChange={(e) =>
+                      setNewUserData({ ...newUserData, initialWallet: Number(e.target.value) })
+                    }
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-red-500"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Email (Optional)
+                  Email Address (Optional)
                 </label>
                 <input
                   type="email"
-                  placeholder="user@example.com"
+                  placeholder="customer@gmail.com"
                   value={newUserData.email}
                   onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Initial Welcome Wallet Bonus (₹)
-                </label>
-                <input
-                  type="number"
-                  value={newUserData.initialWallet}
-                  onChange={(e) =>
-                    setNewUserData({ ...newUserData, initialWallet: Number(e.target.value) })
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500 font-mono font-bold"
                 />
               </div>
 
@@ -734,10 +832,228 @@ export default function UserManagementPage() {
                   disabled={isCreatingUser}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
                 >
-                  {isCreatingUser ? "Saving..." : "Create Customer"}
+                  {isCreatingUser ? "Registering..." : "Create & Give Credentials"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Customer Created Successfully & Credentials Dialog */}
+      {createdUserSuccess && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="text-center pb-2">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <CheckCircle2 size={30} />
+              </div>
+              <h3 className="font-black text-lg text-slate-900">Customer Registered!</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Share these login details with <span className="font-bold text-slate-900">{createdUserSuccess.name}</span>
+              </p>
+            </div>
+
+            {/* Credentials Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">User ID / Phone</span>
+                <span className="text-xs font-mono font-black text-slate-900">{createdUserSuccess.phone}</span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Login Password</span>
+                <span className="text-xs font-mono font-black text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                  {createdUserSuccess.password || "user123"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Instant OTP Code</span>
+                <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  123456
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Wallet Balance</span>
+                <span className="text-xs font-mono font-black text-emerald-700">₹{createdUserSuccess.walletBalance}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  const pass = createdUserSuccess.password || "user123";
+                  const text = `Customer Account Created:
+Name: ${createdUserSuccess.name}
+Phone/Login ID: ${createdUserSuccess.phone}
+Password: ${pass}
+OTP Code: 123456
+Wallet Balance: ₹${createdUserSuccess.walletBalance}
+App Link: https://multiserviceapp-mobile.vercel.app`;
+                  copyToClipboard(text, "all");
+                }}
+                className="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                {copiedAll ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+                {copiedAll ? "Credentials Copied to Clipboard!" : "Copy Full Login Credentials"}
+              </button>
+
+              <button
+                onClick={() => shareOnWhatsApp(createdUserSuccess)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                <Share2 size={15} />
+                Send Login Details on WhatsApp 💬
+              </button>
+
+              <button
+                onClick={() => setCreatedUserSuccess(null)}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition"
+              >
+                Done / Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. View & Copy Existing User Credentials Modal */}
+      {viewCredentialsUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">
+                    {viewCredentialsUser.name}
+                  </h3>
+                  <p className="text-xs text-slate-500">Customer Access & Login Credentials</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewCredentialsUser(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Credentials Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <div>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Customer ID
+                  </span>
+                  <span className="text-xs font-mono font-bold text-slate-900">{viewCredentialsUser.id}</span>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(viewCredentialsUser.id, "id")}
+                  className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
+                >
+                  {copiedId ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                  {copiedId ? "Copied" : "Copy"}
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <div>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Mobile Number (Login ID)
+                  </span>
+                  <span className="text-xs font-mono font-black text-slate-900">{viewCredentialsUser.phone}</span>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(viewCredentialsUser.phone.replace(/\D/g, "").slice(-10), "id")}
+                  className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
+                >
+                  <Copy size={12} />
+                  Copy Phone
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <div>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Password / PIN
+                  </span>
+                  <span className="text-xs font-mono font-black text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 inline-block mt-0.5">
+                    {viewCredentialsUser.password || "user123"}
+                  </span>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(viewCredentialsUser.password || "user123", "pass")}
+                  className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs"
+                >
+                  {copiedPass ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                  {copiedPass ? "Copied" : "Copy"}
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <div>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Instant OTP Bypass Code
+                  </span>
+                  <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5">
+                    123456
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Current Wallet Balance
+                  </span>
+                  <span className="text-sm font-mono font-black text-emerald-700">
+                    ₹{viewCredentialsUser.walletBalance.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  const pass = viewCredentialsUser.password || "user123";
+                  const text = `Customer Account Info:
+Name: ${viewCredentialsUser.name}
+Phone/Login: ${viewCredentialsUser.phone}
+Password: ${pass}
+OTP Code: 123456
+Wallet Balance: ₹${viewCredentialsUser.walletBalance}
+App Link: https://multiserviceapp-mobile.vercel.app`;
+                  copyToClipboard(text, "all");
+                }}
+                className="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                {copiedAll ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+                {copiedAll ? "Credentials Copied to Clipboard!" : "Copy Full Login Credentials"}
+              </button>
+
+              <button
+                onClick={() => shareOnWhatsApp(viewCredentialsUser)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                <Share2 size={15} />
+                Share on WhatsApp 💬
+              </button>
+
+              <button
+                onClick={() => setViewCredentialsUser(null)}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

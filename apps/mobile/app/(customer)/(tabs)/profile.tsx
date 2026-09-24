@@ -142,24 +142,6 @@ export default function ProfileScreen() {
         <ChevronRight size={18} color="#ef4444" />
       </TouchableOpacity>
 
-      {/* Dual Role Switcher Card */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={handleSwitchToPartner}
-        style={styles.switchRoleCard}
-      >
-        <View style={styles.switchRoleLeft}>
-          <View style={styles.switchRoleIconBox}>
-            <Briefcase size={22} color="#ffffff" />
-          </View>
-          <View style={styles.switchRoleTextContainer}>
-            <Text style={styles.switchRoleTitle}>Switch to Partner Mode</Text>
-            <Text style={styles.switchRoleSubtitle}>Earn money delivering doorstep repairs</Text>
-          </View>
-        </View>
-        <ChevronRight size={20} color="#ef4444" />
-      </TouchableOpacity>
-
       {/* Menu Settings Card */}
       <View style={styles.menuCard}>
         <TouchableOpacity activeOpacity={0.7} onPress={() => setLangCityVisible(true)} style={styles.menuRow}>

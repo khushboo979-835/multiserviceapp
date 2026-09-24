@@ -47,20 +47,30 @@ export default function GSTInvoiceModal({
   const discount = booking.pricing?.couponDiscount || 0;
   const totalAmount = basePrice + cgst + sgst + convenienceFee - discount;
 
+  const generateInvoiceText = () => {
+    return `=========================================\n       INISHA CITY SERVICE PVT. LTD.\n  Main Road, Kankarbagh, Patna, Bihar - 800020\n          GSTIN: 10AAACI9876C1Z5\n=========================================\nTAX INVOICE: ${invoiceNumber}\nDATE: ${invoiceDate}\n\nBILLED TO (CUSTOMER):\nName: ${booking.customerName || "Customer"}\nPhone: ${booking.customerPhone || "Verified"}\nAddress: ${booking.selectedAddress?.formattedAddress || "Patna, Bihar"}\n\n-----------------------------------------\nSERVICE DESCRIPTION       SAC      AMOUNT\n-----------------------------------------\nDoorstep Certified Work   998713   ₹${basePrice}\nTaxable Value                      ₹${basePrice}\nCGST (9.0%)                        ₹${cgst}\nSGST / UTGST (9.0%)                ₹${sgst}\nPlatform Convenience Fee           ₹${convenienceFee}\n-----------------------------------------\nTOTAL INVOICE AMOUNT               ₹${totalAmount}\nPAYMENT STATUS: ${booking.paymentStatus || "COMPLETED"}\n=========================================\nThank you for choosing Inisha City Service!`;
+  };
+
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Inisha City Service - GST Tax Invoice #${invoiceNumber}\nService: Doorstep Repair\nTotal Paid: ₹${totalAmount}\nGSTIN: 10AAACI9876C1Z5\nStatus: ${booking.paymentStatus}`,
+        title: `GST Tax Invoice #${invoiceNumber}`,
+        message: generateInvoiceText(),
       });
     } catch {}
   };
 
-  const handleDownload = () => {
-    Alert.alert(
-      "Invoice Downloaded",
-      `Tax Invoice #${invoiceNumber} has been saved to your downloads folder as PDF.`,
-      [{ text: "OK" }]
-    );
+  const handleDownload = async () => {
+    try {
+      await Share.share({
+        title: `Download GST Invoice #${invoiceNumber}`,
+        message: generateInvoiceText(),
+      });
+      Alert.alert(
+        "Invoice Exported 📄",
+        `Tax Invoice #${invoiceNumber} is ready! You can save as PDF, print, or share via Drive/WhatsApp.`
+      );
+    } catch {}
   };
 
   return (

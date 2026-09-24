@@ -150,6 +150,116 @@ const getCategoryIcon = (iconName: string, color: string, size: number) => {
   }
 };
 
+const getCategoryTheme = (iconName?: string, catId?: string) => {
+  const norm = (iconName || catId || "").toLowerCase().trim();
+  if (norm.includes("phone") || norm.includes("mobile") || norm.includes("smartphone")) {
+    return {
+      iconColor: "#ef4444",
+      iconBg: "#fee2e2",
+      borderColor: "#fecaca",
+      badgeBg: "#fef2f2",
+      badgeText: "#dc2626",
+    };
+  }
+  if (norm.includes("wind") || norm.includes("ac") || norm.includes("cool")) {
+    return {
+      iconColor: "#0284c7",
+      iconBg: "#e0f2fe",
+      borderColor: "#bae6fd",
+      badgeBg: "#f0f9ff",
+      badgeText: "#0369a1",
+    };
+  }
+  if (norm.includes("zap") || norm.includes("electr")) {
+    return {
+      iconColor: "#d97706",
+      iconBg: "#fef3c7",
+      borderColor: "#fde68a",
+      badgeBg: "#fffbeb",
+      badgeText: "#b45309",
+    };
+  }
+  if (norm.includes("droplet") || norm.includes("plumb")) {
+    return {
+      iconColor: "#4f46e5",
+      iconBg: "#e0e7ff",
+      borderColor: "#c7d2fe",
+      badgeBg: "#eef2ff",
+      badgeText: "#4338ca",
+    };
+  }
+  if (norm.includes("sparkle") || norm.includes("clean")) {
+    return {
+      iconColor: "#16a34a",
+      iconBg: "#dcfce7",
+      borderColor: "#bbf7d0",
+      badgeBg: "#f0fdf4",
+      badgeText: "#15803d",
+    };
+  }
+  if (norm.includes("hammer") || norm.includes("carpent") || norm.includes("wood")) {
+    return {
+      iconColor: "#ea580c",
+      iconBg: "#ffedd5",
+      borderColor: "#fed7aa",
+      badgeBg: "#fff7ed",
+      badgeText: "#c2410c",
+    };
+  }
+  if (norm.includes("scissor") || norm.includes("salon") || norm.includes("beauty") || norm.includes("spa")) {
+    return {
+      iconColor: "#db2777",
+      iconBg: "#fce7f3",
+      borderColor: "#fbcfe8",
+      badgeBg: "#fdf2f8",
+      badgeText: "#be185d",
+    };
+  }
+  if (norm.includes("paint") || norm.includes("brush")) {
+    return {
+      iconColor: "#9333ea",
+      iconBg: "#f3e8ff",
+      borderColor: "#e9d5ff",
+      badgeBg: "#faf5ff",
+      badgeText: "#7e22ce",
+    };
+  }
+  if (norm.includes("bug") || norm.includes("pest")) {
+    return {
+      iconColor: "#059669",
+      iconBg: "#d1fae5",
+      borderColor: "#a7f3d0",
+      badgeBg: "#ecfdf5",
+      badgeText: "#047857",
+    };
+  }
+  if (norm.includes("truck") || norm.includes("mover") || norm.includes("pack")) {
+    return {
+      iconColor: "#2563eb",
+      iconBg: "#dbeafe",
+      borderColor: "#bfdbfe",
+      badgeBg: "#eff6ff",
+      badgeText: "#1d4ed8",
+    };
+  }
+  if (norm.includes("camera") || norm.includes("cctv") || norm.includes("security")) {
+    return {
+      iconColor: "#475569",
+      iconBg: "#f1f5f9",
+      borderColor: "#e2e8f0",
+      badgeBg: "#f8fafc",
+      badgeText: "#334155",
+    };
+  }
+  return {
+    iconColor: "#ef4444",
+    iconBg: "#fef2f2",
+    borderColor: "#fee2e2",
+    badgeBg: "#fff1f2",
+    badgeText: "#e11d48",
+  };
+};
+
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -671,29 +781,32 @@ export default function CustomerHomeScreen() {
           </View>
 
           <View style={styles.categoryGrid}>
-            {filteredCategories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                activeOpacity={0.85}
-                onPress={() => handleCategoryPress(cat)}
-                style={styles.categoryCard}
-              >
-                <View style={styles.categoryIconBox}>
-                  {getCategoryIcon(cat.imageUrl, "#ef4444", 24)}
-                </View>
-                <Text style={styles.categoryName} numberOfLines={1}>
-                  {cat.name}
-                </Text>
-                <Text style={styles.categoryDesc} numberOfLines={2}>
-                  {cat.description}
-                </Text>
-                <View style={styles.categoryPricePill}>
-                  <Text style={styles.categoryPriceText}>
-                    From ₹{cat.subcategories[0]?.basePrice || 499}
+            {filteredCategories.map((cat) => {
+              const theme = getCategoryTheme(cat.imageUrl, cat.id);
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  activeOpacity={0.85}
+                  onPress={() => handleCategoryPress(cat)}
+                  style={[styles.categoryCard, { borderColor: theme.borderColor }]}
+                >
+                  <View style={[styles.categoryIconBox, { backgroundColor: theme.iconBg, borderColor: theme.borderColor }]}>
+                    {getCategoryIcon(cat.imageUrl, theme.iconColor, 24)}
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={1}>
+                    {cat.name}
                   </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.categoryDesc} numberOfLines={2}>
+                    {cat.description}
+                  </Text>
+                  <View style={[styles.categoryPricePill, { backgroundColor: theme.badgeBg, borderColor: theme.borderColor }]}>
+                    <Text style={[styles.categoryPriceText, { color: theme.badgeText }]}>
+                      From ₹{cat.subcategories[0]?.basePrice || 499}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 

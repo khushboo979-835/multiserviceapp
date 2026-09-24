@@ -225,14 +225,26 @@ export default function AdminProviders() {
         });
       } catch {}
 
-      const createdObj = {
+      const createdObj: ProviderData = {
+        id: docId,
         partnerId,
         name: cleanName,
         phone: formattedPhone,
+        email: newPartner.email.trim() || `${cleanPhone}@partner.inishacityservice.com`,
         temporaryPassword: rawPassword,
         skills: skillsArray,
+        rating: 5.0,
+        isApproved: true,
+        isOnline: true,
+        walletBalance: 0,
+        createdAt: Date.now(),
       };
 
+      // 1. Immediate UI update so technician appears in table instantly
+      setProviders((prev) => [
+        createdObj,
+        ...prev.filter((p) => p.phone !== formattedPhone && p.partnerId !== partnerId),
+      ]);
       setCreatedPartnerSuccess(createdObj);
       setNewPartner({
         name: "",
@@ -559,10 +571,16 @@ export default function AdminProviders() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
+                  <p className="text-[11px] text-amber-900 font-medium leading-relaxed">
+                    💡 <span className="font-bold">Login Instruction:</span> Technician can open the mobile app, tap <span className="font-bold">"Technician Login"</span>, and enter their <span className="font-bold">Partner ID ({createdPartnerSuccess.partnerId})</span> or <span className="font-bold">Mobile ({createdPartnerSuccess.phone})</span> and Password <span className="font-bold">({createdPartnerSuccess.temporaryPassword})</span> to log in.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={() => {
-                      const text = `Inisha City Service Partner Login:\nPartner ID: ${createdPartnerSuccess.partnerId}\nPassword: ${createdPartnerSuccess.temporaryPassword}\nMobile: ${createdPartnerSuccess.phone}`;
+                      const text = `Namaste ${createdPartnerSuccess.name}! Inisha City Service me aapka Partner Account active hai.\n\n🔑 Partner ID: ${createdPartnerSuccess.partnerId}\n📞 Phone: ${createdPartnerSuccess.phone}\n🔒 Password: ${createdPartnerSuccess.temporaryPassword}\n\nApp khole aur 'Technician Login' me Partner ID ya Phone aur Password enter karke login kare.`;
                       navigator.clipboard.writeText(text);
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
@@ -570,14 +588,24 @@ export default function AdminProviders() {
                     className="flex-1 bg-white hover:bg-slate-50 text-slate-800 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-200 shadow-sm"
                   >
                     <Copy size={14} />
-                    {copied ? "Copied to Clipboard!" : "Copy Details"}
+                    {copied ? "Copied Message!" : "Copy WhatsApp Credentials"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cleanP = createdPartnerSuccess.phone.replace(/\D/g, "");
+                      const text = `Namaste ${createdPartnerSuccess.name}! Inisha City Service me aapka Partner Account active hai.\n\n🔑 Partner ID: ${createdPartnerSuccess.partnerId}\n📞 Phone: ${createdPartnerSuccess.phone}\n🔒 Password: ${createdPartnerSuccess.temporaryPassword}\n\nApp khole aur 'Technician Login' me Partner ID ya Phone aur Password enter karke login kare.`;
+                      window.open(`https://api.whatsapp.com/send?phone=91${cleanP}&text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+                  >
+                    Send on WhatsApp 💬
                   </button>
                   <button
                     onClick={() => {
                       setOnboardModalOpen(false);
                       setCreatedPartnerSuccess(null);
                     }}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
                   >
                     Done
                   </button>

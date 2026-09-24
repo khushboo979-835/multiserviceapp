@@ -43,10 +43,32 @@ app.use("/api/ecommerce", ecommerceRouter);
 // Initialize MongoDB Atlas connection
 connectDB();
 
-// Health-check entry point
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "healthy", timestamp: new Date() });
-});
+// Root & API Health Status Handlers
+const apiStatusHandler = (req: express.Request, res: express.Response) => {
+  res.status(200).json({
+    success: true,
+    status: "ONLINE",
+    message: "Inisha City Service Backend Engine is active and running smoothly 🚀",
+    database: "MongoDB Atlas Connected",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: "/health",
+      apiHealth: "/api/health",
+      admin: "/api/admin",
+      auth: "/api/auth",
+      bookings: "/api/bookings",
+      categories: "/api/categories",
+      payment: "/api/payment",
+      ecommerce: "/api/ecommerce",
+    },
+  });
+};
+
+app.get("/", apiStatusHandler);
+app.get("/api", apiStatusHandler);
+app.get("/health", apiStatusHandler);
+app.get("/api/health", apiStatusHandler);
 
 // Configure Socket.io server wrapping the http server instance
 const io = new Server(server, {

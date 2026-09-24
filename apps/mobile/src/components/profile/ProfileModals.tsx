@@ -353,11 +353,11 @@ export function HelpSupportModal({
   ];
 
   const handleCallSupport = () => {
-    Linking.openURL("tel:+917857023438");
+    Linking.openURL("tel:+917352082614");
   };
 
   const handleWhatsApp = () => {
-    Linking.openURL("https://wa.me/917857023438?text=Hello%20Inisha%20City%20Service%20Support");
+    Linking.openURL("https://wa.me/917352082614?text=Hello%20Inisha%20City%20Service%20Support");
   };
 
   return (
@@ -386,7 +386,7 @@ export function HelpSupportModal({
 
             <View style={styles.supportInfoBox}>
               <Text style={styles.supportInfoText}>
-                Helpline: <Text style={styles.boldText}>+91 78570 23438</Text>
+                Helpline: <Text style={styles.boldText}>+91 73520 82614</Text>
               </Text>
               <Text style={styles.supportInfoText}>
                 Email: <Text style={styles.boldText}>support@inishacityservice.com</Text>

@@ -528,8 +528,8 @@ export default function CustomerHomeScreen() {
     const message = encodeURIComponent(
       "Hello Inisha City Service Team! I need doorstep service assistance."
     );
-    Linking.openURL(`https://wa.me/917857023438?text=${message}`).catch(() => {
-      Alert.alert("WhatsApp Support", "Reach us at +91 78570 23438 on WhatsApp.");
+    Linking.openURL(`https://wa.me/917352082614?text=${message}`).catch(() => {
+      Alert.alert("WhatsApp Support", "Reach us at +91 73520 82614 on WhatsApp.");
     });
   };
 
@@ -950,7 +950,7 @@ export default function CustomerHomeScreen() {
         visible={isCallOpen}
         onClose={() => setIsCallOpen(false)}
         technicianName={activeBooking?.providerName || "Verified Technician"}
-        technicianPhone={activeBooking?.providerPhone || "+91 78570 23438"}
+        technicianPhone={activeBooking?.providerPhone || "+91 73520 82614"}
         callType={callType}
       />
 

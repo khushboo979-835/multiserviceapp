@@ -31,7 +31,7 @@ export default function CallSimulationModal({
   visible,
   onClose,
   technicianName = "Verified Technician",
-  technicianPhone = "+91 78570 23438",
+  technicianPhone = "+91 73520 82614",
   callType,
 }: CallSimulationModalProps) {
   const [callDuration, setCallDuration] = useState(0);

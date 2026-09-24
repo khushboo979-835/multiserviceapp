@@ -205,7 +205,7 @@ export default function TrackBookingScreen() {
   const currentStepIdx = Math.max(0, getStepIndex(activeBooking.status));
 
   const handleCallProvider = () => {
-    const phone = activeBooking.providerPhone || "+919876543210";
+    const phone = activeBooking.providerPhone || "+917352082614";
     Linking.openURL(`tel:${phone}`);
   };
 
@@ -271,7 +271,7 @@ export default function TrackBookingScreen() {
                   </View>
                 </View>
                 <Text style={styles.vehicleNoText}>Vehicle: {vehicleNo} • Verified</Text>
-                <Text style={styles.phoneSubtext}>{activeBooking.providerPhone || "+91 78570 23438"}</Text>
+                <Text style={styles.phoneSubtext}>{activeBooking.providerPhone || "+91 73520 82614"}</Text>
               </View>
             </View>
 

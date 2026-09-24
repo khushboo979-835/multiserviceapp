@@ -7,7 +7,7 @@ export default function AdminSettingsPage() {
     companyUpiId: "7352082614-3@ybl",
     merchantName: "Inisha City Service",
     commissionRate: 15,
-    supportContact: "+91 98765 43210",
+    supportContact: "+91 73520 82614",
     supportEmail: "support@inishacityservice.com",
   });
   const [saved, setSaved] = useState(false);
@@ -139,7 +139,7 @@ export default function AdminSettingsPage() {
                 required
                 value={settings.supportContact}
                 onChange={(e) => setSettings({ ...settings, supportContact: e.target.value })}
-                placeholder="+91 98765 43210"
+                placeholder="+91 73520 82614"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-red-500 focus:bg-white transition"
               />
             </div>

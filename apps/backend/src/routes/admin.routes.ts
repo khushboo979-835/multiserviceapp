@@ -430,6 +430,124 @@ router.get("/users", async (req: Request, res: Response) => {
 });
 
 /**
+ * 9a. Create Customer Manually
+ * POST /api/admin/users
+ */
+router.post("/users", async (req: Request, res: Response) => {
+  try {
+    const { name, phone, phoneNumber, email, walletBalance, initialWallet } = req.body;
+    const rawPhone = String(phone || phoneNumber || "").trim();
+    const cleanPhone = rawPhone.replace(/\D/g, "").slice(-10);
+
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: "Valid 10-digit phone number is required" });
+    }
+
+    const formattedPhone = `+91 ${cleanPhone}`;
+    const initialBal = Number(walletBalance ?? initialWallet ?? 50);
+
+    let user = await User.findOne({ phoneNumber: formattedPhone });
+    if (user) {
+      if (name) user.name = name;
+      if (email) user.email = email;
+      user.walletBalance = Math.max(user.walletBalance || 0, initialBal);
+      await user.save();
+    } else {
+      user = await User.create({
+        name: name || "Customer",
+        phoneNumber: formattedPhone,
+        email: email || `${cleanPhone}@customer.inishacityservice.com`,
+        role: "CUSTOMER",
+        walletBalance: initialBal,
+        isVerified: true,
+        isBlocked: false,
+      });
+    }
+
+    const formattedUser = {
+      id: user._id.toString(),
+      name: user.name || "Customer",
+      phone: user.phoneNumber,
+      email: user.email || `${cleanPhone}@customer.inishacityservice.com`,
+      role: "customer",
+      walletBalance: user.walletBalance || 0,
+      status: user.isBlocked ? "BLOCKED" : "ACTIVE",
+      joinedDate: user.createdAt,
+      createdAt: user.createdAt,
+      totalBookings: 0,
+      city: "Delhi NCR",
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: "Customer created successfully",
+      user: formattedUser,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 9b. Update User Block Status
+ * PUT /api/admin/users/:id/status
+ */
+router.put("/users/:id/status", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isBlocked, status } = req.body;
+    const blockedVal = isBlocked !== undefined ? Boolean(isBlocked) : status === "BLOCKED";
+
+    let user = null;
+    try {
+      user = await User.findById(id);
+    } catch {}
+    if (!user) {
+      user = await User.findOne({ phoneNumber: id });
+    }
+    if (user) {
+      user.isBlocked = blockedVal;
+      await user.save();
+    }
+    return res.status(200).json({ success: true, message: "User status updated", isBlocked: blockedVal });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 9c. Adjust User Wallet Balance
+ * PUT /api/admin/users/:id/wallet
+ */
+router.put("/users/:id/wallet", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount, type, reason } = req.body;
+    const amt = Number(amount || 0);
+
+    let user = null;
+    try {
+      user = await User.findById(id);
+    } catch {}
+    if (!user) {
+      user = await User.findOne({ phoneNumber: id });
+    }
+    if (user) {
+      if (type === "ADD" || type === "CREDIT") {
+        user.walletBalance = (user.walletBalance || 0) + amt;
+      } else {
+        user.walletBalance = Math.max(0, (user.walletBalance || 0) - amt);
+      }
+      await user.save();
+      return res.status(200).json({ success: true, message: "Wallet updated", walletBalance: user.walletBalance });
+    }
+    return res.status(404).json({ success: false, message: "User not found" });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * 10. Coupons Management
  * GET /api/admin/coupons & POST /api/admin/coupons/create
  */

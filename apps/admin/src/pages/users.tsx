@@ -164,19 +164,33 @@ export default function UserManagementPage() {
   // Toggle Block Status
   const handleToggleBlock = async (userId: string, currentStatus: "ACTIVE" | "BLOCKED") => {
     const nextBlocked = currentStatus === "ACTIVE";
+    const nextStatus = nextBlocked ? "BLOCKED" : "ACTIVE";
+
+    // 1. Immediate UI update
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
+    );
+
+    // 2. Dual Background Sync
     try {
-      await updateDoc(doc(db, "users", userId), {
-        isBlocked: nextBlocked,
-        status: nextBlocked ? "BLOCKED" : "ACTIVE",
-      });
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status: nextBlocked ? "BLOCKED" : "ACTIVE" } : u))
-      );
+      await Promise.race([
+        updateDoc(doc(db, "users", userId), {
+          isBlocked: nextBlocked,
+          status: nextStatus,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500)),
+      ]);
     } catch (err) {
-      console.warn("Block update error:", err);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status: nextBlocked ? "BLOCKED" : "ACTIVE" } : u))
-      );
+      console.warn("Firestore block notice:", err);
+    }
+
+    try {
+      await apiClient.put(`/admin/users/${userId}/status`, {
+        isBlocked: nextBlocked,
+        status: nextStatus,
+      });
+    } catch (apiErr) {
+      console.warn("Backend block notice:", apiErr);
     }
   };
 
@@ -188,37 +202,50 @@ export default function UserManagementPage() {
 
     const delta = walletActionType === "ADD" ? walletAmount : -walletAmount;
     const newBalance = Math.max(0, walletModalUser.walletBalance + delta);
+    const targetUserId = walletModalUser.id;
+    const targetUserName = walletModalUser.name;
 
+    // 1. Immediate UI update
+    setUsers((prev) =>
+      prev.map((u) => (u.id === targetUserId ? { ...u, walletBalance: newBalance } : u))
+    );
+    setWalletModalUser(null);
+    setIsProcessingWallet(false);
+
+    // 2. Dual Background Sync
     try {
-      await updateDoc(doc(db, "users", walletModalUser.id), {
-        walletBalance: newBalance,
-      });
+      await Promise.race([
+        updateDoc(doc(db, "users", targetUserId), {
+          walletBalance: newBalance,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500)),
+      ]);
 
-      // Also record wallet transaction in Firestore subcollection or global transactions
       await setDoc(doc(collection(db, "wallet_transactions")), {
-        userId: walletModalUser.id,
-        userName: walletModalUser.name,
+        userId: targetUserId,
+        userName: targetUserName,
         amount: Math.abs(walletAmount),
         type: walletActionType === "ADD" ? "CREDIT" : "DEBIT",
         description: walletReason,
         balanceAfter: newBalance,
         createdAt: Date.now(),
       });
+    } catch (err) {
+      console.warn("Firestore wallet notice:", err);
+    }
 
-      setUsers((prev) =>
-        prev.map((u) => (u.id === walletModalUser.id ? { ...u, walletBalance: newBalance } : u))
-      );
-      setWalletModalUser(null);
-      alert(`Wallet updated successfully! New Balance: ₹${newBalance}`);
-    } catch (err: any) {
-      console.error("Wallet update error:", err);
-      alert("Failed to update wallet: " + err.message);
-    } finally {
-      setIsProcessingWallet(false);
+    try {
+      await apiClient.put(`/admin/users/${targetUserId}/wallet`, {
+        amount: Math.abs(walletAmount),
+        type: walletActionType,
+        reason: walletReason,
+      });
+    } catch (apiErr) {
+      console.warn("Backend wallet notice:", apiErr);
     }
   };
 
-  // Create User Manually
+  // Create User Manually (Instant UI update + Dual Sync)
   const handleCreateNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = newUserData.phone.replace(/\D/g, "").slice(-10);
@@ -230,26 +257,56 @@ export default function UserManagementPage() {
     setIsCreatingUser(true);
     const userId = `usr_${cleanPhone}`;
     const formattedPhone = `+91 ${cleanPhone}`;
+    const initialBal = Number(newUserData.initialWallet || 50);
+
+    const newUser: UserProfile = {
+      id: userId,
+      name: newUserData.name.trim(),
+      phone: formattedPhone,
+      email: newUserData.email.trim() || `${cleanPhone}@customer.inishacityservice.com`,
+      role: "customer",
+      walletBalance: initialBal,
+      status: "ACTIVE",
+      createdAt: Date.now(),
+      totalBookings: 0,
+      city: "Delhi NCR",
+    };
+
+    // 1. Immediate UI state injection so it appears instantly in the table
+    setUsers((prev) => [newUser, ...prev.filter((u) => u.id !== userId && u.phone !== formattedPhone)]);
+    setNewUserModalOpen(false);
+    setNewUserData({ name: "", phone: "", email: "", initialWallet: 50 });
+    setIsCreatingUser(false);
+
+    // 2. Dual Background Persistence (Firestore + Backend Express API)
+    try {
+      await Promise.race([
+        setDoc(doc(db, "users", userId), {
+          name: newUser.name,
+          phone: formattedPhone,
+          phoneNumber: formattedPhone,
+          email: newUser.email,
+          role: "customer",
+          walletBalance: initialBal,
+          isBlocked: false,
+          createdAt: Date.now(),
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500)),
+      ]);
+    } catch (fsErr) {
+      console.warn("Firestore customer create notice:", fsErr);
+    }
 
     try {
-      await setDoc(doc(db, "users", userId), {
-        name: newUserData.name.trim(),
-        phone: formattedPhone,
+      await apiClient.post("/admin/users", {
+        name: newUser.name,
+        phone: cleanPhone,
         phoneNumber: formattedPhone,
-        email: newUserData.email.trim() || `${cleanPhone}@customer.inishacityservice.com`,
-        role: "customer",
-        walletBalance: Number(newUserData.initialWallet || 0),
-        isBlocked: false,
-        createdAt: Date.now(),
+        email: newUser.email,
+        walletBalance: initialBal,
       });
-
-      setNewUserModalOpen(false);
-      setNewUserData({ name: "", phone: "", email: "", initialWallet: 50 });
-      alert("Customer created and active!");
-    } catch (err: any) {
-      alert("Error adding customer: " + err.message);
-    } finally {
-      setIsCreatingUser(false);
+    } catch (apiErr) {
+      console.warn("Backend customer create notice:", apiErr);
     }
   };
 

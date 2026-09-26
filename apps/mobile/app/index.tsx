@@ -1,9 +1,19 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "../src/store/useAuthStore";
 import BrandLogo from "../src/components/common/BrandLogo";
-import { ArrowRight, Sparkles } from "lucide-react-native";
+import { ArrowRight, Sparkles, ShieldCheck } from "lucide-react-native";
+
+const { width, height } = Dimensions.get("window");
 
 export default function Index() {
   const router = useRouter();
@@ -13,7 +23,6 @@ export default function Index() {
 
   useEffect(() => {
     initAuth();
-    // Immediate background pre-warm for Render cloud backend
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
     fetch(`${API_URL}/health`).catch(() => {});
   }, [initAuth]);
@@ -33,7 +42,6 @@ export default function Index() {
         router.replace("/(auth)/login");
       }
     } catch {
-      // Fallback
       router.replace("/(auth)/login");
     }
   };
@@ -41,10 +49,10 @@ export default function Index() {
   useEffect(() => {
     if (!isInitialized) return;
 
-    // 1000ms branded splash intro displaying Inisha City logo
+    // 1600ms branded splash showing the new glowing Inisha theme
     navigationTimeoutRef.current = setTimeout(() => {
       performNavigation();
-    }, 1000);
+    }, 1600);
 
     return () => {
       if (navigationTimeoutRef.current) clearTimeout(navigationTimeoutRef.current);
@@ -53,28 +61,47 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      {/* Centered Brand Logo */}
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Decorative Radial Glow Spots */}
+      <View style={styles.topGlow} />
+      <View style={styles.bottomWarmGlow} />
+
+      {/* Hero Center Brand Branding */}
       <View style={styles.centerContent}>
-        <BrandLogo size="hero" showText={true} showTagline={true} textColor="#0f172a" />
-        <View style={styles.taglineBox}>
-          <Sparkles size={14} color="#ef4444" />
-          <Text style={styles.taglineText}>On-Demand Multi-Service Marketplace</Text>
+        <View style={styles.logoHalo}>
+          <BrandLogo
+            size="hero"
+            showText={true}
+            showTagline={true}
+            textColor="#ffffff"
+            taglineText="Your Daily Services & Delivery"
+          />
+        </View>
+
+        {/* 3 Glowing Dots from Design Mockup */}
+        <View style={styles.dotsRow}>
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
         </View>
       </View>
 
-      {/* Bottom Loading Indicator & Manual Override Button */}
+      {/* Bottom CTA / Loading Area */}
       <View style={styles.bottomContainer}>
-        <ActivityIndicator size="small" color="#ef4444" />
-        <Text style={styles.loadingText}>INITIALIZING INISHA PLATFORM...</Text>
-
         <TouchableOpacity
           onPress={performNavigation}
-          activeOpacity={0.8}
-          style={styles.manualButton}
+          activeOpacity={0.88}
+          style={styles.getStartedBtn}
         >
-          <Text style={styles.manualButtonText}>Get Started</Text>
-          <ArrowRight size={16} color="#ef4444" style={{ marginLeft: 6 }} />
+          <Text style={styles.getStartedText}>Get Started</Text>
+          <ArrowRight size={18} color="#ffffff" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
+
+        <View style={styles.badgeRow}>
+          <ShieldCheck size={14} color="#f59e0b" />
+          <Text style={styles.badgeText}>Verified Doorstep Home Services & Repairs</Text>
+        </View>
       </View>
     </View>
   );
@@ -83,62 +110,94 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#061329",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 24,
-    paddingVertical: 50,
+    paddingTop: 60,
+    paddingBottom: 45,
+  },
+  topGlow: {
+    position: "absolute",
+    top: -80,
+    width: width * 1.2,
+    height: width * 1.2,
+    borderRadius: (width * 1.2) / 2,
+    backgroundColor: "rgba(14, 43, 92, 0.45)",
+  },
+  bottomWarmGlow: {
+    position: "absolute",
+    bottom: -100,
+    width: width * 1.4,
+    height: width * 1.1,
+    borderRadius: (width * 1.4) / 2,
+    backgroundColor: "rgba(234, 88, 12, 0.22)",
   },
   centerContent: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
   },
-  taglineBox: {
+  logoHalo: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+  },
+  dotsRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef2f2",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 18,
+    gap: 8,
+    marginTop: 36,
   },
-  taglineText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#ef4444",
-    marginLeft: 6,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  },
+  dotActive: {
+    width: 24,
+    backgroundColor: "#f97316",
+    shadowColor: "#f97316",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
   bottomContainer: {
-    alignItems: "center",
     width: "100%",
-    paddingBottom: 20,
+    alignItems: "center",
+    gap: 16,
   },
-  loadingText: {
-    color: "#94a3b8",
-    fontSize: 11,
-    fontWeight: "800",
-    marginTop: 12,
-    letterSpacing: 1.5,
-  },
-  manualButton: {
+  getStartedBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
+    backgroundColor: "#ea580c",
+    width: "100%",
+    height: 54,
+    borderRadius: 20,
+    shadowColor: "#ea580c",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  manualButtonText: {
-    color: "#0f172a",
-    fontSize: 13,
-    fontWeight: "800",
+  getStartedText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#ffffff",
+    letterSpacing: 0.3,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.7)",
   },
 });
-

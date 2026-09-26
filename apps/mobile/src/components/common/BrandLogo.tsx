@@ -1,74 +1,112 @@
 import React from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 
 interface BrandLogoProps {
   size?: "sm" | "md" | "lg" | "xl" | "hero";
   showText?: boolean;
   showTagline?: boolean;
   textColor?: string;
+  taglineText?: string;
 }
 
 export default function BrandLogo({
   size = "md",
   showText = true,
   showTagline = false,
-  textColor = "#0f172a",
+  textColor = "#ffffff",
+  taglineText = "Your Daily Services & Delivery",
 }: BrandLogoProps) {
   const getIconDimensions = () => {
     switch (size) {
       case "sm":
-        return { imageSize: 42, textStyle: "text-base font-bold", tagStyle: "text-2xs" };
+        return { imageSize: 38, radius: 10, titleSize: 15, tagSize: 10 };
       case "md":
-        return { imageSize: 64, textStyle: "text-lg font-black", tagStyle: "text-xs" };
+        return { imageSize: 64, radius: 16, titleSize: 20, tagSize: 11 };
       case "lg":
-        return { imageSize: 96, textStyle: "text-2xl font-black", tagStyle: "text-xs font-semibold" };
+        return { imageSize: 96, radius: 24, titleSize: 26, tagSize: 12 };
       case "xl":
-        return { imageSize: 130, textStyle: "text-2xl font-black", tagStyle: "text-sm font-semibold" };
+        return { imageSize: 128, radius: 30, titleSize: 30, tagSize: 13 };
       case "hero":
-        return { imageSize: 170, textStyle: "text-3xl font-black", tagStyle: "text-base font-semibold" };
+        return { imageSize: 160, radius: 36, titleSize: 34, tagSize: 14 };
     }
   };
 
-  const { imageSize, textStyle, tagStyle } = getIconDimensions();
+  const { imageSize, radius, titleSize, tagSize } = getIconDimensions();
 
   return (
-    <View className="items-center">
-      {/* Official Circular Logo Image */}
+    <View style={styles.container}>
+      {/* 3D Glowing Inisha Brand Icon */}
       <View
-        style={{
-          width: imageSize,
-          height: imageSize,
-          borderRadius: imageSize / 2,
-          backgroundColor: "#ffffff",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.12,
-          shadowRadius: 8,
-          elevation: 6,
-          overflow: "hidden",
-        }}
+        style={[
+          styles.iconContainer,
+          {
+            width: imageSize,
+            height: imageSize,
+            borderRadius: radius,
+          },
+        ]}
       >
         <Image
           source={require("../../../assets/brand-logo.png")}
           style={{ width: "100%", height: "100%" }}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       </View>
 
       {showText && (
         <Text
-          className={`${textStyle} tracking-tight mt-2.5 text-center uppercase`}
-          style={{ color: textColor }}
+          style={[
+            styles.brandTitle,
+            {
+              fontSize: titleSize,
+              color: textColor,
+            },
+          ]}
         >
-          INISHA CITY SERVICE
+          inisha
         </Text>
       )}
 
       {showTagline && (
-        <Text className={`${tagStyle} text-slate-500 font-medium tracking-wide mt-0.5 text-center`}>
-          Your Need, Our Service
+        <Text
+          style={[
+            styles.brandTagline,
+            {
+              fontSize: tagSize,
+              color: textColor === "#ffffff" ? "rgba(255, 255, 255, 0.85)" : "#64748b",
+            },
+          ]}
+        >
+          {taglineText}
         </Text>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+  },
+  iconContainer: {
+    shadowColor: "#ea580c",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 12,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
+  brandTitle: {
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  brandTagline: {
+    fontWeight: "600",
+    letterSpacing: 0.2,
+    marginTop: 2,
+    textAlign: "center",
+  },
+});

@@ -10,11 +10,12 @@ import {
   ActivityIndicator,
   StyleSheet,
   Keyboard,
-  Alert,
+  Dimensions,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowRight, ShieldCheck, Sparkles, Briefcase } from "lucide-react-native";
+import { ArrowRight, ShieldCheck, Sparkles, Briefcase, Phone, MessageCircle } from "lucide-react-native";
 import BrandLogo from "../../src/components/common/BrandLogo";
 import {
   auth,
@@ -25,6 +26,8 @@ import { signInWithPhoneNumber, RecaptchaVerifier } from "firebase/auth";
 import FirebaseRecaptchaVerifierModal, {
   FirebaseRecaptchaVerifierRef,
 } from "../../src/components/common/FirebaseRecaptchaVerifierModal";
+
+const { width } = Dimensions.get("window");
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -42,7 +45,6 @@ export default function LoginScreen() {
     return regex.test(phone);
   };
 
-  // Strip leading zeros, +91 prefixes, and non-numeric characters
   const sanitizePhoneNumber = (raw: string): string => {
     let digits = raw.replace(/\D/g, "");
     if (digits.startsWith("91") && digits.length > 10) {
@@ -80,7 +82,7 @@ export default function LoginScreen() {
     const formattedE164 = `+91${cleanNumber}`;
     setLoading(true);
 
-    // Instant 1-Second OTP generation (0 ms blocking time)
+    // Instant 1-Second OTP generation
     const instantOtp = "123456";
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
@@ -94,7 +96,7 @@ export default function LoginScreen() {
       }),
     }).catch((err) => console.warn("[Background SMS sync]:", err?.message));
 
-    // Fast 100ms transition to verify screen
+    // Fast transition to verify screen
     setTimeout(() => {
       setLoading(false);
       router.push({
@@ -108,13 +110,18 @@ export default function LoginScreen() {
     }, 100);
   };
 
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      {/* Firebase Recaptcha Verifier Modal for Real Telecom SMS on Android & iOS */}
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Decorative Brand Ambient Glowing Backgrounds */}
+      <View style={styles.topAmbient} />
+      <View style={styles.bottomAmbient} />
+
+      {/* Firebase Recaptcha Verifier Modal */}
       <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={firebaseConfig}
@@ -135,26 +142,30 @@ export default function LoginScreen() {
           style={[
             styles.innerContainer,
             {
-              paddingTop: insets.top + 20,
+              paddingTop: insets.top + 24,
               paddingBottom: Math.max(insets.bottom, 24),
             },
           ]}
         >
-          {/* Header with Official Logo */}
+          {/* Header with 3D Glowing Inisha Brand Logo */}
           <View style={styles.header}>
-            <BrandLogo size="hero" showText={true} showTagline={true} textColor="#0f172a" />
-            <Text style={styles.subtitle}>
-              On-Demand Doorstep Repairs, Home Services & Salon Experience
-            </Text>
+            <BrandLogo
+              size="lg"
+              showText={true}
+              showTagline={true}
+              textColor="#ffffff"
+              taglineText="Your Daily Services & Delivery"
+            />
           </View>
 
           {/* Login Card */}
           <View style={styles.card}>
             <View style={styles.badgeRow}>
-              <Sparkles size={14} color="#ef4444" />
+              <Sparkles size={13} color="#ea580c" />
               <Text style={styles.badgeText}>CUSTOMER VERIFIED ACCESS</Text>
             </View>
-            <Text style={styles.cardTitle}>Welcome</Text>
+
+            <Text style={styles.cardTitle}>Welcome to Inisha</Text>
             <Text style={styles.cardSubtitle}>
               Enter your mobile number to get instant OTP access
             </Text>
@@ -177,7 +188,6 @@ export default function LoginScreen() {
                   onChangeText={handlePhoneChange}
                   style={styles.phoneInput}
                   editable={!loading}
-                  autoFocus
                 />
 
                 {phoneNumber.length === 10 && (
@@ -194,7 +204,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               onPress={handleSendOtp}
               disabled={loading || phoneNumber.length < 10}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
               style={[
                 styles.primaryButton,
                 loading || phoneNumber.length < 10 ? styles.primaryButtonDisabled : null,
@@ -204,15 +214,15 @@ export default function LoginScreen() {
                 <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>Send Verification Code</Text>
-                  <ArrowRight size={20} color="#ffffff" style={{ marginLeft: 8 }} />
+                  <Text style={styles.primaryButtonText}>Continue with OTP</Text>
+                  <ArrowRight size={18} color="#ffffff" style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
 
             <View style={styles.securityBadge}>
-              <ShieldCheck size={16} color="#16a34a" />
-              <Text style={styles.securityText}>100% Secure Telecom SMS Delivery</Text>
+              <ShieldCheck size={14} color="#16a34a" />
+              <Text style={styles.securityText}>100% Secure • Instant OTP Verification</Text>
             </View>
 
             {/* Dedicated Service Partner Login Link */}
@@ -222,19 +232,19 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
                 style={styles.providerButton}
               >
-                <Briefcase size={16} color="#ef4444" style={{ marginRight: 8 }} />
+                <Briefcase size={15} color="#ea580c" style={{ marginRight: 8 }} />
                 <Text style={styles.providerButtonText}>
                   Are you a Technician / Partner?{" "}
-                  <Text style={{ color: "#ef4444", fontWeight: "900" }}>Partner Login →</Text>
+                  <Text style={{ color: "#ea580c", fontWeight: "900" }}>Partner Login →</Text>
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Footer */}
+          {/* Footer with Helpline & Terms */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              By proceeding, you agree to our Terms of Service & Privacy Policy
+              Official Helpline: +91 73520 82614 • By continuing you agree to Terms & Privacy
             </Text>
           </View>
         </View>
@@ -246,87 +256,101 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#061329",
+  },
+  topAmbient: {
+    position: "absolute",
+    top: -100,
+    left: -40,
+    width: width * 1.3,
+    height: width * 1.1,
+    borderRadius: (width * 1.3) / 2,
+    backgroundColor: "rgba(14, 43, 92, 0.5)",
+  },
+  bottomAmbient: {
+    position: "absolute",
+    bottom: -120,
+    right: -40,
+    width: width * 1.3,
+    height: width * 1.1,
+    borderRadius: (width * 1.3) / 2,
+    backgroundColor: "rgba(234, 88, 12, 0.25)",
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "center",
   },
   innerContainer: {
     flex: 1,
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    backgroundColor: "#ffffff",
   },
   header: {
     alignItems: "center",
+    marginBottom: 20,
     marginTop: 10,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#64748b",
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 8,
-    paddingHorizontal: 16,
-    lineHeight: 18,
   },
   card: {
     backgroundColor: "#ffffff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 24,
-    marginVertical: 16,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "#fff7ed",
+    borderColor: "#ffedd5",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
-    color: "#ef4444",
-    marginLeft: 4,
+    color: "#ea580c",
+    marginLeft: 6,
     letterSpacing: 0.5,
   },
   cardTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "900",
     color: "#0f172a",
-    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   cardSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#64748b",
-    fontWeight: "500",
+    marginTop: 4,
     marginBottom: 20,
-    lineHeight: 20,
+    fontWeight: "500",
   },
   inputSection: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "800",
     color: "#475569",
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
-    borderColor: "#cbd5e1",
+    borderColor: "#e2e8f0",
     borderRadius: 18,
     paddingHorizontal: 14,
-    height: 56,
+    height: 54,
   },
   inputContainerError: {
     borderColor: "#ef4444",
@@ -335,103 +359,105 @@ const styles = StyleSheet.create({
   countryCodeBox: {
     flexDirection: "row",
     alignItems: "center",
+    paddingRight: 10,
     borderRightWidth: 1.5,
-    borderRightColor: "#cbd5e1",
-    paddingRight: 12,
-    marginRight: 12,
+    borderRightColor: "#e2e8f0",
+    marginRight: 10,
   },
   flagEmoji: {
-    fontSize: 20,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 4,
   },
   countryCodeText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
     color: "#0f172a",
   },
   phoneInput: {
     flex: 1,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     color: "#0f172a",
     padding: 0,
+    letterSpacing: 0.5,
   },
   validCheck: {
     marginLeft: 8,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: "#ef4444",
     marginTop: 6,
     marginLeft: 4,
   },
   primaryButton: {
-    backgroundColor: "#ef4444",
-    borderRadius: 18,
-    height: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ef4444",
+    backgroundColor: "#ea580c",
+    borderRadius: 18,
+    height: 52,
+    marginTop: 6,
+    shadowColor: "#ea580c",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
     elevation: 6,
-    marginTop: 4,
   },
   primaryButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: "#cbd5e1",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
     color: "#ffffff",
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   securityBadge: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 14,
   },
   securityText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    color: "#64748b",
-    marginLeft: 6,
+    color: "#16a34a",
+    marginLeft: 5,
   },
   providerLinkBox: {
     marginTop: 18,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
-    alignItems: "center",
   },
   providerButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
+    justifyContent: "center",
+    backgroundColor: "#fff7ed",
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: "#ffedd5",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   providerButtonText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#334155",
+    color: "#475569",
   },
   footer: {
+    marginTop: 16,
     alignItems: "center",
-    paddingBottom: 8,
   },
   footerText: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#94a3b8",
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.65)",
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 14,
   },
 });

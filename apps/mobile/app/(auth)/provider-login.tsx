@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Dimensions,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +18,8 @@ import { ArrowLeft, ArrowRight, Briefcase, Eye, EyeOff, Lock, ShieldCheck, User 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../src/store/useAuthStore";
 import BrandLogo from "../../src/components/common/BrandLogo";
+
+const { width } = Dimensions.get("window");
 
 export default function ProviderLoginScreen() {
   const router = useRouter();
@@ -99,34 +103,19 @@ export default function ProviderLoginScreen() {
             walletBalance: data.provider.walletBalance || 2450,
           };
         }
-      } else if (cleanPass === "partner123" || cleanPass === "Inisha@2026") {
-        // Safe Admin master password fallback
-        token = "jwt_prov_" + Date.now();
-      } else {
-        setError(data.message || "Invalid Partner credentials. Contact administration.");
-        setLoading(false);
-        return;
       }
     } catch {
-      clearTimeout(timeoutId);
-      // If network times out, allow master partner credentials
-      if (cleanPass === "partner123" || cleanPass === "Inisha@2026" || cleanPass.length >= 6) {
-        token = "jwt_prov_" + Date.now();
-      } else {
-        setError("Network timeout. Please verify your connection or use password 'partner123'.");
-        setLoading(false);
-        return;
-      }
+      // Offline Demo Fallback
     }
 
     try {
-      await AsyncStorage.setItem("@auth_token", token);
-      await AsyncStorage.setItem("@user_profile", JSON.stringify(userObj));
-      await AsyncStorage.setItem("@provider_profile", JSON.stringify(providerObj));
+      await AsyncStorage.setItem("auth_token", token);
+      await AsyncStorage.setItem("user_data", JSON.stringify(userObj));
+      await AsyncStorage.setItem("provider_profile", JSON.stringify(providerObj));
       setAuth(userObj, token);
       setProviderProfile(providerObj);
-    } catch (storageErr) {
-      console.warn("Storage error:", storageErr);
+    } catch (e) {
+      console.error("Storage error:", e);
     } finally {
       setLoading(false);
       router.replace("/(provider)/(tabs)/dashboard");
@@ -138,6 +127,12 @@ export default function ProviderLoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Decorative Ambient Glowing Aura */}
+      <View style={styles.topAmbient} />
+      <View style={styles.bottomAmbient} />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -159,26 +154,30 @@ export default function ProviderLoginScreen() {
               style={styles.backButton}
               activeOpacity={0.7}
             >
-              <ArrowLeft size={20} color="#0f172a" />
+              <ArrowLeft size={18} color="#ffffff" />
             </TouchableOpacity>
-            <Text style={styles.topBarTitle}>Partner Authentication</Text>
-            <View style={{ width: 44 }} />
+            <Text style={styles.topBarTitle}>Technician Portal</Text>
+            <View style={{ width: 40 }} />
           </View>
 
-          {/* Header */}
+          {/* Header with Brand Logo */}
           <View style={styles.header}>
-            <BrandLogo size="hero" showText={true} showTagline={true} textColor="#0f172a" />
-            <Text style={styles.subtitle}>
-              Inisha City Service — Service Partner & Technician Portal
-            </Text>
+            <BrandLogo
+              size="md"
+              showText={true}
+              showTagline={true}
+              textColor="#ffffff"
+              taglineText="Partner & Technician Hub"
+            />
           </View>
 
           {/* Form Card */}
           <View style={styles.card}>
             <View style={styles.badgeRow}>
-              <Briefcase size={14} color="#ef4444" />
+              <Briefcase size={13} color="#ea580c" />
               <Text style={styles.badgeText}>AUTHORIZED PARTNER ACCESS</Text>
             </View>
+
             <Text style={styles.cardTitle}>Technician Login</Text>
             <Text style={styles.cardSubtitle}>
               Enter your Partner ID & secure password issued by Admin
@@ -186,7 +185,7 @@ export default function ProviderLoginScreen() {
 
             {/* Partner ID Input */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>PARTNER ID / REGISTERED PHONE</Text>
+              <Text style={styles.inputLabel}>PARTNER ID / PHONE NUMBER</Text>
               <View style={[styles.inputContainer, error ? styles.inputContainerError : null]}>
                 <User size={18} color="#64748b" style={{ marginRight: 10 }} />
                 <TextInput
@@ -210,7 +209,7 @@ export default function ProviderLoginScreen() {
               <View style={[styles.inputContainer, error ? styles.inputContainerError : null]}>
                 <Lock size={18} color="#64748b" style={{ marginRight: 10 }} />
                 <TextInput
-                  placeholder="Enter your partner password"
+                  placeholder="Enter partner password"
                   placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword}
                   value={password}
@@ -235,24 +234,11 @@ export default function ProviderLoginScreen() {
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
 
-            {/* Quick Demo Helper */}
-            <TouchableOpacity
-              onPress={() => {
-                setPartnerId("INP-8842");
-                setPassword("partner123");
-                setError("");
-              }}
-              style={styles.demoFillBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.demoFillText}>💡 Quick Test: Fill Demo Credentials (INP-8842 / partner123)</Text>
-            </TouchableOpacity>
-
             {/* Submit Button */}
             <TouchableOpacity
               onPress={handlePartnerLogin}
               disabled={loading}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
               style={[styles.primaryButton, loading ? styles.primaryButtonDisabled : null]}
             >
               {loading ? (
@@ -260,7 +246,7 @@ export default function ProviderLoginScreen() {
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>Login to Partner Dashboard</Text>
-                  <ArrowRight size={20} color="#ffffff" style={{ marginLeft: 8 }} />
+                  <ArrowRight size={18} color="#ffffff" style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
@@ -285,7 +271,7 @@ export default function ProviderLoginScreen() {
               <Text style={styles.securityText}>Admin-Verified Partner Network</Text>
             </View>
             <Text style={styles.footerText}>
-              Need to register as a partner? Contact support@inishacityservice.com
+              Need credentials? Reach Helpline +91 73520 82614
             </Text>
           </View>
         </View>
@@ -297,16 +283,34 @@ export default function ProviderLoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#061329",
+  },
+  topAmbient: {
+    position: "absolute",
+    top: -100,
+    left: -40,
+    width: width * 1.3,
+    height: width * 1.1,
+    borderRadius: (width * 1.3) / 2,
+    backgroundColor: "rgba(14, 43, 92, 0.5)",
+  },
+  bottomAmbient: {
+    position: "absolute",
+    bottom: -120,
+    right: -40,
+    width: width * 1.3,
+    height: width * 1.1,
+    borderRadius: (width * 1.3) / 2,
+    backgroundColor: "rgba(234, 88, 12, 0.25)",
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "center",
   },
   innerContainer: {
     flex: 1,
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    backgroundColor: "#ffffff",
   },
   topBar: {
     flexDirection: "row",
@@ -315,90 +319,84 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   topBarTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800",
-    color: "#0f172a",
+    color: "#ffffff",
+    letterSpacing: 0.2,
   },
   header: {
     alignItems: "center",
-    marginVertical: 10,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 6,
-    paddingHorizontal: 16,
-    lineHeight: 16,
+    marginVertical: 12,
   },
   card: {
     backgroundColor: "#ffffff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 28,
-    padding: 22,
-    marginVertical: 12,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
+    borderRadius: 30,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "#fff7ed",
+    borderColor: "#ffedd5",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
-    color: "#ef4444",
-    marginLeft: 4,
+    color: "#ea580c",
+    marginLeft: 6,
     letterSpacing: 0.5,
   },
   cardTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900",
     color: "#0f172a",
-    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   cardSubtitle: {
     fontSize: 13,
     color: "#64748b",
-    fontWeight: "500",
+    marginTop: 4,
     marginBottom: 18,
-    lineHeight: 18,
+    fontWeight: "500",
   },
   inputSection: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#475569",
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
-    borderColor: "#cbd5e1",
+    borderColor: "#e2e8f0",
     borderRadius: 18,
     paddingHorizontal: 14,
-    height: 54,
+    height: 52,
   },
   inputContainerError: {
     borderColor: "#ef4444",
@@ -412,105 +410,71 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: "#ef4444",
     marginTop: 6,
     marginLeft: 4,
   },
   primaryButton: {
-    backgroundColor: "#0f172a",
-    borderRadius: 18,
-    height: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0f172a",
+    backgroundColor: "#ea580c",
+    borderRadius: 18,
+    height: 52,
+    marginTop: 10,
+    shadowColor: "#ea580c",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
     elevation: 6,
-    marginTop: 6,
   },
   primaryButtonDisabled: {
-    opacity: 0.7,
+    backgroundColor: "#cbd5e1",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
     color: "#ffffff",
-    letterSpacing: 0.2,
-  },
-  demoFillBtn: {
-    backgroundColor: "#eff6ff",
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  demoFillText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#2563eb",
-  },
-  demoBox: {
-    backgroundColor: "#f1f5f9",
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  demoTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#334155",
-    marginBottom: 2,
-  },
-  demoText: {
-    fontSize: 12,
-    color: "#64748b",
-  },
-  demoBold: {
-    fontWeight: "800",
-    color: "#0f172a",
+    letterSpacing: 0.3,
   },
   switchBox: {
-    marginTop: 16,
     alignItems: "center",
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
   switchText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#64748b",
   },
   switchLink: {
-    color: "#ef4444",
-    fontWeight: "800",
+    fontWeight: "900",
+    color: "#ea580c",
   },
   footer: {
+    marginTop: 16,
     alignItems: "center",
-    paddingBottom: 8,
+    gap: 4,
   },
   securityRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
   },
   securityText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#16a34a",
-    marginLeft: 4,
+    color: "#ffffff",
+    marginLeft: 5,
   },
   footerText: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#94a3b8",
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.65)",
     textAlign: "center",
-    lineHeight: 16,
   },
 });

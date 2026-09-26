@@ -15,14 +15,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowRight, ShieldCheck, Sparkles, Briefcase, Phone, MessageCircle } from "lucide-react-native";
+import { ArrowRight, ShieldCheck, Sparkles, Briefcase, ShoppingBag } from "lucide-react-native";
 import BrandLogo from "../../src/components/common/BrandLogo";
 import {
-  auth,
   firebaseConfig,
-  setConfirmationResult,
 } from "../../src/config/firebase";
-import { signInWithPhoneNumber, RecaptchaVerifier } from "firebase/auth";
 import FirebaseRecaptchaVerifierModal, {
   FirebaseRecaptchaVerifierRef,
 } from "../../src/components/common/FirebaseRecaptchaVerifierModal";
@@ -82,11 +79,10 @@ export default function LoginScreen() {
     const formattedE164 = `+91${cleanNumber}`;
     setLoading(true);
 
-    // Instant 1-Second OTP generation
     const instantOtp = "123456";
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
-    // Non-blocking background telecom SMS dispatch
+    // Background SMS sync
     fetch(`${API_URL}/auth/customer/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -96,7 +92,7 @@ export default function LoginScreen() {
       }),
     }).catch((err) => console.warn("[Background SMS sync]:", err?.message));
 
-    // Fast transition to verify screen
+    // Transition to verify screen
     setTimeout(() => {
       setLoading(false);
       router.push({
@@ -115,11 +111,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-      {/* Decorative Brand Ambient Glowing Backgrounds */}
-      <View style={styles.topAmbient} />
-      <View style={styles.bottomAmbient} />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       {/* Firebase Recaptcha Verifier Modal */}
       <FirebaseRecaptchaVerifierModal
@@ -142,30 +134,31 @@ export default function LoginScreen() {
           style={[
             styles.innerContainer,
             {
-              paddingTop: insets.top + 24,
-              paddingBottom: Math.max(insets.bottom, 24),
+              paddingTop: insets.top + 16,
+              paddingBottom: Math.max(insets.bottom, 20),
             },
           ]}
         >
-          {/* Header with 3D Glowing Inisha Brand Logo */}
+          {/* Header with Official Circular Inisha City Service Brand Logo */}
           <View style={styles.header}>
             <BrandLogo
               size="lg"
               showText={true}
               showTagline={true}
-              textColor="#ffffff"
-              taglineText="Your Daily Services & Delivery"
+              textColor="#0f172a"
+              taglineText="Your Need, Our Service"
+              subText="On-Demand Doorstep Repairs, Home Services & Salon Experience"
             />
           </View>
 
-          {/* Login Card */}
+          {/* Login Card Matching Reference Image */}
           <View style={styles.card}>
             <View style={styles.badgeRow}>
-              <Sparkles size={13} color="#ea580c" />
+              <Sparkles size={13} color="#ef4444" />
               <Text style={styles.badgeText}>CUSTOMER VERIFIED ACCESS</Text>
             </View>
 
-            <Text style={styles.cardTitle}>Welcome to Inisha</Text>
+            <Text style={styles.cardTitle}>Welcome</Text>
             <Text style={styles.cardSubtitle}>
               Enter your mobile number to get instant OTP access
             </Text>
@@ -214,15 +207,15 @@ export default function LoginScreen() {
                 <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>Continue with OTP</Text>
+                  <Text style={styles.primaryButtonText}>Send Verification Code</Text>
                   <ArrowRight size={18} color="#ffffff" style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
 
             <View style={styles.securityBadge}>
-              <ShieldCheck size={14} color="#16a34a" />
-              <Text style={styles.securityText}>100% Secure • Instant OTP Verification</Text>
+              <ShieldCheck size={15} color="#16a34a" />
+              <Text style={styles.securityText}>100% Secure Telecom SMS Delivery</Text>
             </View>
 
             {/* Dedicated Service Partner Login Link */}
@@ -232,19 +225,19 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
                 style={styles.providerButton}
               >
-                <Briefcase size={15} color="#ea580c" style={{ marginRight: 8 }} />
+                <ShoppingBag size={15} color="#ef4444" style={{ marginRight: 8 }} />
                 <Text style={styles.providerButtonText}>
                   Are you a Technician / Partner?{" "}
-                  <Text style={{ color: "#ea580c", fontWeight: "900" }}>Partner Login →</Text>
+                  <Text style={{ color: "#ef4444", fontWeight: "900" }}>Partner Login →</Text>
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Footer with Helpline & Terms */}
+          {/* Footer with Terms */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Official Helpline: +91 73520 82614 • By continuing you agree to Terms & Privacy
+              By proceeding, you agree to our Terms of Service & Privacy Policy
             </Text>
           </View>
         </View>
@@ -256,71 +249,47 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#061329",
-  },
-  topAmbient: {
-    position: "absolute",
-    top: -100,
-    left: -40,
-    width: width * 1.3,
-    height: width * 1.1,
-    borderRadius: (width * 1.3) / 2,
-    backgroundColor: "rgba(14, 43, 92, 0.5)",
-  },
-  bottomAmbient: {
-    position: "absolute",
-    bottom: -120,
-    right: -40,
-    width: width * 1.3,
-    height: width * 1.1,
-    borderRadius: (width * 1.3) / 2,
-    backgroundColor: "rgba(234, 88, 12, 0.25)",
+    backgroundColor: "#ffffff",
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
   },
   innerContainer: {
-    flex: 1,
-    justifyContent: "space-between",
     paddingHorizontal: 20,
+    alignItems: "center",
   },
   header: {
     alignItems: "center",
     marginBottom: 20,
-    marginTop: 10,
   },
   card: {
+    width: "100%",
     backgroundColor: "#ffffff",
-    borderRadius: 30,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    padding: 22,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "#fff7ed",
-    borderColor: "#ffedd5",
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 8,
   },
   badgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#ea580c",
-    marginLeft: 6,
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#ef4444",
     letterSpacing: 0.5,
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "900",
     color: "#0f172a",
     letterSpacing: -0.5,
@@ -329,108 +298,104 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748b",
     marginTop: 4,
-    marginBottom: 20,
-    fontWeight: "500",
+    marginBottom: 18,
+    lineHeight: 18,
   },
   inputSection: {
     marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
-    color: "#475569",
-    letterSpacing: 0.8,
-    marginBottom: 6,
+    color: "#334155",
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 18,
+    borderColor: "#cbd5e1",
+    borderRadius: 16,
     paddingHorizontal: 14,
-    height: 54,
+    height: 52,
   },
   inputContainerError: {
     borderColor: "#ef4444",
-    backgroundColor: "#fef2f2",
   },
   countryCodeBox: {
     flexDirection: "row",
     alignItems: "center",
     paddingRight: 10,
     borderRightWidth: 1.5,
-    borderRightColor: "#e2e8f0",
+    borderRightColor: "#cbd5e1",
     marginRight: 10,
   },
   flagEmoji: {
     fontSize: 18,
-    marginRight: 4,
+    marginRight: 6,
   },
   countryCodeText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     color: "#0f172a",
   },
   phoneInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#0f172a",
-    padding: 0,
     letterSpacing: 0.5,
+    paddingVertical: 0,
   },
   validCheck: {
-    marginLeft: 8,
+    paddingLeft: 6,
   },
   errorText: {
+    color: "#ef4444",
     fontSize: 11,
     fontWeight: "700",
-    color: "#ef4444",
     marginTop: 6,
-    marginLeft: 4,
   },
   primaryButton: {
+    backgroundColor: "#f87171", // Coral Red matching mockup
+    borderRadius: 16,
+    height: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ea580c",
-    borderRadius: 18,
-    height: 52,
     marginTop: 6,
-    shadowColor: "#ea580c",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowColor: "#ef4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 10,
-    elevation: 6,
+    elevation: 3,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#cbd5e1",
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: "#fca5a5",
+    opacity: 0.7,
   },
   primaryButtonText: {
+    color: "#ffffff",
     fontSize: 15,
     fontWeight: "900",
-    color: "#ffffff",
-    letterSpacing: 0.3,
   },
   securityBadge: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
     marginTop: 14,
   },
   securityText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#16a34a",
-    marginLeft: 5,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#475569",
   },
   providerLinkBox: {
     marginTop: 18,
-    paddingTop: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
   },
@@ -438,26 +403,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff7ed",
+    backgroundColor: "#fff1f2",
     borderWidth: 1,
-    borderColor: "#ffedd5",
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderColor: "#fecaca",
+    paddingVertical: 10,
     paddingHorizontal: 12,
+    borderRadius: 12,
   },
   providerButtonText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#475569",
+    color: "#334155",
   },
   footer: {
-    marginTop: 16,
+    marginTop: 20,
     alignItems: "center",
   },
   footerText: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.65)",
+    fontSize: 11,
+    color: "#94a3b8",
     textAlign: "center",
-    lineHeight: 14,
   },
 });

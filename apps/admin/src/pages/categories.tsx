@@ -345,7 +345,7 @@ export default function AdminCategoriesAndServices() {
   useEffect(() => {
     try {
       const q = query(collection(db, "categories"));
-      const unsubscribe = onSnapshot(
+      const unsubscribeCat = onSnapshot(
         q,
         (snapshot) => {
           if (!snapshot.empty) {
@@ -366,7 +366,29 @@ export default function AdminCategoriesAndServices() {
           console.warn("Firestore categories fallback to memory:", error.message);
         }
       );
-      return () => unsubscribe();
+
+      const unsubProd = onSnapshot(
+        collection(db, "store_products"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: StoreProduct[] = [];
+            snapshot.forEach((docSnap) => {
+              list.push({ id: docSnap.id, ...(docSnap.data() as any) });
+            });
+            if (list.length > 0) {
+              setStoreProducts(list);
+            }
+          }
+        },
+        (err) => {
+          console.warn("Firestore products fallback:", err.message);
+        }
+      );
+
+      return () => {
+        unsubscribeCat();
+        unsubProd();
+      };
     } catch {
       // Offline fallback
     }
@@ -494,7 +516,7 @@ export default function AdminCategoriesAndServices() {
     alert(`New service "${newSrv.name}" created and added to live catalog!`);
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProd.name.trim()) return;
 
@@ -510,6 +532,13 @@ export default function AdminCategoriesAndServices() {
 
     setStoreProducts((prev) => [prod, ...prev]);
     setProductModalOpen(false);
+
+    try {
+      await setDoc(doc(db, "store_products", prod.id), prod);
+    } catch (err) {
+      console.warn("Product firestore save error:", err);
+    }
+
     setNewProd({
       name: "",
       category: "Mobile Accessories",
@@ -526,20 +555,32 @@ export default function AdminCategoriesAndServices() {
     setEditProductModalOpen(true);
   };
 
-  const handleSaveEditedProduct = (e: React.FormEvent) => {
+  const handleSaveEditedProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
 
     setStoreProducts((prev) =>
       prev.map((p) => (p.id === editingProduct.id ? editingProduct : p))
     );
+
+    try {
+      await setDoc(doc(db, "store_products", editingProduct.id), editingProduct, { merge: true });
+    } catch (err) {
+      console.warn("Product edit firestore error:", err);
+    }
+
     setEditProductModalOpen(false);
     alert(`Product "${editingProduct.name}" updated successfully!`);
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     if (window.confirm("Are you sure you want to remove this product?")) {
       setStoreProducts((prev) => prev.filter((p) => p.id !== id));
+      try {
+        await deleteDoc(doc(db, "store_products", id));
+      } catch (err) {
+        console.warn("Product delete firestore error:", err);
+      }
     }
   };
 

@@ -177,6 +177,19 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setPrefVisible(true)} style={styles.menuRow}>
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
+              <Settings size={18} color="#475569" />
+            </View>
+            <View>
+              <Text style={styles.menuTitle}>App Settings & Preferences</Text>
+              <Text style={styles.menuSub}>Sound, Dark mode & Language</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color="#94a3b8" />
+        </TouchableOpacity>
+
         <TouchableOpacity activeOpacity={0.7} onPress={() => setHelpVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>

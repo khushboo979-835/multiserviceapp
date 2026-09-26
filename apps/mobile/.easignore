@@ -21,3 +21,5 @@ build
 !assets/**
 !src/
 !src/**
+!scripts/
+!scripts/**

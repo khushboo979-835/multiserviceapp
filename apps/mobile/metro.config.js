@@ -1,20 +1,26 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 const path = require("path");
+const fs = require("fs");
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
-// 1. Watch all files within the monorepo
-config.watchFolders = [monorepoRoot];
+// 1. Watch directories
+const watchFolders = [projectRoot];
+if (fs.existsSync(monorepoRoot) && monorepoRoot !== projectRoot) {
+  watchFolders.push(monorepoRoot);
+}
+config.watchFolders = watchFolders;
 
-// 2. Let Metro know where to resolve packages and in what order
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(monorepoRoot, "node_modules"),
-];
+// 2. Node module resolution
+const nodeModulesPaths = [path.resolve(projectRoot, "node_modules")];
+if (fs.existsSync(path.resolve(monorepoRoot, "node_modules"))) {
+  nodeModulesPaths.push(path.resolve(monorepoRoot, "node_modules"));
+}
+config.resolver.nodeModulesPaths = nodeModulesPaths;
 
 // 3. Extra node modules / alias mapping for @/*
 config.resolver.extraNodeModules = {
@@ -30,5 +36,3 @@ config.resolver.blockList = [
 ];
 
 module.exports = withNativeWind(config, { input: "./global.css" });
-
-

@@ -6,7 +6,6 @@ module.exports = function (api) {
         "babel-preset-expo",
         {
           jsxImportSource: "nativewind",
-          unstable_transformProfile: "hermes-v0",
         },
       ],
     ],
@@ -31,7 +30,7 @@ module.exports = function (api) {
           ],
         },
       ],
+      "react-native-reanimated/plugin",
     ],
   };
 };
-

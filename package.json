@@ -23,5 +23,10 @@
     "mobile:web": "npm run web --workspace=apps/mobile",
     "mobile:build:apk": "cd apps/mobile && npx eas-cli build --platform android --profile preview",
     "eas-build-pre-install": "npm config set legacy-peer-deps true"
+  },
+  "dependencies": {
+    "expo-asset": "~12.0.13",
+    "expo-system-ui": "^57.0.4",
+    "react-native-webview": "^13.15.0"
   }
 }

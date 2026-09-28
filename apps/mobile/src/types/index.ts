@@ -266,8 +266,19 @@ export type ProductTypeCategory =
   | "MOBILE_PHONES"
   | "MOBILE_ACCESSORIES"
   | "GROCERY"
+  | "BEAUTY_PARLOUR"
   | "HOME_NEEDS"
-  | "ELECTRONICS";
+  | "ELECTRONICS"
+  | "FRESH_VEGGIES_FRUITS"
+  | "SNACKS_BEVERAGES";
+
+export interface MobileBrand {
+  id: string;
+  name: string;
+  logoUrl: string;
+  models: string[];
+  repairs: { name: string; price: number }[];
+}
 
 export interface Product {
   id: string;
@@ -283,6 +294,43 @@ export interface Product {
   inStock: boolean;
   rating: number;
   deliveryTimeMins: number;
+  brand?: string;
+}
+
+export type StoreOrderStatus =
+  | "PLACED"
+  | "ACCEPTED"
+  | "PACKED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED";
+
+export interface StoreOrder {
+  id: string;
+  orderNumber: string;
+  items: CartItem[];
+  itemTotal: number;
+  deliveryFee: number;
+  discountAmount: number;
+  giftWrapFee: number;
+  totalAmount: number;
+  status: StoreOrderStatus;
+  otp: string;
+  isGift: boolean;
+  giftRecipientName?: string;
+  giftMessage?: string;
+  deliveryAddress: string;
+  paymentMethod: string;
+  paymentStatus: "PAID" | "PENDING_COD";
+  deliveryPartner?: {
+    name: string;
+    phone: string;
+    vehicleNumber: string;
+    photoUrl?: string;
+    rating: number;
+  };
+  placedAt: string;
+  estimatedDeliveryTime: string;
 }
 
 export interface CartItem {

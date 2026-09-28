@@ -12,6 +12,7 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AIChatMessage } from "../../types";
 import {
   Bot,
@@ -121,13 +122,16 @@ export default function AIChatSupportModal({
     }, 600);
   };
 
+  const insets = useSafeAreaInsets();
+  const bottomPadding = insets.bottom > 0 ? insets.bottom + 10 : 16;
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>

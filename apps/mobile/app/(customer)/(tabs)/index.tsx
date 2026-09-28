@@ -21,6 +21,7 @@ import { MOCK_CATEGORIES, MOCK_PRODUCTS, MOCK_COUPONS } from "../../../src/const
 import { Category, Subcategory, Booking, BookingStatus } from "../../../src/types";
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import InishaHeader from "../../../src/components/common/InishaHeader";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
 import { sendNewJobDispatchNotification } from "../../../src/utils/notifications";
@@ -83,6 +84,7 @@ import {
   Plus,
   ShoppingCart,
   Lock,
+  Truck,
 } from "lucide-react-native";
 
 const BANNER_SLIDES = [
@@ -502,7 +504,16 @@ export default function CustomerHomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Header: Deliver/Service at Sultanganj + Bell & Avatar (Matching Image 1) */}
+        {/* Official Inisha Brand Header (Matching Design Mockup) */}
+        <InishaHeader
+          onProfilePress={() => router.push("/(customer)/(tabs)/profile")}
+          onSearchPress={() => {}}
+          onNotificationPress={() => {
+            Alert.alert("Inisha Notifications", "Your latest updates & order alerts appear here.");
+          }}
+        />
+
+        {/* 1. Location Bar: Deliver/Service at Sultanganj */}
         <View style={styles.topHeader}>
           <TouchableOpacity
             onPress={() => setIsLocationModalOpen(true)}
@@ -523,24 +534,11 @@ export default function CustomerHomeScreen() {
 
           <View style={styles.headerRightButtons}>
             <TouchableOpacity
-              onPress={() => {
-                Alert.alert("Notifications", "You have no unread notifications right now.");
-              }}
+              onPress={() => setIsLocationModalOpen(true)}
               style={styles.headerIconBtn}
               activeOpacity={0.7}
             >
-              <Bell size={20} color="#0f172a" />
-              <View style={styles.bellBadge} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push("/(customer)/(tabs)/profile")}
-              style={styles.avatarBtn}
-              activeOpacity={0.7}
-            >
-              <View style={styles.avatarCircle}>
-                <User size={20} color="#3b82f6" />
-              </View>
+              <Compass size={18} color="#0f172a" />
             </TouchableOpacity>
           </View>
         </View>
@@ -583,6 +581,88 @@ export default function CustomerHomeScreen() {
               ))}
             </ScrollView>
           </View>
+        </View>
+
+        {/* Quick Action Spotlight (Matching Image 2 Mockup) */}
+        <View style={styles.quickSpotlightCard}>
+          <View style={styles.spotlightRow}>
+            {/* Delivery */}
+            <TouchableOpacity
+              onPress={() => {
+                const cat = categories.find((c) => c.slug.includes("delivery") || c.name.toLowerCase().includes("delivery")) || categories[0];
+                if (cat) handleCategoryPress(cat);
+              }}
+              style={styles.spotlightItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.spotlightIconBox, { backgroundColor: "#e0f2fe" }]}>
+                <Truck size={24} color="#0284c7" />
+              </View>
+              <Text style={styles.spotlightLabel}>Delivery</Text>
+            </TouchableOpacity>
+
+            {/* Handyman */}
+            <TouchableOpacity
+              onPress={() => {
+                const cat = categories.find((c) => c.slug.includes("repair") || c.name.toLowerCase().includes("repair")) || categories[0];
+                if (cat) handleCategoryPress(cat);
+              }}
+              style={styles.spotlightItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.spotlightIconBox, { backgroundColor: "#fef3c7" }]}>
+                <Wrench size={24} color="#d97706" />
+              </View>
+              <Text style={styles.spotlightLabel}>Handyman</Text>
+            </TouchableOpacity>
+
+            {/* Grocer */}
+            <TouchableOpacity
+              onPress={() => setIsStoreOpen(true)}
+              style={styles.spotlightItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.spotlightIconBox, { backgroundColor: "#ffedd5" }]}>
+                <ShoppingBag size={24} color="#ea580c" />
+              </View>
+              <Text style={styles.spotlightLabel}>Grocer</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Action Button Row */}
+          <View style={styles.spotlightBtnRow}>
+            <TouchableOpacity
+              onPress={() => setIsAllServicesOpen(true)}
+              style={styles.spotlightSelectBtn}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.spotlightSelectBtnText}>Select service</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsStoreOpen(true)}
+              style={styles.spotlightChooseBtn}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.spotlightChooseBtnText}>Choose icon</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Floating Notification Banner (Matching Image 2 Mockup) */}
+        <View style={styles.notifBannerCard}>
+          <View style={styles.notifBadgeCircle}>
+            <Bell size={18} color="#ffffff" />
+            <View style={styles.notifDot} />
+          </View>
+          <View style={styles.notifContent}>
+            <Text style={styles.notifTitle}>Notification</Text>
+            <Text style={styles.notifDesc} numberOfLines={2}>
+              Welcome to Inisha! Doorstep home repair, salon & instant grocery delivery is ready for you.
+            </Text>
+            <Text style={styles.notifTime}>1 min ago</Text>
+          </View>
+          <ChevronRight size={18} color="#94a3b8" />
         </View>
 
         {/* 3. Hero Carousel Banners (Matching Image 1) */}
@@ -1750,5 +1830,141 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f5f9",
     alignItems: "center",
     justifyContent: "center",
+  },
+  quickSpotlightCard: {
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 14,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  spotlightRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  spotlightItem: {
+    alignItems: "center",
+  },
+  spotlightIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  spotlightLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#334155",
+  },
+  spotlightBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  spotlightSelectBtn: {
+    flex: 1,
+    height: 42,
+    backgroundColor: "#0284c7",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  spotlightSelectBtnText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  spotlightChooseBtn: {
+    flex: 1,
+    height: 42,
+    backgroundColor: "#ea580c",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#ea580c",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  spotlightChooseBtnText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  notifBannerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  notifBadgeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#0369a1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  notifDot: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#ea580c",
+    borderWidth: 1.5,
+    borderColor: "#ffffff",
+  },
+  notifContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  notifTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#0f172a",
+    marginBottom: 2,
+  },
+  notifDesc: {
+    fontSize: 11,
+    color: "#64748b",
+    lineHeight: 15,
+  },
+  notifTime: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#94a3b8",
+    marginTop: 4,
   },
 });

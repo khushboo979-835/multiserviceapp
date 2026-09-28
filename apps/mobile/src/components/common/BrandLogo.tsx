@@ -21,15 +21,15 @@ export default function BrandLogo({
   const getIconDimensions = () => {
     switch (size) {
       case "sm":
-        return { imageSize: 38, radius: 19, titleSize: 15, tagSize: 10 };
+        return { imageSize: 38, radius: 8, titleSize: 15, tagSize: 10 };
       case "md":
-        return { imageSize: 68, radius: 34, titleSize: 18, tagSize: 11 };
+        return { imageSize: 68, radius: 14, titleSize: 18, tagSize: 11 };
       case "lg":
-        return { imageSize: 110, radius: 55, titleSize: 22, tagSize: 13 };
+        return { imageSize: 110, radius: 22, titleSize: 22, tagSize: 13 };
       case "xl":
-        return { imageSize: 130, radius: 65, titleSize: 24, tagSize: 14 };
+        return { imageSize: 130, radius: 26, titleSize: 24, tagSize: 14 };
       case "hero":
-        return { imageSize: 150, radius: 75, titleSize: 26, tagSize: 14 };
+        return { imageSize: 150, radius: 30, titleSize: 26, tagSize: 14 };
     }
   };
 
@@ -37,7 +37,7 @@ export default function BrandLogo({
 
   return (
     <View style={styles.container}>
-      {/* Official Circular Inisha City Service Brand Icon */}
+      {/* Official Inisha Brand Icon */}
       <View
         style={[
           styles.iconContainer,
@@ -56,46 +56,33 @@ export default function BrandLogo({
       </View>
 
       {showText && (
-        <Text
-          style={[
-            styles.brandTitle,
-            {
-              fontSize: titleSize,
-              color: textColor,
-            },
-          ]}
-        >
-          INISHA CITY SERVICE
-        </Text>
-      )}
-
-      {showTagline && (
-        <>
+        <View style={styles.textContainer}>
           <Text
             style={[
-              styles.brandTagline,
+              styles.brandTitle,
               {
-                fontSize: tagSize,
-                color: textColor === "#ffffff" ? "rgba(255, 255, 255, 0.9)" : "#64748b",
+                fontSize: titleSize,
+                color: textColor,
               },
             ]}
           >
-            {taglineText}
+            inisha
           </Text>
-          {subText ? (
-            <Text
-              style={[
-                styles.brandSubText,
-                {
-                  fontSize: tagSize - 1,
-                  color: textColor === "#ffffff" ? "rgba(255, 255, 255, 0.75)" : "#64748b",
-                },
-              ]}
-            >
-              {subText}
-            </Text>
-          ) : null}
-        </>
+        </View>
+      )}
+
+      {showTagline && (
+        <Text
+          style={[
+            styles.brandTagline,
+            {
+              fontSize: tagSize,
+              color: textColor === "#ffffff" ? "rgba(255, 255, 255, 0.9)" : "#64748b",
+            },
+          ]}
+        >
+          {taglineText}
+        </Text>
       )}
     </View>
   );
@@ -113,6 +100,9 @@ const styles = StyleSheet.create({
     elevation: 6,
     overflow: "hidden",
     backgroundColor: "#ffffff",
+  },
+  textContainer: {
+    alignItems: "center",
   },
   brandTitle: {
     fontWeight: "900",

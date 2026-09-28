@@ -25,6 +25,7 @@ import {
   Unsubscribe,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import ImageUploadPicker from "../components/ImageUploadPicker";
 
 interface BannerItem {
   id: string;
@@ -341,19 +342,12 @@ export default function BannerManagementPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Image URL *
-                </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://images.unsplash.com/..."
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500 font-mono"
-                />
-              </div>
+              {/* Banner Image Picker (Phone Gallery / File / URL) */}
+              <ImageUploadPicker
+                value={formData.imageUrl}
+                onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                label="Banner Display Image (Gallery / File / URL)"
+              />
 
               <div className="flex gap-3 pt-3">
                 <button

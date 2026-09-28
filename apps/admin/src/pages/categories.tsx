@@ -42,6 +42,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import ImageUploadPicker from "../components/ImageUploadPicker";
 
 interface FormFieldAdmin {
   id: string;
@@ -54,6 +55,7 @@ interface ServiceCategory {
   id: string;
   name: string;
   iconName: string;
+  imageUrl?: string;
   basePrice: number;
   description: string;
   fields: FormFieldAdmin[];
@@ -278,6 +280,7 @@ export default function AdminCategoriesAndServices() {
   const [newServicePrice, setNewServicePrice] = useState(299);
   const [newServiceDesc, setNewServiceDesc] = useState("");
   const [newServiceIcon, setNewServiceIcon] = useState("tool");
+  const [newServiceImageUrl, setNewServiceImageUrl] = useState("");
 
   // Edit Service Modal state
   const [editServiceModalOpen, setEditServiceModalOpen] = useState(false);
@@ -493,6 +496,7 @@ export default function AdminCategoriesAndServices() {
       id: `srv_${Date.now()}`,
       name: newServiceName.trim(),
       iconName: newServiceIcon || "tool",
+      imageUrl: newServiceImageUrl || "",
       basePrice: Number(newServicePrice),
       description: newServiceDesc.trim() || "Expert professional doorstep service",
       fields: [
@@ -513,6 +517,7 @@ export default function AdminCategoriesAndServices() {
     setNewServiceModalOpen(false);
     setNewServiceName("");
     setNewServiceDesc("");
+    setNewServiceImageUrl("");
     alert(`New service "${newSrv.name}" created and added to live catalog!`);
   };
 
@@ -990,6 +995,13 @@ export default function AdminCategoriesAndServices() {
                 />
               </div>
 
+              {/* Service Display Image Picker (Gallery / File / URL) */}
+              <ImageUploadPicker
+                value={newServiceImageUrl}
+                onChange={setNewServiceImageUrl}
+                label="Service Photo (Gallery / File / URL)"
+              />
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1102,6 +1114,13 @@ export default function AdminCategoriesAndServices() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500"
                 />
               </div>
+
+              {/* Service Display Image Picker (Gallery / File / URL) */}
+              <ImageUploadPicker
+                value={editServiceForm.imageUrl || ""}
+                onChange={(url) => setEditServiceForm({ ...editServiceForm, imageUrl: url })}
+                label="Service Photo (Gallery / File / URL)"
+              />
 
               {/* Dynamic Form Schema Field Editor */}
               <div className="pt-2 border-t border-slate-100 space-y-3">
@@ -1286,18 +1305,12 @@ export default function AdminCategoriesAndServices() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Image URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={newProd.imageUrl}
-                  onChange={(e) => setNewProd({ ...newProd, imageUrl: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono"
-                />
-              </div>
+              {/* Product Photo Picker (Gallery / File / URL) */}
+              <ImageUploadPicker
+                value={newProd.imageUrl}
+                onChange={(url) => setNewProd({ ...newProd, imageUrl: url })}
+                label="Product Photo (Phone Gallery / File)"
+              />
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -1413,19 +1426,12 @@ export default function AdminCategoriesAndServices() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                  Image URL
-                </label>
-                <input
-                  type="url"
-                  value={editingProduct.imageUrl}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, imageUrl: e.target.value })
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono"
-                />
-              </div>
+              {/* Product Photo Picker (Gallery / File / URL) */}
+              <ImageUploadPicker
+                value={editingProduct.imageUrl}
+                onChange={(url) => setEditingProduct({ ...editingProduct, imageUrl: url })}
+                label="Product Photo (Phone Gallery / File)"
+              />
 
               <div className="flex gap-3 pt-2">
                 <button

@@ -157,15 +157,6 @@ export default function App({ Component, pageProps }: AppProps) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Direct Mobile App & APK Hub Trigger */}
-            <button
-              onClick={() => setApkModalOpen(true)}
-              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition"
-            >
-              <Smartphone size={14} className="text-emerald-600" />
-              <span>📱 Download APK & App</span>
-            </button>
-
             <div className="w-8 h-8 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-xs font-black text-red-600">
               AD
             </div>

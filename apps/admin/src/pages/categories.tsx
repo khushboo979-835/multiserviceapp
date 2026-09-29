@@ -270,29 +270,7 @@ export default function AdminCategoriesAndServices() {
     },
   ];
 
-  const [services, setServices] = useState<ServiceCategory[]>(defaultServices);
-  const [selectedService, setSelectedService] = useState<ServiceCategory | null>(defaultServices[0]);
-  const [editingPrice, setEditingPrice] = useState<number>(defaultServices[0].basePrice);
-
-  // Modals state
-  const [newServiceModalOpen, setNewServiceModalOpen] = useState(false);
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServicePrice, setNewServicePrice] = useState(299);
-  const [newServiceDesc, setNewServiceDesc] = useState("");
-  const [newServiceIcon, setNewServiceIcon] = useState("tool");
-  const [newServiceImageUrl, setNewServiceImageUrl] = useState("");
-
-  // Edit Service Modal state
-  const [editServiceModalOpen, setEditServiceModalOpen] = useState(false);
-  const [editServiceForm, setEditServiceForm] = useState<ServiceCategory | null>(null);
-
-  // New Field inside Edit Service Modal
-  const [newFieldLabel, setNewFieldLabel] = useState("");
-  const [newFieldType, setNewFieldType] = useState("TEXT");
-  const [newFieldRequired, setNewFieldRequired] = useState(true);
-
-  // Store Products state
-  const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([
+  const defaultStoreProducts: StoreProduct[] = [
     {
       id: "prod_1",
       name: "iPhone 13 / 14 OLED Display Screen (OEM)",
@@ -329,7 +307,31 @@ export default function AdminCategoriesAndServices() {
       stock: 200,
       imageUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80",
     },
-  ]);
+  ];
+
+  const [services, setServices] = useState<ServiceCategory[]>(defaultServices);
+  const [selectedService, setSelectedService] = useState<ServiceCategory | null>(defaultServices[0]);
+  const [editingPrice, setEditingPrice] = useState<number>(defaultServices[0].basePrice);
+
+  // Modals state
+  const [newServiceModalOpen, setNewServiceModalOpen] = useState(false);
+  const [newServiceName, setNewServiceName] = useState("");
+  const [newServicePrice, setNewServicePrice] = useState(299);
+  const [newServiceDesc, setNewServiceDesc] = useState("");
+  const [newServiceIcon, setNewServiceIcon] = useState("tool");
+  const [newServiceImageUrl, setNewServiceImageUrl] = useState("");
+
+  // Edit Service Modal state
+  const [editServiceModalOpen, setEditServiceModalOpen] = useState(false);
+  const [editServiceForm, setEditServiceForm] = useState<ServiceCategory | null>(null);
+
+  // New Field inside Edit Service Modal
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldType, setNewFieldType] = useState("TEXT");
+  const [newFieldRequired, setNewFieldRequired] = useState(true);
+
+  // Store Products state
+  const [storeProducts, setStoreProducts] = useState<StoreProduct[]>(defaultStoreProducts);
 
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editProductModalOpen, setEditProductModalOpen] = useState(false);
@@ -344,35 +346,86 @@ export default function AdminCategoriesAndServices() {
     imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
   });
 
-  // Sync with Firestore on mount if available
+  // Sync with localStorage & Firestore on mount
   useEffect(() => {
+    // 1. Instantly load from localStorage to eliminate any reload flash/reset
+    if (typeof window !== "undefined") {
+      try {
+        const cachedServices = localStorage.getItem("inisha_admin_services");
+        if (cachedServices) {
+          const parsed = JSON.parse(cachedServices);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setServices(parsed);
+            setSelectedService(parsed[0]);
+            setEditingPrice(parsed[0].basePrice);
+          }
+        }
+        const cachedProds = localStorage.getItem("inisha_admin_products");
+        if (cachedProds) {
+          const parsedP = JSON.parse(cachedProds);
+          if (Array.isArray(parsedP) && parsedP.length > 0) {
+            setStoreProducts(parsedP);
+          }
+        }
+      } catch (err) {
+        console.warn("Local storage cache read error:", err);
+      }
+    }
+
+    // 2. Real-time Firebase Firestore Listener
     try {
       const q = query(collection(db, "categories"));
       const unsubscribeCat = onSnapshot(
         q,
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const list: ServiceCategory[] = [];
             snapshot.forEach((docSnap) => {
               list.push({ id: docSnap.id, ...(docSnap.data() as any) });
             });
+
             if (list.length > 0) {
-              setServices(list);
-              if (!selectedService || !list.find((s) => s.id === selectedService.id)) {
-                setSelectedService(list[0]);
-                setEditingPrice(list[0].basePrice);
+              // Ensure any default services not in Firestore are safely merged
+              const firestoreIds = new Set(list.map((s) => s.id));
+              const missingDefaults = defaultServices.filter((d) => !firestoreIds.has(d.id));
+
+              // Seed missing defaults in background
+              if (missingDefaults.length > 0) {
+                for (const item of missingDefaults) {
+                  setDoc(doc(db, "categories", item.id), item, { merge: true }).catch(() => {});
+                }
               }
+
+              const fullList = [...list, ...missingDefaults];
+              setServices(fullList);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("inisha_admin_services", JSON.stringify(fullList));
+              }
+
+              setSelectedService((prev) => {
+                if (!prev) return fullList[0];
+                const match = fullList.find((s) => s.id === prev.id);
+                return match || fullList[0];
+              });
+            }
+          } else {
+            // Collection is completely empty - Seed all 15 defaultServices into Firestore
+            for (const item of defaultServices) {
+              setDoc(doc(db, "categories", item.id), item, { merge: true }).catch(() => {});
+            }
+            if (typeof window !== "undefined") {
+              localStorage.setItem("inisha_admin_services", JSON.stringify(defaultServices));
             }
           }
         },
         (error) => {
-          console.warn("Firestore categories fallback to memory:", error.message);
+          console.warn("Firestore categories listener fallback to localStorage:", error.message);
         }
       );
 
       const unsubProd = onSnapshot(
         collection(db, "store_products"),
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const list: StoreProduct[] = [];
             snapshot.forEach((docSnap) => {
@@ -380,6 +433,13 @@ export default function AdminCategoriesAndServices() {
             });
             if (list.length > 0) {
               setStoreProducts(list);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("inisha_admin_products", JSON.stringify(list));
+              }
+            }
+          } else {
+            for (const item of defaultStoreProducts) {
+              setDoc(doc(db, "store_products", item.id), item, { merge: true }).catch(() => {});
             }
           }
         },
@@ -410,14 +470,19 @@ export default function AdminCategoriesAndServices() {
   const handleSaveInlinePrice = async () => {
     if (!selectedService) return;
     const updated = { ...selectedService, basePrice: Number(editingPrice) };
-    setServices((prev) =>
-      prev.map((s) => (s.id === selectedService.id ? updated : s))
-    );
+    const updatedList = services.map((s) => (s.id === selectedService.id ? updated : s));
+    
+    setServices(updatedList);
     setSelectedService(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
+    }
 
     try {
       await setDoc(doc(db, "categories", selectedService.id), updated, { merge: true });
-    } catch {}
+    } catch (err) {
+      console.error("Firestore save price error:", err);
+    }
 
     alert(`Base rate for ${selectedService.name} updated to ₹${editingPrice}!`);
   };
@@ -426,17 +491,21 @@ export default function AdminCategoriesAndServices() {
     e.preventDefault();
     if (!editServiceForm) return;
 
-    setServices((prev) =>
-      prev.map((s) => (s.id === editServiceForm.id ? editServiceForm : s))
-    );
+    const updatedList = services.map((s) => (s.id === editServiceForm.id ? editServiceForm : s));
+    setServices(updatedList);
     if (selectedService?.id === editServiceForm.id) {
       setSelectedService(editServiceForm);
       setEditingPrice(editServiceForm.basePrice);
     }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
+    }
 
     try {
       await setDoc(doc(db, "categories", editServiceForm.id), editServiceForm, { merge: true });
-    } catch {}
+    } catch (err) {
+      console.error("Firestore save service error:", err);
+    }
 
     setEditServiceModalOpen(false);
     alert(`Service "${editServiceForm.name}" updated successfully!`);
@@ -450,6 +519,9 @@ export default function AdminCategoriesAndServices() {
 
     const filtered = services.filter((s) => s.id !== serviceId);
     setServices(filtered);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_services", JSON.stringify(filtered));
+    }
     if (selectedService?.id === serviceId) {
       setSelectedService(filtered[0] || null);
       setEditingPrice(filtered[0]?.basePrice || 0);
@@ -460,7 +532,9 @@ export default function AdminCategoriesAndServices() {
 
     try {
       await deleteDoc(doc(db, "categories", serviceId));
-    } catch {}
+    } catch (err) {
+      console.error("Firestore delete category error:", err);
+    }
 
     alert(`Service removed successfully!`);
   };
@@ -506,13 +580,19 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     };
 
-    setServices((prev) => [...prev, newSrv]);
+    const updatedList = [...services, newSrv];
+    setServices(updatedList);
     setSelectedService(newSrv);
     setEditingPrice(newSrv.basePrice);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
+    }
 
     try {
       await setDoc(doc(db, "categories", newSrv.id), newSrv);
-    } catch {}
+    } catch (err) {
+      console.error("Firestore create service error:", err);
+    }
 
     setNewServiceModalOpen(false);
     setNewServiceName("");
@@ -535,7 +615,11 @@ export default function AdminCategoriesAndServices() {
       imageUrl: newProd.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
     };
 
-    setStoreProducts((prev) => [prod, ...prev]);
+    const updatedProds = [prod, ...storeProducts];
+    setStoreProducts(updatedProds);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
+    }
     setProductModalOpen(false);
 
     try {
@@ -564,9 +648,11 @@ export default function AdminCategoriesAndServices() {
     e.preventDefault();
     if (!editingProduct) return;
 
-    setStoreProducts((prev) =>
-      prev.map((p) => (p.id === editingProduct.id ? editingProduct : p))
-    );
+    const updatedProds = storeProducts.map((p) => (p.id === editingProduct.id ? editingProduct : p));
+    setStoreProducts(updatedProds);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
+    }
 
     try {
       await setDoc(doc(db, "store_products", editingProduct.id), editingProduct, { merge: true });
@@ -580,7 +666,11 @@ export default function AdminCategoriesAndServices() {
 
   const handleDeleteProduct = async (id: string) => {
     if (window.confirm("Are you sure you want to remove this product?")) {
-      setStoreProducts((prev) => prev.filter((p) => p.id !== id));
+      const filtered = storeProducts.filter((p) => p.id !== id);
+      setStoreProducts(filtered);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("inisha_admin_products", JSON.stringify(filtered));
+      }
       try {
         await deleteDoc(doc(db, "store_products", id));
       } catch (err) {

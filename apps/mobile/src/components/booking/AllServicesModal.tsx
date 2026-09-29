@@ -7,6 +7,7 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
+  Image,
 } from "react-native";
 import {
   X,
@@ -32,10 +33,21 @@ interface AllServicesModalProps {
   visible: boolean;
   onClose: () => void;
   categories: Category[];
+  initialQuery?: string;
   onSelectService: (category: Category, subcategory: Subcategory) => void;
 }
 
-const getCategoryIcon = (iconName: string, color: string, size: number) => {
+const getCategoryIcon = (iconName: string, imageUrl: string | undefined, color: string, size: number) => {
+  if (imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://") || imageUrl.startsWith("data:image"))) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={{ width: size + 4, height: size + 4, borderRadius: 8 }}
+        resizeMode="cover"
+      />
+    );
+  }
+
   const norm = (iconName || "").toLowerCase().trim();
   switch (norm) {
     case "phone":
@@ -43,31 +55,44 @@ const getCategoryIcon = (iconName: string, color: string, size: number) => {
     case "mobile":
       return <Smartphone size={size} color={color} />;
     case "wind":
+    case "air-vent":
     case "ac":
     case "air-conditioner":
       return <Wind size={size} color={color} />;
     case "zap":
     case "electrician":
+    case "electricity":
       return <Zap size={size} color={color} />;
+    case "droplet":
     case "droplets":
     case "plumber":
     case "plumbing":
+    case "filter":
+    case "ro":
       return <Droplets size={size} color={color} />;
     case "hammer":
     case "carpenter":
+    case "carpentry":
       return <Hammer size={size} color={color} />;
+    case "paint-bucket":
     case "paintbrush":
     case "painter":
+    case "painting":
       return <Paintbrush size={size} color={color} />;
     case "scissors":
     case "salon":
     case "spa":
+    case "beauty":
+    case "parlor":
+    case "parlour":
       return <Scissors size={size} color={color} />;
     case "bug":
     case "pest":
+    case "pest_control":
       return <Bug size={size} color={color} />;
     case "truck":
     case "movers":
+    case "delivery":
       return <Truck size={size} color={color} />;
     default:
       return <Sparkles size={size} color={color} />;
@@ -78,10 +103,17 @@ export default function AllServicesModal({
   visible,
   onClose,
   categories,
+  initialQuery = "",
   onSelectService,
 }: AllServicesModalProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCatId, setSelectedCatId] = useState<string>("ALL");
+
+  React.useEffect(() => {
+    if (visible && initialQuery) {
+      setSearchQuery(initialQuery);
+    }
+  }, [visible, initialQuery]);
 
   const filteredServices = useMemo(() => {
     const list: { category: Category; subcategory: Subcategory }[] = [];
@@ -91,11 +123,11 @@ export default function AllServicesModal({
 
       (cat.subcategories || []).forEach((sub) => {
         const query = searchQuery.toLowerCase().trim();
-        const matchesQuery =
-          !query ||
-          sub.name.toLowerCase().includes(query) ||
-          (sub.description || "").toLowerCase().includes(query) ||
-          cat.name.toLowerCase().includes(query);
+        const tokens = query.split(/\s+/).filter(Boolean);
+        
+        const textToMatch = `${sub.name} ${sub.description || ""} ${cat.name} ${cat.slug || ""}`.toLowerCase();
+        
+        const matchesQuery = tokens.length === 0 || tokens.every((token) => textToMatch.includes(token));
 
         if (matchesQuery) {
           list.push({ category: cat, subcategory: sub });
@@ -187,7 +219,12 @@ export default function AllServicesModal({
                 >
                   <View style={styles.serviceLeft}>
                     <View style={styles.iconBox}>
-                      {getCategoryIcon(subcategory.imageUrl || category.imageUrl, "#ef4444", 22)}
+                      {getCategoryIcon(
+                        category.imageUrl || subcategory.imageUrl || "",
+                        subcategory.imageUrl || category.imageUrl,
+                        "#ef4444",
+                        22
+                      )}
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={styles.catTag}>

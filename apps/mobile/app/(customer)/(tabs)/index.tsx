@@ -753,17 +753,17 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* 4. Explore Categories: 8 Circular Colorful Icons (Matching Image 1) */}
+        {/* 4. Explore Categories: Dynamic Grid with Real-time Firestore categories */}
         <View style={styles.exploreSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Explore Categories</Text>
             <TouchableOpacity onPress={() => setIsAllServicesOpen(true)}>
-              <Text style={styles.viewAllLink}>View All</Text>
+              <Text style={styles.viewAllLink}>View All ({categories.length})</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.circularCategoriesGrid}>
-            {/* 1. Mobile */}
+            {/* 1. Mobile Repair (Brand Picker) */}
             <TouchableOpacity
               onPress={() => setIsBrandModalOpen(true)}
               style={styles.circularCatItem}
@@ -772,10 +772,10 @@ export default function CustomerHomeScreen() {
               <View style={[styles.circularIconBox, { backgroundColor: "#dbeafe" }]}>
                 <Smartphone size={24} color="#2563eb" />
               </View>
-              <Text style={styles.circularCatLabel}>Mobile</Text>
+              <Text style={styles.circularCatLabel} numberOfLines={1}>Mobile</Text>
             </TouchableOpacity>
 
-            {/* 2. Grocery */}
+            {/* 2. Grocery & Needs */}
             <TouchableOpacity
               onPress={() => setIsStoreOpen(true)}
               style={styles.circularCatItem}
@@ -784,90 +784,56 @@ export default function CustomerHomeScreen() {
               <View style={[styles.circularIconBox, { backgroundColor: "#ffedd5" }]}>
                 <ShoppingCart size={24} color="#ea580c" />
               </View>
-              <Text style={styles.circularCatLabel}>Grocery</Text>
+              <Text style={styles.circularCatLabel} numberOfLines={1}>Grocery</Text>
             </TouchableOpacity>
 
-            {/* 3. Parlour */}
-            <TouchableOpacity
-              onPress={() => {
-                const found = categories.find((c) => c.id === "cat_salon" || c.name.toLowerCase().includes("salon"));
-                if (found) handleCategoryPress(found);
-                else setIsAllServicesOpen(true);
-              }}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#fce7f3" }]}>
-                <Scissors size={24} color="#db2777" />
-              </View>
-              <Text style={styles.circularCatLabel}>Parlour</Text>
-            </TouchableOpacity>
+            {/* 3 to 7: Dynamic Live Categories from Firestore (e.g. Parlour, Electrician, Plumber, AC, Motor Car, etc.) */}
+            {categories
+              .filter((c) => c.id !== "cat_mobile" && !c.slug?.includes("mobile"))
+              .slice(0, 5)
+              .map((cat, idx) => {
+                const bgColors = ["#fce7f3", "#fef3c7", "#ede9fe", "#cffafe", "#fef9c3", "#e0f2fe", "#d1fae5"];
+                const iconColors = ["#db2777", "#d97706", "#7c3aed", "#0891b2", "#ca8a04", "#0284c7", "#059669"];
+                const bgColor = bgColors[idx % bgColors.length];
+                const iconColor = iconColors[idx % iconColors.length];
+                const norm = (cat.imageUrl || (cat as any).iconName || cat.slug || cat.name || "").toLowerCase();
 
-            {/* 4. Electrician */}
-            <TouchableOpacity
-              onPress={() => {
-                const found = categories.find((c) => c.id === "cat_electrician" || c.name.toLowerCase().includes("electric"));
-                if (found) handleCategoryPress(found);
-                else setIsAllServicesOpen(true);
-              }}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#fef3c7" }]}>
-                <Zap size={24} color="#d97706" />
-              </View>
-              <Text style={styles.circularCatLabel}>Electrician</Text>
-            </TouchableOpacity>
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    onPress={() => handleCategoryPress(cat)}
+                    style={styles.circularCatItem}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.circularIconBox, { backgroundColor: bgColor }]}>
+                      {cat.imageUrl && (cat.imageUrl.startsWith("http://") || cat.imageUrl.startsWith("https://") || cat.imageUrl.startsWith("data:image")) ? (
+                        <Image source={{ uri: cat.imageUrl }} style={{ width: 26, height: 26, borderRadius: 6 }} resizeMode="cover" />
+                      ) : norm.includes("salon") || norm.includes("parlour") || norm.includes("beauty") ? (
+                        <Scissors size={24} color={iconColor} />
+                      ) : norm.includes("elec") || norm.includes("zap") ? (
+                        <Zap size={24} color={iconColor} />
+                      ) : norm.includes("plumb") || norm.includes("water") || norm.includes("droplet") ? (
+                        <Droplets size={24} color={iconColor} />
+                      ) : norm.includes("ac") || norm.includes("wind") || norm.includes("air") ? (
+                        <Snowflake size={24} color={iconColor} />
+                      ) : norm.includes("clean") ? (
+                        <Sparkles size={24} color={iconColor} />
+                      ) : norm.includes("car") || norm.includes("motor") || norm.includes("vehicle") ? (
+                        <Truck size={24} color={iconColor} />
+                      ) : norm.includes("paint") ? (
+                        <Paintbrush size={24} color={iconColor} />
+                      ) : norm.includes("carpenter") || norm.includes("hammer") ? (
+                        <Hammer size={24} color={iconColor} />
+                      ) : (
+                        <Wrench size={24} color={iconColor} />
+                      )}
+                    </View>
+                    <Text style={styles.circularCatLabel} numberOfLines={1}>{cat.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
 
-            {/* 5. Plumber */}
-            <TouchableOpacity
-              onPress={() => {
-                const found = categories.find((c) => c.id === "cat_plumber" || c.name.toLowerCase().includes("plumb"));
-                if (found) handleCategoryPress(found);
-                else setIsAllServicesOpen(true);
-              }}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#ede9fe" }]}>
-                <Wrench size={24} color="#7c3aed" />
-              </View>
-              <Text style={styles.circularCatLabel}>Plumber</Text>
-            </TouchableOpacity>
-
-            {/* 6. AC Repair */}
-            <TouchableOpacity
-              onPress={() => {
-                const found = categories.find((c) => c.id === "cat_ac_repair" || c.name.toLowerCase().includes("ac"));
-                if (found) handleCategoryPress(found);
-                else setIsAllServicesOpen(true);
-              }}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#cffafe" }]}>
-                <Snowflake size={24} color="#0891b2" />
-              </View>
-              <Text style={styles.circularCatLabel}>AC Repair</Text>
-            </TouchableOpacity>
-
-            {/* 7. Cleaning */}
-            <TouchableOpacity
-              onPress={() => {
-                const found = categories.find((c) => c.id === "cat_cleaning" || c.name.toLowerCase().includes("clean"));
-                if (found) handleCategoryPress(found);
-                else setIsAllServicesOpen(true);
-              }}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#fef9c3" }]}>
-                <Sparkles size={24} color="#ca8a04" />
-              </View>
-              <Text style={styles.circularCatLabel}>Cleaning</Text>
-            </TouchableOpacity>
-
-            {/* 8. More */}
+            {/* 8. More / View All */}
             <TouchableOpacity
               onPress={() => setIsAllServicesOpen(true)}
               style={styles.circularCatItem}
@@ -1238,6 +1204,7 @@ export default function CustomerHomeScreen() {
         visible={isAllServicesOpen}
         onClose={() => setIsAllServicesOpen(false)}
         categories={categories}
+        initialQuery={searchQuery}
         onSelectService={(cat, sub) => {
           setSelectedCategory(cat);
           setSelectedSubcategory(sub);

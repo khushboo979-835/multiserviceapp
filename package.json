@@ -28,5 +28,9 @@
     "expo-asset": "~12.0.13",
     "expo-system-ui": "^57.0.4",
     "react-native-webview": "^13.15.0"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.27.0",
+    "lightningcss-linux-x64-musl": "1.27.0"
   }
 }

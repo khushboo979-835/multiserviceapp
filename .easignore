@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Git
+.git/
+
+# Other apps (keep build archive small and focused)
+apps/admin/
+apps/backend/
+
+# Expo / Builds
+.expo/
+dist/
+web-build/
+*.log

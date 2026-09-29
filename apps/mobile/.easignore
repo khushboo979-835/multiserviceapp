@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Expo / Builds
+.expo/
+dist/
+web-build/
+*.log

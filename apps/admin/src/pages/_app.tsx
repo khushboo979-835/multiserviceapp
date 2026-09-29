@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
+import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
@@ -57,7 +58,15 @@ export default function App({ Component, pageProps }: AppProps) {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 antialiased font-sans">
+    <>
+      <Head>
+        <title>Inisha City Service | Super Admin Portal</title>
+        <meta name="description" content="Inisha City Service Super Admin Management Portal" />
+        <link rel="icon" type="image/png" href="/brand-logo.png" />
+        <link rel="shortcut icon" href="/brand-logo.png" />
+        <link rel="apple-touch-icon" href="/brand-logo.png" />
+      </Head>
+      <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 antialiased font-sans">
       {/* Mobile Drawer Overlay */}
       {mobileMenuOpen && (
         <div
@@ -254,5 +263,6 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       )}
     </div>
+    </>
   );
 }

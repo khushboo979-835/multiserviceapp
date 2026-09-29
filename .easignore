@@ -1,15 +1,22 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Git
-.git/
+# Next.js
+.next/
+apps/admin/.next/
+apps/admin/out/
 
-# Other apps (keep build archive small and focused)
-apps/admin/
-apps/backend/
+# Backend builds
+apps/backend/dist/
+apps/backend/build/
 
 # Expo / Builds
 .expo/
 dist/
 web-build/
+
+# Logs
+logs/
 *.log

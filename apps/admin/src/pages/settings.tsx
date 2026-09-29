@@ -4,10 +4,10 @@ import { apiClient } from "../api/apiClient";
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
-    companyUpiId: "7352082614-3@ybl",
-    merchantName: "Inisha City Service",
+    companyUpiId: "9507860048@ybl",
+    merchantName: "Inisha",
     commissionRate: 15,
-    supportContact: "+91 73520 82614",
+    supportContact: "+91 95078 60048",
     supportEmail: "support@inishacityservice.com",
   });
   const [saved, setSaved] = useState(false);
@@ -78,7 +78,7 @@ export default function AdminSettingsPage() {
                 required
                 value={settings.companyUpiId}
                 onChange={(e) => setSettings({ ...settings, companyUpiId: e.target.value })}
-                placeholder="7352082614-3@ybl"
+                placeholder="9507860048@ybl"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white font-bold transition"
               />
             </div>
@@ -92,7 +92,7 @@ export default function AdminSettingsPage() {
                 required
                 value={settings.merchantName}
                 onChange={(e) => setSettings({ ...settings, merchantName: e.target.value })}
-                placeholder="Inisha City Service"
+                placeholder="Inisha"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-bold placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white transition"
               />
             </div>
@@ -139,7 +139,7 @@ export default function AdminSettingsPage() {
                 required
                 value={settings.supportContact}
                 onChange={(e) => setSettings({ ...settings, supportContact: e.target.value })}
-                placeholder="+91 73520 82614"
+                placeholder="+91 95078 60048"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-red-500 focus:bg-white transition"
               />
             </div>

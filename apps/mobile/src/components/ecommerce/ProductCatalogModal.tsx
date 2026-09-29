@@ -23,8 +23,10 @@ import {
   ArrowRight,
   ShieldCheck,
 } from "lucide-react-native";
-import { Product, CartItem, Coupon } from "../../types";
+import { Product, CartItem, Coupon, ProductTypeCategory } from "../../types";
 import { MOCK_PRODUCTS, MOCK_COUPONS } from "../../constants/mockData";
+import { db } from "../../config/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
 
 interface ProductCatalogModalProps {
   visible: boolean;
@@ -46,6 +48,7 @@ export default function ProductCatalogModal({
   onClose,
   onOrderPlaced,
 }: ProductCatalogModalProps) {
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -53,7 +56,57 @@ export default function ProductCatalogModal({
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(MOCK_COUPONS[0]);
   const [couponInput, setCouponInput] = useState("");
 
-  const filteredProducts = MOCK_PRODUCTS.filter((prod) => {
+  React.useEffect(() => {
+    try {
+      const unsub = onSnapshot(collection(db, "store_products"), (snapshot) => {
+        if (!snapshot.empty) {
+          const liveList: Product[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            let catType: ProductTypeCategory = "MOBILE_ACCESSORIES";
+            const catLower = (d.category || "").toLowerCase();
+            if (catLower.includes("groc") || catLower.includes("staple") || catLower.includes("dairy")) {
+              catType = "GROCERY";
+            } else if (catLower.includes("phone") || catLower.includes("mobile")) {
+              catType = "MOBILE_PHONES";
+            } else if (catLower.includes("beauty") || catLower.includes("salon") || catLower.includes("parlour")) {
+              catType = "BEAUTY_PARLOUR";
+            } else if (catLower.includes("elec")) {
+              catType = "ELECTRONICS";
+            } else if (catLower.includes("home")) {
+              catType = "HOME_NEEDS";
+            }
+
+            liveList.push({
+              id: docSnap.id,
+              name: d.name || "Product",
+              category: catType,
+              categoryName: d.category || "General",
+              description: d.description || `${d.name} available for 10-min delivery`,
+              price: Number(d.price) || 199,
+              originalPrice: Number(d.mrp) || (Number(d.price) ? Number(d.price) + 100 : 299),
+              discountPercentage: d.mrp && d.price ? Math.round(((d.mrp - d.price) / d.mrp) * 100) : 10,
+              unit: d.unit || "1 Piece",
+              imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
+              inStock: d.stock !== undefined ? d.stock > 0 : true,
+              rating: d.rating || 4.8,
+              deliveryTimeMins: d.deliveryTimeMins || 10,
+              brand: d.brand || undefined,
+            });
+          });
+
+          if (liveList.length > 0) {
+            const firestoreIds = new Set(liveList.map((p) => p.id));
+            const merged = [...liveList, ...MOCK_PRODUCTS.filter((p) => !firestoreIds.has(p.id))];
+            setProducts(merged);
+          }
+        }
+      });
+      return () => unsub();
+    } catch {}
+  }, []);
+
+  const filteredProducts = products.filter((prod) => {
     const matchesCat = selectedCategory === "ALL" || prod.category === selectedCategory;
     const matchesSearch =
       !searchQuery ||

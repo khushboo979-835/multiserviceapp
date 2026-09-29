@@ -262,12 +262,22 @@ export default function CustomerHomeScreen() {
           const liveCats: Category[] = [];
           snap.forEach((docSnap) => {
             const d = docSnap.data();
+            const formFields = Array.isArray(d.fields) ? d.fields : (d.formConfig?.fields || []);
+            const mappedFields = formFields.map((f: any) => ({
+              id: f.id || `f_${Math.random().toString(36).substring(2, 7)}`,
+              label: f.label || "Requirement",
+              type: f.type || "TEXT",
+              validation: { required: f.required ?? true },
+              options: f.options || undefined,
+              placeholder: f.placeholder || undefined,
+            }));
+
             liveCats.push({
               id: docSnap.id,
               name: d.name || "Service",
               slug: d.slug || docSnap.id,
               isActive: d.isActive ?? true,
-              imageUrl: d.imageUrl || "sparkles",
+              imageUrl: d.imageUrl || d.iconName || "sparkles",
               description: d.description || "",
               subcategories: d.subcategories || [
                 {
@@ -275,13 +285,42 @@ export default function CustomerHomeScreen() {
                   categoryId: docSnap.id,
                   name: d.name || "Doorstep Service",
                   slug: `sub_${docSnap.id}`,
+                  description: d.description || "Certified doorstep professional service",
                   basePrice: d.basePrice || 499,
-                  formConfig: d.fields || { fields: [] },
+                  imageUrl: d.imageUrl || d.iconName || "sparkles",
+                  formConfig: {
+                    fields: mappedFields.length > 0 ? mappedFields : [
+                      {
+                        id: "details",
+                        label: "Requirement Details",
+                        type: "TEXT",
+                        placeholder: "Describe issue / requirement...",
+                        validation: { required: true },
+                      },
+                      {
+                        id: "visit_slot",
+                        label: "Service Slot",
+                        type: "TIME_SLOT",
+                        validation: { required: true },
+                      },
+                      {
+                        id: "address",
+                        label: "Doorstep Address",
+                        type: "ADDRESS_GPS",
+                        validation: { required: true },
+                      },
+                    ],
+                  },
                 },
               ],
             });
           });
-          if (liveCats.length > 0) setCategories(liveCats);
+          if (liveCats.length > 0) {
+            // Merge with mock categories preserving any default ones not in firestore
+            const firestoreIds = new Set(liveCats.map((c) => c.id));
+            const merged = [...liveCats, ...MOCK_CATEGORIES.filter((c) => !firestoreIds.has(c.id))];
+            setCategories(merged);
+          }
         }
       });
 
@@ -369,7 +408,7 @@ export default function CustomerHomeScreen() {
         id: newBookingId,
         customerId: user?.id || "usr_customer_live",
         customerName: user?.name || "Customer",
-        customerPhone: user?.phoneNumber || "+91 73520 82614",
+        customerPhone: user?.phoneNumber || "+91 95078 60048",
         categoryId: draftBooking?.categoryId || selectedCategory?.id || "cat_repair",
         subcategoryId: draftBooking?.subcategoryId || selectedSubcategory?.id || "sub_doorstep",
         formValues: formValues,
@@ -467,10 +506,10 @@ export default function CustomerHomeScreen() {
 
   const openWhatsAppSupport = () => {
     const message = encodeURIComponent(
-      "Hello Inisha City Service Team! I need doorstep service assistance."
+      "Hello Inisha Team! I need doorstep service assistance."
     );
-    Linking.openURL(`https://wa.me/917352082614?text=${message}`).catch(() => {
-      Alert.alert("WhatsApp Support", "Reach us at +91 73520 82614 on WhatsApp.");
+    Linking.openURL(`https://wa.me/919507860048?text=${message}`).catch(() => {
+      Alert.alert("WhatsApp Support", "Reach us at +91 95078 60048 on WhatsApp.");
     });
   };
 
@@ -1060,7 +1099,7 @@ export default function CustomerHomeScreen() {
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.whatsappTitle}>Instant WhatsApp Support 💬</Text>
             <Text style={styles.whatsappSub}>
-              Helpline: +91 73520 82614 | Chat for custom bookings & spares
+              Helpline: +91 95078 60048 | Chat for custom bookings & spares
             </Text>
           </View>
           <ArrowRight size={16} color="#16a34a" />
@@ -1105,7 +1144,7 @@ export default function CustomerHomeScreen() {
         </View>
       </Modal>
 
-      {/* Brand Repair / Sell / Buy Modal (Image 5) */}
+      {/* Brand Repair / Doorstep Repair Modal */}
       <BrandRepairModal
         visible={isBrandModalOpen}
         onClose={() => setIsBrandModalOpen(false)}
@@ -1118,8 +1157,8 @@ export default function CustomerHomeScreen() {
             setIsFormOpen(true);
           } else {
             Alert.alert(
-              `${mode} Request Registered`,
-              `Brand: ${brand} | Model: ${model || "Default"} | Mode: ${mode}. Our doorstep technician will assist you.`
+              `Doorstep Repair Registered`,
+              `Brand: ${brand} | Model: ${model || "Default"}. Our certified technician will assist you.`
             );
           }
         }}
@@ -1185,7 +1224,7 @@ export default function CustomerHomeScreen() {
         visible={isCallOpen}
         onClose={() => setIsCallOpen(false)}
         technicianName={activeBooking?.providerName || "Verified Technician"}
-        technicianPhone={activeBooking?.providerPhone || "+91 73520 82614"}
+        technicianPhone={activeBooking?.providerPhone || "+91 95078 60048"}
         callType={callType}
       />
 

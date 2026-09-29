@@ -247,9 +247,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
               {/* Technical Details */}
               <div className="bg-slate-100/70 rounded-xl p-3 text-[11px] text-slate-600 space-y-1 font-mono">
-                <div><b>App Name:</b> INISHA CITY SERVICE</div>
+                <div><b>App Name:</b> Inisha</div>
                 <div><b>Package:</b> com.inishacityservice.app</div>
-                <div><b>Official Helpline:</b> +91 73520 82614</div>
+                <div><b>Official Helpline:</b> +91 95078 60048</div>
               </div>
             </div>
 

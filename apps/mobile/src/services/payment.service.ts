@@ -24,14 +24,14 @@ export interface UtrSubmitResponse {
 }
 
 export const PaymentService = {
-  COMPANY_UPI_ID: "7352082614-3@ybl",
-  MERCHANT_NAME: "Inisha City Service",
+  COMPANY_UPI_ID: "9507860048@ybl",
+  MERCHANT_NAME: "Inisha",
   BANK_NAME: "Punjab National Bank",
 
   /**
    * Generate standard NPCI UPI Deep Link Intent
    */
-  generateUpiIntent(bookingId: string, amount: number, merchant = "Inisha City Service", upiId = "7352082614-3@ybl"): string {
+  generateUpiIntent(bookingId: string, amount: number, merchant = "Inisha", upiId = "9507860048@ybl"): string {
     const encodedMerchant = encodeURIComponent(merchant);
     const note = encodeURIComponent(`Booking_${bookingId.slice(-8)}`);
     return `upi://pay?pa=${upiId}&pn=${encodedMerchant}&am=${amount.toFixed(2)}&cu=INR&tn=${note}`;

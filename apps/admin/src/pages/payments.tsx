@@ -73,8 +73,8 @@ export default function AdminPaymentsPage() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
 
-  const COMPANY_UPI = "7352082614-3@ybl";
-  const MERCHANT_NAME = "Inisha City Service";
+  const COMPANY_UPI = "9507860048@ybl";
+  const MERCHANT_NAME = "Inisha";
   const BANK_NAME = "Punjab National Bank";
 
   const unsubscriberRef = useRef<Unsubscribe | null>(null);

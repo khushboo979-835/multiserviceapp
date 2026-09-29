@@ -271,7 +271,7 @@ export default function ProviderLoginScreen() {
               <Text style={styles.securityText}>Admin-Verified Partner Network</Text>
             </View>
             <Text style={styles.footerText}>
-              Need credentials? Reach Helpline +91 73520 82614
+              Need credentials? Reach Helpline +91 95078 60048
             </Text>
           </View>
         </View>

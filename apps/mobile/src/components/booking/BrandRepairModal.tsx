@@ -111,34 +111,14 @@ export default function BrandRepairModal({
       <View style={styles.container}>
         {/* Top Header */}
         <View style={styles.topHeader}>
-          {/* Sell / Buy / Repair Segmented Bar */}
-          <View style={styles.segmentedControl}>
-            <TouchableOpacity
-              onPress={() => setActiveTab("Sell")}
-              style={[styles.segmentBtn, activeTab === "Sell" && styles.segmentBtnActive]}
-            >
-              <Text style={[styles.segmentBtnText, activeTab === "Sell" && styles.segmentBtnTextActive]}>
-                Sell
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActiveTab("Buy")}
-              style={[styles.segmentBtn, activeTab === "Buy" && styles.segmentBtnActive]}
-            >
-              <Text style={[styles.segmentBtnText, activeTab === "Buy" && styles.segmentBtnTextActive]}>
-                Buy
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActiveTab("Repair")}
-              style={[styles.segmentBtn, activeTab === "Repair" && styles.segmentBtnActive]}
-            >
-              <Text style={[styles.segmentBtnText, activeTab === "Repair" && styles.segmentBtnTextActive]}>
-                Repair
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.repairHeaderBadge}>
+            <View style={styles.repairIconWrap}>
+              <Smartphone size={20} color="#ffffff" />
+            </View>
+            <View>
+              <Text style={styles.repairHeaderTitle}>Mobile Doorstep Repair</Text>
+              <Text style={styles.repairHeaderSub}>60 Mins Service • Genuine Parts</Text>
+            </View>
           </View>
 
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -151,11 +131,7 @@ export default function BrandRepairModal({
           <View style={styles.sectionHeadingRow}>
             <Text style={styles.sectionTitle}>Top Brands</Text>
             <Text style={styles.sectionSubtitle}>
-              {activeTab === "Repair"
-                ? "Select your mobile brand for doorstep repair"
-                : activeTab === "Sell"
-                ? "Sell old phone for instant cash on doorstep"
-                : "Buy certified refurbished phones with warranty"}
+              Select your mobile brand for doorstep repair
             </Text>
           </View>
 
@@ -331,36 +307,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
-  segmentedControl: {
+  repairHeaderBadge: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
-    borderRadius: 24,
-    padding: 3,
-    width: width * 0.72,
+    alignItems: "center",
+    gap: 10,
   },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
+  repairIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#14b8a6",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
   },
-  segmentBtnActive: {
-    backgroundColor: "#14b8a6", // Teal active tab matching mockup
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#475569",
-  },
-  segmentBtnTextActive: {
-    color: "#ffffff",
+  repairHeaderTitle: {
+    fontSize: 16,
     fontWeight: "900",
+    color: "#0f172a",
+  },
+  repairHeaderSub: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748b",
   },
   closeBtn: {
     width: 36,

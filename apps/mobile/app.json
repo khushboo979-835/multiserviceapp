@@ -2,7 +2,7 @@
   "expo": {
     "name": "Inisha",
     "slug": "inisha-city-service",
-    "owner": "ehsaasnashasubmission",
+    "owner": "ehsaasnashasubmissions-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -55,6 +55,9 @@
     "extra": {
       "router": {
         "origin": "https://inishacityservice.com"
+      },
+      "eas": {
+        "projectId": "60330b5a-22b5-4959-8a19-ef20df64c754"
       }
     }
   }

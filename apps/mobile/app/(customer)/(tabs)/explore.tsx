@@ -427,7 +427,7 @@ export default function ExploreScreen() {
                       {selectedBrandModal.name} Official Services
                     </Text>
                     <Text style={styles.modalBrandSub}>
-                      Doorstep Repair • 6 Months Warranty
+                      Doorstep Repair • 15 Days Warranty
                     </Text>
                   </View>
                 </View>

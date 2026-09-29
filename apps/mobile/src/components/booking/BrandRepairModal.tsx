@@ -262,7 +262,7 @@ export default function BrandRepairModal({
               <View style={styles.stepContent}>
                 <Text style={styles.stepTitle}>Doorstep Repair</Text>
                 <Text style={styles.stepDescription}>
-                  Certified technician arrives and fixes your phone with 6 months warranty.
+                  Certified technician arrives and fixes your phone with 15 days warranty.
                 </Text>
               </View>
             </View>
@@ -276,7 +276,7 @@ export default function BrandRepairModal({
             </View>
             <View style={styles.guaranteePill}>
               <ShieldCheck size={16} color="#0284c7" />
-              <Text style={styles.guaranteeText}>6 Months Warranty</Text>
+              <Text style={styles.guaranteeText}>15 Days Warranty</Text>
             </View>
             <View style={styles.guaranteePill}>
               <Clock size={16} color="#e11d48" />

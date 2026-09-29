@@ -232,7 +232,7 @@ export default function AllServicesModal({
                       </View>
                       <Text style={styles.serviceName}>{subcategory.name}</Text>
                       <Text style={styles.serviceDesc} numberOfLines={2}>
-                        {subcategory.description || "Expert doorstep technician visit with 30-day service warranty."}
+                        {subcategory.description || "Expert doorstep technician visit with 15-day service warranty."}
                       </Text>
                       <View style={styles.badgeRow}>
                         <View style={styles.ratingBadge}>

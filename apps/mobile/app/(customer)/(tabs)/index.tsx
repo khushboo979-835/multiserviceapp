@@ -622,70 +622,55 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* Quick Action Spotlight (Matching Image 2 Mockup) */}
-        <View style={styles.quickSpotlightCard}>
-          <View style={styles.spotlightRow}>
-            {/* Delivery */}
-            <TouchableOpacity
-              onPress={() => {
-                const cat = categories.find((c) => c.slug.includes("delivery") || c.name.toLowerCase().includes("delivery")) || categories[0];
-                if (cat) handleCategoryPress(cat);
-              }}
-              style={styles.spotlightItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.spotlightIconBox, { backgroundColor: "#e0f2fe" }]}>
-                <Truck size={24} color="#0284c7" />
+        {/* Main Hub: (1) City Service & (2) Inisha Store */}
+        <View style={styles.mainHubContainer}>
+          {/* 1. City Service Hub (Opens All 15+ Services) */}
+          <TouchableOpacity
+            onPress={() => setIsAllServicesOpen(true)}
+            style={styles.hubCardCityService}
+            activeOpacity={0.88}
+          >
+            <View style={styles.hubCardHeader}>
+              <View style={[styles.hubIconCircle, { backgroundColor: "#e0f2fe" }]}>
+                <Wrench size={24} color="#0284c7" />
               </View>
-              <Text style={styles.spotlightLabel}>Delivery</Text>
-            </TouchableOpacity>
-
-            {/* Handyman */}
-            <TouchableOpacity
-              onPress={() => {
-                const cat = categories.find((c) => c.slug.includes("repair") || c.name.toLowerCase().includes("repair")) || categories[0];
-                if (cat) handleCategoryPress(cat);
-              }}
-              style={styles.spotlightItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.spotlightIconBox, { backgroundColor: "#fef3c7" }]}>
-                <Wrench size={24} color="#d97706" />
+              <View style={styles.hubBadgeBlue}>
+                <Text style={styles.hubBadgeBlueText}>15+ Services</Text>
               </View>
-              <Text style={styles.spotlightLabel}>Handyman</Text>
-            </TouchableOpacity>
+            </View>
+            <Text style={styles.hubCardTitle}>City Service</Text>
+            <Text style={styles.hubCardSub} numberOfLines={2}>
+              Doorstep Repair, AC, Cleaning, Salon & more
+            </Text>
+            <View style={styles.hubActionRow}>
+              <Text style={styles.hubActionTextBlue}>Book Service</Text>
+              <ArrowRight size={14} color="#0284c7" />
+            </View>
+          </TouchableOpacity>
 
-            {/* Grocer */}
-            <TouchableOpacity
-              onPress={() => setIsStoreOpen(true)}
-              style={styles.spotlightItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.spotlightIconBox, { backgroundColor: "#ffedd5" }]}>
+          {/* 2. Inisha Store Hub (Opens Store & Product Catalog) */}
+          <TouchableOpacity
+            onPress={() => setIsStoreOpen(true)}
+            style={styles.hubCardInishaStore}
+            activeOpacity={0.88}
+          >
+            <View style={styles.hubCardHeader}>
+              <View style={[styles.hubIconCircle, { backgroundColor: "#ffedd5" }]}>
                 <ShoppingBag size={24} color="#ea580c" />
               </View>
-              <Text style={styles.spotlightLabel}>Grocer</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Action Button Row */}
-          <View style={styles.spotlightBtnRow}>
-            <TouchableOpacity
-              onPress={() => setIsAllServicesOpen(true)}
-              style={styles.spotlightSelectBtn}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.spotlightSelectBtnText}>Select service</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setIsStoreOpen(true)}
-              style={styles.spotlightChooseBtn}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.spotlightChooseBtnText}>Choose icon</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.hubBadgeOrange}>
+                <Text style={styles.hubBadgeOrangeText}>10-Min Fast</Text>
+              </View>
+            </View>
+            <Text style={styles.hubCardTitle}>Inisha Store</Text>
+            <Text style={styles.hubCardSub} numberOfLines={2}>
+              Groceries, Spares, Mobiles & Products
+            </Text>
+            <View style={styles.hubActionRow}>
+              <Text style={styles.hubActionTextOrange}>Shop Store</Text>
+              <ArrowRight size={14} color="#ea580c" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Floating Notification Banner (Matching Image 2 Mockup) */}
@@ -1837,84 +1822,103 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  quickSpotlightCard: {
-    backgroundColor: "#ffffff",
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 14,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  spotlightRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  spotlightItem: {
-    alignItems: "center",
-  },
-  spotlightIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  spotlightLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#334155",
-  },
-  spotlightBtnRow: {
+  mainHubContainer: {
     flexDirection: "row",
     gap: 12,
+    marginBottom: 16,
   },
-  spotlightSelectBtn: {
+  hubCardCityService: {
     flex: 1,
-    height: 42,
-    backgroundColor: "#0284c7",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#e0f2fe",
     shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
+    justifyContent: "space-between",
   },
-  spotlightSelectBtnText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  spotlightChooseBtn: {
+  hubCardInishaStore: {
     flex: 1,
-    height: 42,
-    backgroundColor: "#ea580c",
-    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#ffedd5",
+    shadowColor: "#ea580c",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    justifyContent: "space-between",
+  },
+  hubCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  hubIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ea580c",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
   },
-  spotlightChooseBtnText: {
-    color: "#ffffff",
-    fontSize: 13,
+  hubBadgeBlue: {
+    backgroundColor: "#e0f2fe",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  hubBadgeBlueText: {
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 0.2,
+    color: "#0284c7",
+  },
+  hubBadgeOrange: {
+    backgroundColor: "#ffedd5",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  hubBadgeOrangeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#ea580c",
+  },
+  hubCardTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0f172a",
+    marginBottom: 2,
+  },
+  hubCardSub: {
+    fontSize: 11,
+    color: "#64748b",
+    lineHeight: 15,
+    marginBottom: 10,
+  },
+  hubActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  hubActionTextBlue: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#0284c7",
+  },
+  hubActionTextOrange: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#ea580c",
   },
   notifBannerCard: {
     flexDirection: "row",

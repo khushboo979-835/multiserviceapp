@@ -26,6 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.inishacityservice.app",
+      "versionCode": 2,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

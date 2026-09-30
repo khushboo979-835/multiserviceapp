@@ -74,10 +74,12 @@ app.get("/api/health", apiStatusHandler);
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
+
+app.set("io", io);
 
 // Initialize socket listeners
 initTrackingSocket(io);

@@ -641,6 +641,11 @@ router.post("/", async (req: Request, res: Response) => {
       { upsert: true, new: true }
     );
 
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "CATEGORY_CREATED", id: categoryId, timestamp: Date.now() });
+    }
+
     return res.status(201).json({
       success: true,
       message: "Category saved successfully",
@@ -725,6 +730,11 @@ router.put("/:id", async (req: Request, res: Response) => {
       { upsert: true, new: true }
     );
 
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "CATEGORY_UPDATED", id: categoryId, timestamp: Date.now() });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Category updated successfully",
@@ -744,6 +754,11 @@ router.delete("/:id", async (req: Request, res: Response) => {
     await CategoryModel.findOneAndDelete({
       $or: [{ categoryId: id }, { slug: id }],
     });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "CATEGORY_DELETED", id, timestamp: Date.now() });
+    }
 
     return res.status(200).json({
       success: true,

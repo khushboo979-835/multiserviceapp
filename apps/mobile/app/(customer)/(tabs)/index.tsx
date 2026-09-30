@@ -14,7 +14,8 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { io } from "socket.io-client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
@@ -301,11 +302,39 @@ export default function CustomerHomeScreen() {
     setRefreshing(false);
   };
 
+  // Auto-sync whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
+
   useEffect(() => {
     fetchCategories();
 
+    // 1. Live Socket.io event listener for instant zero-latency admin updates
+    const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+    });
+
+    socket.on("catalog_updated", () => {
+      fetchCategories();
+    });
+
+    // 2. High-frequency background polling (every 4 seconds) to guarantee sync
+    const syncInterval = setInterval(() => {
+      fetchCategories();
+    }, 4000);
+
+    // 3. Firebase Firestore backup listener
+    let unsubCat = () => {};
+    let unsubNotif = () => {};
     try {
-      const unsubCat = onSnapshot(collection(db, "categories"), (snap) => {
+      unsubCat = onSnapshot(collection(db, "categories"), (snap) => {
         if (!snap.empty) {
           const liveCats: Category[] = [];
           snap.forEach((docSnap) => {
@@ -369,7 +398,7 @@ export default function CustomerHomeScreen() {
         }
       });
 
-      const unsubNotif = onSnapshot(
+      unsubNotif = onSnapshot(
         query(collection(db, "broadcast_notifications"), orderBy("sentAt", "desc"), limit(1)),
         (snap) => {
           if (!snap.empty) {
@@ -380,12 +409,14 @@ export default function CustomerHomeScreen() {
           }
         }
       );
-
-      return () => {
-        unsubCat();
-        unsubNotif();
-      };
     } catch {}
+
+    return () => {
+      clearInterval(syncInterval);
+      socket.disconnect();
+      unsubCat();
+      unsubNotif();
+    };
   }, []);
 
   // Fetch real device GPS coordinates on mount

@@ -120,6 +120,11 @@ router.post("/products", async (req: Request, res: Response) => {
       },
       { upsert: true, new: true }
     );
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "PRODUCT_CREATED", id: prodId, timestamp: Date.now() });
+    }
+
     return res.status(201).json(product);
   } catch (error: any) {
     console.error("Error creating product:", error);
@@ -146,6 +151,11 @@ router.put("/products/:id", async (req: Request, res: Response) => {
       { upsert: true, new: true }
     );
 
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "PRODUCT_UPDATED", id, timestamp: Date.now() });
+    }
+
     return res.status(200).json(updated);
   } catch (error: any) {
     console.error("Error updating product:", error);
@@ -158,6 +168,12 @@ router.delete("/products/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await Product.findOneAndDelete({ $or: [{ id }, { _id: id }] });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("catalog_updated", { type: "PRODUCT_DELETED", id, timestamp: Date.now() });
+    }
+
     return res.status(200).json({ success: true, message: "Product deleted successfully" });
   } catch (error: any) {
     console.error("Error deleting product:", error);

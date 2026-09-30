@@ -801,17 +801,24 @@ export default function CustomerHomeScreen() {
           </View>
 
           <View style={styles.circularCategoriesGrid}>
-            {/* 1. Mobile Repair (Brand Picker) */}
-            <TouchableOpacity
-              onPress={() => setIsBrandModalOpen(true)}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#dbeafe" }]}>
-                <Smartphone size={24} color="#2563eb" />
-              </View>
-              <Text style={styles.circularCatLabel} numberOfLines={1}>Mobile</Text>
-            </TouchableOpacity>
+            {/* 1. Mobile Repair / First Live Category */}
+            {categories.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  const mobCat = categories.find((c) => c.id === "cat_mobile" || c.slug?.includes("mobile")) || categories[0];
+                  setIsBrandModalOpen(true);
+                }}
+                style={styles.circularCatItem}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.circularIconBox, { backgroundColor: "#dbeafe" }]}>
+                  <Smartphone size={24} color="#2563eb" />
+                </View>
+                <Text style={styles.circularCatLabel} numberOfLines={1}>
+                  {(categories.find((c) => c.id === "cat_mobile" || c.slug?.includes("mobile")) || categories[0]).name}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* 2. Grocery & Needs */}
             <TouchableOpacity
@@ -825,7 +832,7 @@ export default function CustomerHomeScreen() {
               <Text style={styles.circularCatLabel} numberOfLines={1}>Grocery</Text>
             </TouchableOpacity>
 
-            {/* 3 to 7: Dynamic Live Categories from Firestore (e.g. Parlour, Electrician, Plumber, AC, Motor Car, etc.) */}
+            {/* 3 to 7: Dynamic Live Categories from Backend MongoDB (e.g. Parlour, Electrician, Plumber, AC, etc.) */}
             {categories
               .filter((c) => c.id !== "cat_mobile" && !c.slug?.includes("mobile"))
               .slice(0, 5)
@@ -885,46 +892,55 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* 5. Popular Services (Horizontal Cards with Real Photos & Book Now button - Image 1) */}
+        {/* 5. Popular Services (Horizontal Cards with Real Photos & Book Now button - Dynamic Live Data) */}
         <View style={styles.popularServicesSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Popular Services</Text>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {POPULAR_SERVICES_DATA.map((srv) => (
-              <View key={srv.id} style={styles.popularServiceCard}>
-                <Image source={{ uri: srv.image }} style={styles.popularServiceImg} />
-                <View style={styles.popularServiceContent}>
-                  <Text style={styles.popularServiceName} numberOfLines={1}>
-                    {srv.name}
-                  </Text>
-                  <View style={styles.ratingRow}>
-                    <Star size={12} color="#f59e0b" fill="#f59e0b" />
-                    <Text style={styles.ratingText}>{srv.rating} Rating</Text>
-                  </View>
+            {categories.slice(0, 6).map((cat) => {
+              const basePrice = cat.subcategories?.[0]?.basePrice || 399;
+              const imgUri = (cat.imageUrl && cat.imageUrl.startsWith("http"))
+                ? cat.imageUrl
+                : (cat.id === "cat_mobile" || cat.slug?.includes("mobile")
+                  ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80"
+                  : cat.id === "cat_ac_repair" || cat.slug?.includes("ac")
+                  ? "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80"
+                  : cat.id === "cat_salon" || cat.slug?.includes("salon")
+                  ? "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80"
+                  : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80");
 
-                  <View style={styles.popularServiceBottomRow}>
-                    <View>
-                      <Text style={styles.startingLabel}>{srv.subtitle}</Text>
-                      <Text style={styles.popularPriceText}>Starting ₹{srv.price}</Text>
+              return (
+                <View key={cat.id} style={styles.popularServiceCard}>
+                  <Image source={{ uri: imgUri }} style={styles.popularServiceImg} />
+                  <View style={styles.popularServiceContent}>
+                    <Text style={styles.popularServiceName} numberOfLines={1}>
+                      {cat.name}
+                    </Text>
+                    <View style={styles.ratingRow}>
+                      <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                      <Text style={styles.ratingText}>4.9 Rating</Text>
                     </View>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        const found = categories.find((c) => c.id === srv.categoryId);
-                        if (found) handleCategoryPress(found);
-                        else setIsAllServicesOpen(true);
-                      }}
-                      style={styles.bookNowBtn}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.bookNowBtnText}>Book Now</Text>
-                    </TouchableOpacity>
+                    <View style={styles.popularServiceBottomRow}>
+                      <View>
+                        <Text style={styles.startingLabel}>Doorstep Technician</Text>
+                        <Text style={styles.popularPriceText}>Starting ₹{basePrice}</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => handleCategoryPress(cat)}
+                        style={styles.bookNowBtn}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.bookNowBtnText}>Book Now</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         </View>
 

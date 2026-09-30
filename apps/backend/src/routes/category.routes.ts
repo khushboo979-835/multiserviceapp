@@ -583,39 +583,60 @@ router.post("/", async (req: Request, res: Response) => {
 
     const cleanSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const categoryId = id || ("cat_" + cleanSlug.replace(/-/g, "_"));
+    const finalPrice = basePrice !== undefined ? Number(basePrice) : 399;
 
-    const subcats = subcategories && subcategories.length > 0
-      ? subcategories
-      : [
-          {
-            id: `sub_${categoryId}`,
-            name: `${name} Standard Visit`,
-            slug: `${cleanSlug}-standard`,
-            description: description || `Doorstep ${name} inspection and repair.`,
-            basePrice: basePrice || 399,
-            imageUrl: imageUrl || iconName || "sparkles",
-            formConfig: {
-              fields: Array.isArray(fields) && fields.length > 0 ? fields : [
-                { id: "service_details", label: "Requirement Details", type: "TEXT", placeholder: "Describe your requirement", validation: { required: true } },
-                { id: "preferred_date", label: "Service Date", type: "DATE", validation: { required: true } },
-                { id: "preferred_time", label: "Time Slot", type: "TIME_SLOT", validation: { required: true } },
-                { id: "service_address", label: "Address", type: "ADDRESS_GPS", validation: { required: true } },
-              ],
-            },
+    let subcats: any[] = [];
+    if (Array.isArray(subcategories) && subcategories.length > 0) {
+      subcats = subcategories.map((s: any) => ({
+        id: s.id || `sub_${categoryId}`,
+        name: s.name || `${name} Service`,
+        slug: s.slug || `${cleanSlug}-standard`,
+        description: s.description || description || `Doorstep ${name} inspection and repair.`,
+        basePrice: s.basePrice !== undefined ? Number(s.basePrice) : finalPrice,
+        imageUrl: s.imageUrl || imageUrl || iconName || "sparkles",
+        formConfig: s.formConfig || {
+          fields: Array.isArray(fields) && fields.length > 0 ? fields : [
+            { id: "service_details", label: "Requirement Details", type: "TEXT", placeholder: "Describe your requirement", validation: { required: true } },
+            { id: "preferred_date", label: "Service Date", type: "DATE", validation: { required: true } },
+            { id: "preferred_time", label: "Time Slot", type: "TIME_SLOT", validation: { required: true } },
+            { id: "service_address", label: "Address", type: "ADDRESS_GPS", validation: { required: true } },
+          ],
+        },
+      }));
+    } else {
+      subcats = [
+        {
+          id: `sub_${categoryId}`,
+          name: `${name} Standard Visit`,
+          slug: `${cleanSlug}-standard`,
+          description: description || `Doorstep ${name} inspection and repair.`,
+          basePrice: finalPrice,
+          imageUrl: imageUrl || iconName || "sparkles",
+          formConfig: {
+            fields: Array.isArray(fields) && fields.length > 0 ? fields : [
+              { id: "service_details", label: "Requirement Details", type: "TEXT", placeholder: "Describe your requirement", validation: { required: true } },
+              { id: "preferred_date", label: "Service Date", type: "DATE", validation: { required: true } },
+              { id: "preferred_time", label: "Time Slot", type: "TIME_SLOT", validation: { required: true } },
+              { id: "service_address", label: "Address", type: "ADDRESS_GPS", validation: { required: true } },
+            ],
           },
-        ];
+        },
+      ];
+    }
 
     const category = await CategoryModel.findOneAndUpdate(
       { categoryId },
       {
-        categoryId,
-        name,
-        slug: cleanSlug,
-        description: description || `Professional ${name} service at your doorstep.`,
-        imageUrl: imageUrl || iconName || "sparkles",
-        orderIndex: 99,
-        isActive: isActive !== undefined ? isActive : true,
-        subcategories: subcats,
+        $set: {
+          categoryId,
+          name,
+          slug: cleanSlug,
+          description: description || `Professional ${name} service at your doorstep.`,
+          imageUrl: imageUrl || iconName || "sparkles",
+          orderIndex: 99,
+          isActive: isActive !== undefined ? isActive : true,
+          subcategories: subcats,
+        },
       },
       { upsert: true, new: true }
     );
@@ -640,20 +661,45 @@ router.put("/:id", async (req: Request, res: Response) => {
 
     const existing = await CategoryModel.findOne({
       $or: [{ categoryId: id }, { slug: id }],
-    });
+    }).lean();
 
     const categoryId = existing?.categoryId || id;
     const cleanSlug = slug || (name ? name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : id);
+    const finalPrice = basePrice !== undefined ? Number(basePrice) : undefined;
 
-    let updatedSubcats = subcategories || existing?.subcategories || [];
-    if (updatedSubcats.length === 0) {
+    let updatedSubcats: any[] = [];
+    if (Array.isArray(subcategories) && subcategories.length > 0) {
+      updatedSubcats = subcategories.map((s: any) => ({
+        id: s.id || `sub_${categoryId}`,
+        name: s.name || `${name || existing?.name || "Service"} Standard Visit`,
+        slug: s.slug || `${cleanSlug}-standard`,
+        description: s.description || description || existing?.description || "Doorstep service",
+        basePrice: s.basePrice !== undefined ? Number(s.basePrice) : (finalPrice !== undefined ? finalPrice : 399),
+        imageUrl: s.imageUrl || imageUrl || iconName || existing?.imageUrl || "sparkles",
+        formConfig: s.formConfig || {
+          fields: Array.isArray(fields) && fields.length > 0 ? fields : [
+            { id: "service_details", label: "Requirement Details", type: "TEXT", validation: { required: true } },
+          ],
+        },
+      }));
+    } else if (existing && Array.isArray(existing.subcategories) && existing.subcategories.length > 0) {
+      updatedSubcats = existing.subcategories.map((sub: any) => ({
+        id: sub.id || `sub_${categoryId}`,
+        name: name ? `${name} Visit & Service` : sub.name,
+        slug: sub.slug || `${cleanSlug}-standard`,
+        description: description !== undefined ? description : sub.description,
+        basePrice: finalPrice !== undefined ? finalPrice : Number(sub.basePrice || 399),
+        imageUrl: imageUrl || iconName || sub.imageUrl || "sparkles",
+        formConfig: Array.isArray(fields) && fields.length > 0 ? { fields } : sub.formConfig,
+      }));
+    } else {
       updatedSubcats = [
         {
           id: `sub_${categoryId}`,
-          name: name || "Doorstep Service",
+          name: `${name || "Standard"} Service`,
           slug: `${cleanSlug}-standard`,
           description: description || "Professional doorstep service",
-          basePrice: basePrice || 399,
+          basePrice: finalPrice !== undefined ? finalPrice : 399,
           imageUrl: imageUrl || iconName || "sparkles",
           formConfig: {
             fields: Array.isArray(fields) && fields.length > 0 ? fields : [
@@ -662,11 +708,6 @@ router.put("/:id", async (req: Request, res: Response) => {
           },
         },
       ];
-    } else if (basePrice !== undefined) {
-      updatedSubcats = updatedSubcats.map((sub: any) => ({
-        ...sub,
-        basePrice: Number(basePrice),
-      }));
     }
 
     const updated = await CategoryModel.findOneAndUpdate(

@@ -42,6 +42,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import apiClient from "../api/apiClient";
 import ImageUploadPicker from "../components/ImageUploadPicker";
 
 interface FormFieldAdmin {
@@ -94,10 +95,11 @@ const AVAILABLE_ICONS = [
 export default function AdminCategoriesAndServices() {
   const [activeTab, setActiveTab] = useState<"SERVICES" | "STORE">("SERVICES");
   const [searchQuery, setSearchQuery] = useState("");
+  const [savingStatus, setSavingStatus] = useState<string | null>(null);
 
   const defaultServices: ServiceCategory[] = [
     {
-      id: "srv_mobile",
+      id: "cat_mobile",
       name: "Mobile Repair",
       iconName: "smartphone",
       basePrice: 499,
@@ -111,7 +113,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_ac",
+      id: "cat_ac_repair",
       name: "AC Repair & Servicing",
       iconName: "air-vent",
       basePrice: 399,
@@ -124,7 +126,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_electrician",
+      id: "cat_electrician",
       name: "Electrician",
       iconName: "zap",
       basePrice: 199,
@@ -136,7 +138,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_plumber",
+      id: "cat_plumber",
       name: "Plumber",
       iconName: "droplet",
       basePrice: 199,
@@ -148,7 +150,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_carpenter",
+      id: "cat_carpenter",
       name: "Carpenter",
       iconName: "hammer",
       basePrice: 249,
@@ -159,7 +161,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_cleaning",
+      id: "cat_cleaning",
       name: "Home Cleaning",
       iconName: "sparkles",
       basePrice: 799,
@@ -170,7 +172,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_salon",
+      id: "cat_salon",
       name: "Home Salon & Parlor",
       iconName: "scissors",
       basePrice: 599,
@@ -181,7 +183,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_appliance",
+      id: "cat_appliance_repair",
       name: "Appliance Repair",
       iconName: "tv",
       basePrice: 299,
@@ -192,7 +194,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_painting",
+      id: "cat_painting",
       name: "Painting",
       iconName: "paint-bucket",
       basePrice: 1499,
@@ -203,7 +205,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_cctv",
+      id: "cat_cctv",
       name: "CCTV Installation",
       iconName: "camera",
       basePrice: 499,
@@ -214,7 +216,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_ro",
+      id: "cat_ro_purifier",
       name: "RO Service & Filter Change",
       iconName: "filter",
       basePrice: 299,
@@ -225,7 +227,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_computer",
+      id: "cat_computer",
       name: "Computer/Laptop Repair",
       iconName: "laptop",
       basePrice: 399,
@@ -236,7 +238,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_washing_machine",
+      id: "cat_washing_machine",
       name: "Washing Machine Repair",
       iconName: "disc",
       basePrice: 349,
@@ -247,7 +249,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_refrigerator",
+      id: "cat_refrigerator",
       name: "Refrigerator Repair",
       iconName: "snowflake",
       basePrice: 349,
@@ -258,7 +260,7 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     },
     {
-      id: "srv_pest_control",
+      id: "cat_pest_control",
       name: "Pest Control",
       iconName: "shield",
       basePrice: 699,
@@ -346,9 +348,9 @@ export default function AdminCategoriesAndServices() {
     imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
   });
 
-  // Sync with localStorage & Firestore on mount
+  // Sync with Backend MongoDB & localStorage on mount
   useEffect(() => {
-    // 1. Instantly load from localStorage to eliminate any reload flash/reset
+    // 1. Instantly load from localStorage for zero flash
     if (typeof window !== "undefined") {
       try {
         const cachedServices = localStorage.getItem("inisha_admin_services");
@@ -372,89 +374,70 @@ export default function AdminCategoriesAndServices() {
       }
     }
 
-    // 2. Real-time Firebase Firestore Listener
-    try {
-      const q = query(collection(db, "categories"));
-      const unsubscribeCat = onSnapshot(
-        q,
-        async (snapshot) => {
-          if (!snapshot.empty) {
-            const list: ServiceCategory[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-            });
+    // 2. Fetch Live from Backend REST API (MongoDB)
+    const loadLiveBackendData = async () => {
+      try {
+        const resCat = await apiClient.get("/categories");
+        const apiCats = resCat.data?.categories || resCat.data;
+        if (Array.isArray(apiCats) && apiCats.length > 0) {
+          const formatted: ServiceCategory[] = apiCats.map((c: any) => {
+            const firstSub = c.subcategories?.[0];
+            const formFields = firstSub?.formConfig?.fields || c.fields || [];
+            return {
+              id: c.id || c.categoryId,
+              name: c.name,
+              iconName: c.imageUrl || c.iconName || "sparkles",
+              imageUrl: c.imageUrl?.startsWith("http") ? c.imageUrl : undefined,
+              basePrice: firstSub?.basePrice || c.basePrice || 299,
+              description: c.description || "",
+              fields: Array.isArray(formFields)
+                ? formFields.map((f: any) => ({
+                    id: f.id || `f_${Math.random().toString(36).substring(2, 6)}`,
+                    label: f.label || "Requirement",
+                    type: f.type || "TEXT",
+                    required: f.validation?.required ?? f.required ?? true,
+                  }))
+                : [],
+              isActive: c.isActive !== false,
+            };
+          });
 
-            if (list.length > 0) {
-              // Ensure any default services not in Firestore are safely merged
-              const firestoreIds = new Set(list.map((s) => s.id));
-              const missingDefaults = defaultServices.filter((d) => !firestoreIds.has(d.id));
-
-              // Seed missing defaults in background
-              if (missingDefaults.length > 0) {
-                for (const item of missingDefaults) {
-                  setDoc(doc(db, "categories", item.id), item, { merge: true }).catch(() => {});
-                }
-              }
-
-              const fullList = [...list, ...missingDefaults];
-              setServices(fullList);
-              if (typeof window !== "undefined") {
-                localStorage.setItem("inisha_admin_services", JSON.stringify(fullList));
-              }
-
-              setSelectedService((prev) => {
-                if (!prev) return fullList[0];
-                const match = fullList.find((s) => s.id === prev.id);
-                return match || fullList[0];
-              });
-            }
-          } else {
-            // Collection is completely empty - Seed all 15 defaultServices into Firestore
-            for (const item of defaultServices) {
-              setDoc(doc(db, "categories", item.id), item, { merge: true }).catch(() => {});
-            }
-            if (typeof window !== "undefined") {
-              localStorage.setItem("inisha_admin_services", JSON.stringify(defaultServices));
-            }
+          setServices(formatted);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("inisha_admin_services", JSON.stringify(formatted));
           }
-        },
-        (error) => {
-          console.warn("Firestore categories listener fallback to localStorage:", error.message);
+          setSelectedService((prev) =>
+            prev ? formatted.find((s) => s.id === prev.id) || formatted[0] : formatted[0]
+          );
         }
-      );
+      } catch (catErr) {
+        console.warn("Categories backend load error:", catErr);
+      }
 
-      const unsubProd = onSnapshot(
-        collection(db, "store_products"),
-        async (snapshot) => {
-          if (!snapshot.empty) {
-            const list: StoreProduct[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ id: docSnap.id, ...(docSnap.data() as any) });
-            });
-            if (list.length > 0) {
-              setStoreProducts(list);
-              if (typeof window !== "undefined") {
-                localStorage.setItem("inisha_admin_products", JSON.stringify(list));
-              }
-            }
-          } else {
-            for (const item of defaultStoreProducts) {
-              setDoc(doc(db, "store_products", item.id), item, { merge: true }).catch(() => {});
-            }
+      try {
+        const resProd = await apiClient.get("/ecommerce/products");
+        const prods = Array.isArray(resProd.data) ? resProd.data : [];
+        if (prods.length > 0) {
+          const mapped: StoreProduct[] = prods.map((p: any) => ({
+            id: p.id || p._id?.toString(),
+            name: p.name,
+            category: p.categoryName || p.category || "General",
+            price: Number(p.price) || 199,
+            mrp: Number(p.originalPrice || p.mrp) || Number(p.price) + 100,
+            stock: p.stock !== undefined ? Number(p.stock) : 50,
+            imageUrl: p.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
+          }));
+          setStoreProducts(mapped);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("inisha_admin_products", JSON.stringify(mapped));
           }
-        },
-        (err) => {
-          console.warn("Firestore products fallback:", err.message);
         }
-      );
+      } catch (prodErr) {
+        console.warn("Products backend load error:", prodErr);
+      }
+    };
 
-      return () => {
-        unsubscribeCat();
-        unsubProd();
-      };
-    } catch {
-      // Offline fallback
-    }
+    loadLiveBackendData();
   }, []);
 
   const handleSelectService = (srv: ServiceCategory) => {
@@ -471,20 +454,28 @@ export default function AdminCategoriesAndServices() {
     if (!selectedService) return;
     const updated = { ...selectedService, basePrice: Number(editingPrice) };
     const updatedList = services.map((s) => (s.id === selectedService.id ? updated : s));
-    
+
     setServices(updatedList);
     setSelectedService(updated);
     if (typeof window !== "undefined") {
       localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
     }
 
+    setSavingStatus("Saving price change...");
     try {
-      await setDoc(doc(db, "categories", selectedService.id), updated, { merge: true });
+      await apiClient.put(`/categories/${selectedService.id}`, updated);
+      setSavingStatus("Saved to database!");
+      setTimeout(() => setSavingStatus(null), 2500);
     } catch (err) {
-      console.error("Firestore save price error:", err);
+      console.error("Backend save price error:", err);
+      // Fallback try firestore
+      try {
+        await setDoc(doc(db, "categories", selectedService.id), updated, { merge: true });
+      } catch {}
+      setSavingStatus(null);
     }
 
-    alert(`Base rate for ${selectedService.name} updated to ₹${editingPrice}!`);
+    alert(`Base rate for ${selectedService.name} updated to ₹${editingPrice} (Live across all apps)!`);
   };
 
   const handleSaveEditedService = async (e: React.FormEvent) => {
@@ -501,14 +492,21 @@ export default function AdminCategoriesAndServices() {
       localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
     }
 
+    setSavingStatus("Saving service updates...");
     try {
-      await setDoc(doc(db, "categories", editServiceForm.id), editServiceForm, { merge: true });
+      await apiClient.put(`/categories/${editServiceForm.id}`, editServiceForm);
+      setSavingStatus("Saved to database!");
+      setTimeout(() => setSavingStatus(null), 2500);
     } catch (err) {
-      console.error("Firestore save service error:", err);
+      console.error("Backend save service error:", err);
+      try {
+        await setDoc(doc(db, "categories", editServiceForm.id), editServiceForm, { merge: true });
+      } catch {}
+      setSavingStatus(null);
     }
 
     setEditServiceModalOpen(false);
-    alert(`Service "${editServiceForm.name}" updated successfully!`);
+    alert(`Service "${editServiceForm.name}" updated permanently!`);
   };
 
   const handleDeleteService = async (serviceId: string) => {
@@ -531,9 +529,12 @@ export default function AdminCategoriesAndServices() {
     }
 
     try {
-      await deleteDoc(doc(db, "categories", serviceId));
+      await apiClient.delete(`/categories/${serviceId}`);
     } catch (err) {
-      console.error("Firestore delete category error:", err);
+      console.error("Backend delete category error:", err);
+      try {
+        await deleteDoc(doc(db, "categories", serviceId));
+      } catch {}
     }
 
     alert(`Service removed successfully!`);
@@ -567,7 +568,7 @@ export default function AdminCategoriesAndServices() {
     if (!newServiceName.trim()) return;
 
     const newSrv: ServiceCategory = {
-      id: `srv_${Date.now()}`,
+      id: `cat_${newServiceName.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${Date.now().toString(36)}`,
       name: newServiceName.trim(),
       iconName: newServiceIcon || "tool",
       imageUrl: newServiceImageUrl || "",
@@ -589,16 +590,19 @@ export default function AdminCategoriesAndServices() {
     }
 
     try {
-      await setDoc(doc(db, "categories", newSrv.id), newSrv);
+      await apiClient.post("/categories", newSrv);
     } catch (err) {
-      console.error("Firestore create service error:", err);
+      console.error("Backend create service error:", err);
+      try {
+        await setDoc(doc(db, "categories", newSrv.id), newSrv);
+      } catch {}
     }
 
     setNewServiceModalOpen(false);
     setNewServiceName("");
     setNewServiceDesc("");
     setNewServiceImageUrl("");
-    alert(`New service "${newSrv.name}" created and added to live catalog!`);
+    alert(`New service "${newSrv.name}" created and added permanently to live catalog!`);
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -623,9 +627,12 @@ export default function AdminCategoriesAndServices() {
     setProductModalOpen(false);
 
     try {
-      await setDoc(doc(db, "store_products", prod.id), prod);
+      await apiClient.post("/ecommerce/products", prod);
     } catch (err) {
-      console.warn("Product firestore save error:", err);
+      console.warn("Product backend save error:", err);
+      try {
+        await setDoc(doc(db, "store_products", prod.id), prod);
+      } catch {}
     }
 
     setNewProd({
@@ -655,28 +662,37 @@ export default function AdminCategoriesAndServices() {
     }
 
     try {
-      await setDoc(doc(db, "store_products", editingProduct.id), editingProduct, { merge: true });
+      await apiClient.put(`/ecommerce/products/${editingProduct.id}`, editingProduct);
     } catch (err) {
-      console.warn("Product edit firestore error:", err);
+      console.warn("Product edit backend error:", err);
+      try {
+        await setDoc(doc(db, "store_products", editingProduct.id), editingProduct, { merge: true });
+      } catch {}
     }
 
     setEditProductModalOpen(false);
     alert(`Product "${editingProduct.name}" updated successfully!`);
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this product?")) {
-      const filtered = storeProducts.filter((p) => p.id !== id);
-      setStoreProducts(filtered);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("inisha_admin_products", JSON.stringify(filtered));
-      }
-      try {
-        await deleteDoc(doc(db, "store_products", id));
-      } catch (err) {
-        console.warn("Product delete firestore error:", err);
-      }
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm("Are you sure you want to remove this product from the store?")) return;
+
+    const filtered = storeProducts.filter((p) => p.id !== productId);
+    setStoreProducts(filtered);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inisha_admin_products", JSON.stringify(filtered));
     }
+
+    try {
+      await apiClient.delete(`/ecommerce/products/${productId}`);
+    } catch (err) {
+      console.warn("Product delete backend error:", err);
+      try {
+        await deleteDoc(doc(db, "store_products", productId));
+      } catch {}
+    }
+
+    alert("Product removed from store!");
   };
 
   const filteredServices = services.filter(

@@ -57,6 +57,55 @@ export default function ProductCatalogModal({
   const [couponInput, setCouponInput] = useState("");
 
   React.useEffect(() => {
+    const fetchBackendProducts = async () => {
+      try {
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+        const res = await fetch(`${API_URL}/ecommerce/products`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const mapped: Product[] = data.map((d: any) => {
+              let catType: ProductTypeCategory = "MOBILE_ACCESSORIES";
+              const catLower = (d.categoryName || d.category || "").toLowerCase();
+              if (catLower.includes("groc") || catLower.includes("staple") || catLower.includes("dairy")) {
+                catType = "GROCERY";
+              } else if (catLower.includes("phone") || catLower.includes("mobile")) {
+                catType = "MOBILE_PHONES";
+              } else if (catLower.includes("beauty") || catLower.includes("salon") || catLower.includes("parlour")) {
+                catType = "BEAUTY_PARLOUR";
+              } else if (catLower.includes("elec")) {
+                catType = "ELECTRONICS";
+              } else if (catLower.includes("home")) {
+                catType = "HOME_NEEDS";
+              }
+
+              return {
+                id: d.id || d._id?.toString(),
+                name: d.name || "Product",
+                category: catType,
+                categoryName: d.categoryName || d.category || "General",
+                description: d.description || `${d.name} available for 10-min delivery`,
+                price: Number(d.price) || 199,
+                originalPrice: Number(d.originalPrice || d.mrp) || (Number(d.price) ? Number(d.price) + 100 : 299),
+                discountPercentage: d.discountPercentage || 10,
+                unit: d.unit || "1 Piece",
+                imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
+                inStock: d.inStock !== false,
+                rating: d.rating || 4.8,
+                deliveryTimeMins: d.deliveryTimeMins || 10,
+                brand: d.brand || undefined,
+              };
+            });
+            setProducts(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn("Error fetching store products:", err);
+      }
+    };
+
+    fetchBackendProducts();
+
     try {
       const unsub = onSnapshot(collection(db, "store_products"), (snapshot) => {
         if (!snapshot.empty) {
@@ -96,9 +145,7 @@ export default function ProductCatalogModal({
           });
 
           if (liveList.length > 0) {
-            const firestoreIds = new Set(liveList.map((p) => p.id));
-            const merged = [...liveList, ...MOCK_PRODUCTS.filter((p) => !firestoreIds.has(p.id))];
-            setProducts(merged);
+            setProducts(liveList);
           }
         }
       });

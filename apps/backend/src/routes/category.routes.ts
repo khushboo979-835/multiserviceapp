@@ -540,51 +540,173 @@ router.get("/", async (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/categories/:id (Get single category)
+ */
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const cat = await CategoryModel.findOne({
+      $or: [{ categoryId: id }, { slug: id }],
+    }).lean();
+
+    if (!cat) {
+      return res.status(404).json({ success: false, message: "Category not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      category: {
+        id: cat.categoryId,
+        name: cat.name,
+        slug: cat.slug,
+        description: cat.description,
+        imageUrl: cat.imageUrl,
+        subcategories: cat.subcategories || [],
+        isActive: cat.isActive,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * POST /api/categories (Admin Dynamic Future Service Addition)
  */
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, slug, description, imageUrl, basePrice, subcategories } = req.body;
+    const { id, name, slug, description, imageUrl, iconName, basePrice, subcategories, fields, isActive } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: "Category name is required" });
     }
 
     const cleanSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const categoryId = "cat_" + cleanSlug.replace(/-/g, "_");
+    const categoryId = id || ("cat_" + cleanSlug.replace(/-/g, "_"));
 
-    const newCategory = await CategoryModel.create({
-      categoryId,
-      name,
-      slug: cleanSlug,
-      description: description || `Professional ${name} service at your doorstep.`,
-      imageUrl: imageUrl || "sparkles",
-      orderIndex: 99,
-      isActive: true,
-      subcategories: subcategories || [
-        {
-          id: `sub_${cleanSlug.replace(/-/g, "_")}`,
-          name: `${name} Standard Visit`,
-          slug: `${cleanSlug}-standard`,
-          description: `Doorstep ${name} inspection and repair.`,
-          basePrice: basePrice || 399,
-          imageUrl: imageUrl || "sparkles",
-          formConfig: {
-            fields: [
-              { id: "service_details", label: "Requirement Details", type: "TEXT", placeholder: "Describe your requirement", validation: { required: true } },
-              { id: "preferred_date", label: "Service Date", type: "DATE", validation: { required: true } },
-              { id: "preferred_time", label: "Time Slot", type: "TIME_SLOT", validation: { required: true } },
-              { id: "service_address", label: "Address", type: "ADDRESS_GPS", validation: { required: true } },
-            ],
+    const subcats = subcategories && subcategories.length > 0
+      ? subcategories
+      : [
+          {
+            id: `sub_${categoryId}`,
+            name: `${name} Standard Visit`,
+            slug: `${cleanSlug}-standard`,
+            description: description || `Doorstep ${name} inspection and repair.`,
+            basePrice: basePrice || 399,
+            imageUrl: imageUrl || iconName || "sparkles",
+            formConfig: {
+              fields: Array.isArray(fields) && fields.length > 0 ? fields : [
+                { id: "service_details", label: "Requirement Details", type: "TEXT", placeholder: "Describe your requirement", validation: { required: true } },
+                { id: "preferred_date", label: "Service Date", type: "DATE", validation: { required: true } },
+                { id: "preferred_time", label: "Time Slot", type: "TIME_SLOT", validation: { required: true } },
+                { id: "service_address", label: "Address", type: "ADDRESS_GPS", validation: { required: true } },
+              ],
+            },
           },
-        },
-      ],
-    });
+        ];
+
+    const category = await CategoryModel.findOneAndUpdate(
+      { categoryId },
+      {
+        categoryId,
+        name,
+        slug: cleanSlug,
+        description: description || `Professional ${name} service at your doorstep.`,
+        imageUrl: imageUrl || iconName || "sparkles",
+        orderIndex: 99,
+        isActive: isActive !== undefined ? isActive : true,
+        subcategories: subcats,
+      },
+      { upsert: true, new: true }
+    );
 
     return res.status(201).json({
       success: true,
-      message: "New service category created successfully",
-      category: newCategory,
+      message: "Category saved successfully",
+      category,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/categories/:id (Admin Update Service Category & Pricing)
+ */
+router.put("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, imageUrl, iconName, basePrice, subcategories, fields, isActive } = req.body;
+
+    const existing = await CategoryModel.findOne({
+      $or: [{ categoryId: id }, { slug: id }],
+    });
+
+    const categoryId = existing?.categoryId || id;
+    const cleanSlug = slug || (name ? name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : id);
+
+    let updatedSubcats = subcategories || existing?.subcategories || [];
+    if (updatedSubcats.length === 0) {
+      updatedSubcats = [
+        {
+          id: `sub_${categoryId}`,
+          name: name || "Doorstep Service",
+          slug: `${cleanSlug}-standard`,
+          description: description || "Professional doorstep service",
+          basePrice: basePrice || 399,
+          imageUrl: imageUrl || iconName || "sparkles",
+          formConfig: {
+            fields: Array.isArray(fields) && fields.length > 0 ? fields : [
+              { id: "service_details", label: "Requirement Details", type: "TEXT", validation: { required: true } },
+            ],
+          },
+        },
+      ];
+    } else if (basePrice !== undefined) {
+      updatedSubcats = updatedSubcats.map((sub: any) => ({
+        ...sub,
+        basePrice: Number(basePrice),
+      }));
+    }
+
+    const updated = await CategoryModel.findOneAndUpdate(
+      { $or: [{ categoryId: id }, { slug: id }] },
+      {
+        $set: {
+          name: name || existing?.name,
+          slug: cleanSlug,
+          description: description !== undefined ? description : existing?.description,
+          imageUrl: imageUrl || iconName || existing?.imageUrl,
+          subcategories: updatedSubcats,
+          isActive: isActive !== undefined ? isActive : existing?.isActive ?? true,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+      category: updated,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/categories/:id (Admin Delete Category)
+ */
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await CategoryModel.findOneAndDelete({
+      $or: [{ categoryId: id }, { slug: id }],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Category deleted successfully",
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

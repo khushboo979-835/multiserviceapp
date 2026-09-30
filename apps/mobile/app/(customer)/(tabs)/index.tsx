@@ -12,6 +12,7 @@ import {
   Linking,
   Alert,
   Image,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -238,22 +239,69 @@ export default function CustomerHomeScreen() {
   const [selectedCity, setSelectedCity] = useState("Sultanganj");
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
 
+  const [refreshing, setRefreshing] = useState(false);
+
   // 1. Fetch live categories from backend & Firestore
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
-        const res = await fetch(`${API_URL}/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCategories(data);
-          }
+  const fetchCategories = async () => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+      const res = await fetch(`${API_URL}/categories`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (Array.isArray(data.categories) ? data.categories : []);
+        if (list.length > 0) {
+          const mapped: Category[] = list.map((c: any) => ({
+            id: c.id || c.categoryId,
+            name: c.name,
+            slug: c.slug || c.id,
+            description: c.description || "",
+            imageUrl: c.imageUrl || c.iconName || "sparkles",
+            isActive: c.isActive !== false,
+            subcategories: Array.isArray(c.subcategories) && c.subcategories.length > 0
+              ? c.subcategories.map((s: any) => ({
+                  id: s.id || `sub_${c.id}`,
+                  categoryId: c.id || c.categoryId,
+                  name: s.name || c.name,
+                  slug: s.slug || `sub_${c.id}`,
+                  description: s.description || c.description || "Certified professional doorstep service",
+                  basePrice: Number(s.basePrice) || 399,
+                  imageUrl: s.imageUrl || c.imageUrl || "sparkles",
+                  formConfig: s.formConfig || { fields: [] },
+                }))
+              : [
+                  {
+                    id: `sub_${c.id || c.categoryId}`,
+                    categoryId: c.id || c.categoryId,
+                    name: `${c.name} Standard Service`,
+                    slug: `sub_${c.id || c.categoryId}`,
+                    description: c.description || "Certified professional doorstep service",
+                    basePrice: Number(c.basePrice) || 399,
+                    imageUrl: c.imageUrl || "sparkles",
+                    formConfig: {
+                      fields: [
+                        { id: "details", label: "Requirement Details", type: "TEXT", validation: { required: true } },
+                        { id: "visit_slot", label: "Service Slot", type: "TIME_SLOT", validation: { required: true } },
+                        { id: "address", label: "Doorstep Address", type: "ADDRESS_GPS", validation: { required: true } },
+                      ],
+                    },
+                  },
+                ],
+          }));
+          setCategories(mapped);
         }
-      } catch (err) {
-        console.log("Using cached/fallback categories:", err);
       }
-    };
+    } catch (err) {
+      console.log("Categories API load error:", err);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCategories();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
     fetchCategories();
 
     try {
@@ -316,10 +364,7 @@ export default function CustomerHomeScreen() {
             });
           });
           if (liveCats.length > 0) {
-            // Merge with mock categories preserving any default ones not in firestore
-            const firestoreIds = new Set(liveCats.map((c) => c.id));
-            const merged = [...liveCats, ...MOCK_CATEGORIES.filter((c) => !firestoreIds.has(c.id))];
-            setCategories(merged);
+            setCategories(liveCats);
           }
         }
       });
@@ -542,6 +587,14 @@ export default function CustomerHomeScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#2563eb"]}
+            tintColor="#2563eb"
+          />
+        }
       >
         {/* Official Inisha Brand Header (Matching Design Mockup) */}
         <InishaHeader

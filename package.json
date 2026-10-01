@@ -2,7 +2,7 @@
   "name": "multi-service-app",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "main": "apps/mobile/index.js",
   "workspaces": [
     "apps/mobile",
     "apps/backend",

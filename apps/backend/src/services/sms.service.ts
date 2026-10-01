@@ -28,7 +28,7 @@ export class SmsService {
     const fast2smsApiKey =
       process.env.FAST2SMS_API_KEY ||
       process.env.FAST2SMS_KEY ||
-      "wpsfIMcq7JObaVCBXxHSh96lu2kTyY3QUtg4Prm01WGKozNReF6owei5ZPHIb2jF4MhN9mnCdVDlWgAX";
+      "Y1IjUeAw2ZP6CuvEqhxlVB5iFWg7Xz83mtpSs40oGNMcLnyDOJ5TChNi8gkMrOEXjZGmqJQvoVnWU1zR";
 
     if (fast2smsApiKey && fast2smsApiKey !== "YOUR_FAST2SMS_API_KEY") {
       try {

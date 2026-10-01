@@ -44,6 +44,7 @@ export class SmsService {
             headers: {
               authorization: fast2smsApiKey,
               "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0",
             },
             timeout: 7000,
           }
@@ -73,6 +74,7 @@ export class SmsService {
             headers: {
               authorization: fast2smsApiKey,
               "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0",
             },
             timeout: 7000,
           }

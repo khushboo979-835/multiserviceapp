@@ -27,7 +27,7 @@ import {
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { phone, fullPhone, devOtp } = useLocalSearchParams<{ phone: string; fullPhone?: string; devOtp?: string }>();
+  const { phone, fullPhone } = useLocalSearchParams<{ phone: string; fullPhone?: string }>();
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [error, setError] = useState("");
@@ -36,13 +36,6 @@ export default function VerifyOtpScreen() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const inputRefs = useRef<Array<TextInput | null>>([]);
-
-  // Auto-fill devOtp if available
-  useEffect(() => {
-    if (devOtp && String(devOtp).length === 6) {
-      setDigits(String(devOtp).split(""));
-    }
-  }, [devOtp]);
 
   // Auto-start 45s countdown timer on mount with clean unmounting
   useEffect(() => {
@@ -112,7 +105,7 @@ export default function VerifyOtpScreen() {
   const handleVerify = async (codeToVerify?: string) => {
     const enteredOtp = (codeToVerify || digits.join("")).trim();
     if (enteredOtp.length !== 6) {
-      setError("Please enter the complete 6-digit verification code.");
+      setError("Please enter the complete 6-digit verification code received on SMS.");
       return;
     }
 
@@ -123,34 +116,9 @@ export default function VerifyOtpScreen() {
     const formattedE164 = fullPhone || `+91${cleanPhone}`;
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
-    // Instant 1-Second Authentication Resolution
-    const finalToken = `jwt_cust_${Date.now()}_${cleanPhone}`;
-    const userObj: User = {
-      id: "usr_" + cleanPhone,
-      phoneNumber: formattedE164,
-      role: "CUSTOMER",
-      name: `Customer ${cleanPhone.slice(-4)}`,
-      email: `user_${cleanPhone}@inishacityservice.com`,
-      walletBalance: 250,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
     try {
-      // 1. Immediately store session in AsyncStorage for zero lag
-      await AsyncStorage.setItem("@inisha_auth_token", finalToken);
-      await AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(userObj));
-      await AsyncStorage.setItem("@auth_token", finalToken);
-      await AsyncStorage.setItem("@user_profile", JSON.stringify(userObj));
-
-      // 2. Set authenticated state instantly
-      setAuth(userObj, finalToken);
-      clearConfirmationResult();
-      setIsSuccess(true);
-      setLoading(false);
-
-      // 3. Fire non-blocking background synchronization with cloud MongoDB
-      fetch(`${API_URL}/auth/customer/verify-otp`, {
+      // 1. Verify OTP with real backend
+      const response = await fetch(`${API_URL}/auth/customer/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,16 +127,45 @@ export default function VerifyOtpScreen() {
           otp: enteredOtp,
           role: "CUSTOMER",
         }),
-      }).catch((syncErr) => console.warn("[Background Auth Sync]:", syncErr?.message));
+      });
 
-      // 4. Instant redirect in 100ms
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data?.message || "Invalid or expired OTP code. Please check your SMS.");
+      }
+
+      const finalToken = data.token;
+      const userObj: User = data.user || {
+        id: "usr_" + cleanPhone,
+        phoneNumber: formattedE164,
+        role: "CUSTOMER",
+        name: `Customer ${cleanPhone.slice(-4)}`,
+        email: `user_${cleanPhone}@inishacityservice.com`,
+        walletBalance: 250,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // 2. Store real authenticated session
+      await AsyncStorage.setItem("@inisha_auth_token", finalToken);
+      await AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(userObj));
+      await AsyncStorage.setItem("@auth_token", finalToken);
+      await AsyncStorage.setItem("@user_profile", JSON.stringify(userObj));
+
+      // 3. Set authenticated state
+      setAuth(userObj, finalToken);
+      clearConfirmationResult();
+      setIsSuccess(true);
+      setLoading(false);
+
+      // 4. Redirect to customer home
       setTimeout(() => {
         router.replace("/(customer)/(tabs)");
-      }, 100);
+      }, 400);
     } catch (err: any) {
       setLoading(false);
-      const errorMessage = err?.message || "Verification failed. Please try again.";
-      setError(errorMessage);
+      setError(err?.message || "Verification failed. Please enter the correct OTP received on SMS.");
     }
   };
 
@@ -253,22 +250,6 @@ export default function VerifyOtpScreen() {
 
           {/* OTP Input Card */}
           <View style={styles.card}>
-            {/* Quick 1-Sec Instant Login Chip */}
-            <TouchableOpacity
-              onPress={() => {
-                const autoCode = ["1", "2", "3", "4", "5", "6"];
-                setDigits(autoCode);
-                handleVerify("123456");
-              }}
-              style={styles.instantOtpBadge}
-              activeOpacity={0.8}
-            >
-              <Zap size={14} color="#ef4444" />
-              <Text style={styles.instantOtpText}>
-                Instant Code: <Text style={styles.instantOtpBold}>123456</Text> (Tap to auto-verify in 1 sec)
-              </Text>
-            </TouchableOpacity>
-
             {/* 6 Individual Numeric Boxes */}
             <View style={styles.slotsRow}>
               {digits.map((digit, idx) => {

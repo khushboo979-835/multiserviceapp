@@ -79,31 +79,36 @@ export default function LoginScreen() {
     const formattedE164 = `+91${cleanNumber}`;
     setLoading(true);
 
-    const instantOtp = "123456";
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
-    // Background SMS sync
-    fetch(`${API_URL}/auth/customer/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone: cleanNumber,
-        phoneNumber: formattedE164,
-      }),
-    }).catch((err) => console.warn("[Background SMS sync]:", err?.message));
+    try {
+      const response = await fetch(`${API_URL}/auth/customer/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: cleanNumber,
+          phoneNumber: formattedE164,
+        }),
+      });
 
-    // Transition to verify screen
-    setTimeout(() => {
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data?.message || "Failed to send SMS OTP. Please check your number.");
+      }
+
       setLoading(false);
       router.push({
         pathname: "/(auth)/verify-otp",
         params: {
           phone: cleanNumber,
           fullPhone: formattedE164,
-          devOtp: instantOtp,
         },
       });
-    }, 100);
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || "Could not send OTP. Please check your internet connection.");
+    }
   };
 
   return (

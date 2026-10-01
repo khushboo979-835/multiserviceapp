@@ -127,6 +127,8 @@ router.post("/firebase-sync", async (req: Request, res: Response) => {
   }
 });
 
+import { SmsService } from "../services/sms.service";
+
 /**
  * Endpoint: POST /api/auth/customer/send-otp (and alias /send-otp)
  */
@@ -161,73 +163,16 @@ const handleSendCustomerOtp = async (req: Request, res: Response) => {
     }
     memoryOtpStore.set(phone, { otp, expiresAt: expiresAt.getTime(), attempts: 0 });
 
-    // Telecom SMS Delivery via Fast2SMS Gateway
-    const fast2smsApiKey =
-      process.env.FAST2SMS_API_KEY ||
-      "wpsfIMcq7JObaVCBXxHSh96lu2kTyY3QUtg4Prm01WGKozNReF6owei5ZPHIb2jF4MhN9mnCdVDlWgAX";
-
-    if (fast2smsApiKey && fast2smsApiKey !== "YOUR_FAST2SMS_API_KEY") {
-      try {
-        console.log(`📡 [TELECOM SMS]: Dispatching real SMS OTP to +91 ${phone}...`);
-        
-        // 1. Try OTP Route
-        let smsRes = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-          method: "POST",
-          headers: {
-            authorization: fast2smsApiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            route: "otp",
-            variables_values: String(otp),
-            numbers: phone,
-          }),
-        });
-
-        let smsData = (await smsRes.json()) as any;
-
-        // 2. If OTP route requires website verification (code 996), fallback to Quick SMS Route (q)
-        if (!smsData?.return && (smsData?.status_code === 996 || smsData?.status_code === 998)) {
-          console.log(`📡 [TELECOM SMS]: Switching to Fast2SMS Quick Route (q)...`);
-          smsRes = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-            method: "POST",
-            headers: {
-              authorization: fast2smsApiKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              route: "q",
-              message: `Your Inisha City Service verification code is ${otp}. Valid for 5 mins. Do not share with anyone.`,
-              flash: 0,
-              numbers: phone,
-            }),
-          });
-          smsData = (await smsRes.json()) as any;
-        }
-
-        if (smsData?.return) {
-          console.log(`✅ [TELECOM SMS SUCCESS]: Real SMS delivered to +91 ${phone}`);
-        } else {
-          console.warn(`⚠️ [TELECOM SMS NOTICE]:`, smsData?.message || smsData);
-        }
-      } catch (smsErr: any) {
-        console.error(`❌ [TELECOM SMS ERROR]:`, smsErr?.message);
-      }
-    }
-
-    console.log(`\n========================================`);
-    console.log(`📡 [SMS OTP DISPATCH ACTIVE]`);
-    console.log(`📱 Destination: +91 ${phone}`);
-    console.log(`🔑 Real 6-Digit OTP: ${otp}`);
-    console.log(`⏳ Validity: 5 Minutes`);
-    console.log(`========================================\n`);
+    // Send Real Telecom SMS via multi-gateway SmsService (Fast2SMS, 2Factor, MSG91, Twilio)
+    const smsResult = await SmsService.sendOtpSms(phone, otp);
 
     return res.status(200).json({
       success: true,
       message: "Verification OTP code sent via SMS to your mobile.",
       phone: `+91${phone}`,
+      provider: smsResult.provider,
       expiresInSeconds: 300,
-      otp, // Included for instant auto-fill and development testing
+      otp, // Included for instant autofill / testing
     });
   } catch (error: any) {
     console.error("send-otp error:", error);

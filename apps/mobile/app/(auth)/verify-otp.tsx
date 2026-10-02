@@ -23,6 +23,7 @@ export default function VerifyOtpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { phone, fullPhone, devOtp } = useLocalSearchParams<{ phone: string; fullPhone?: string; devOtp?: string }>();
+  const inputRefs = useRef<Array<TextInput | null>>([]);
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [error, setError] = useState("");

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,6 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowRight, ShieldCheck, Sparkles, Briefcase, ShoppingBag } from "lucide-react-native";
 import BrandLogo from "../../src/components/common/BrandLogo";
-import {
-  firebaseConfig,
-} from "../../src/config/firebase";
-import FirebaseRecaptchaVerifierModal, {
-  FirebaseRecaptchaVerifierRef,
-} from "../../src/components/common/FirebaseRecaptchaVerifierModal";
 
 const { width } = Dimensions.get("window");
 
@@ -32,9 +26,6 @@ export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // Dedicated ref for Firebase Recaptcha Verifier Modal
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierRef>(null);
 
   // Strictly validate 10-digit Indian mobile number
   const validatePhone = (phone: string): boolean => {
@@ -82,7 +73,7 @@ export default function LoginScreen() {
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
     try {
-      const response = await fetch(`${API_URL}/auth/customer/send-otp`, {
+      await fetch(`${API_URL}/auth/customer/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,27 +81,21 @@ export default function LoginScreen() {
           phoneNumber: formattedE164,
         }),
       });
-
-      const data = await response.json().catch(() => null);
-      setLoading(false);
-
-      router.push({
-        pathname: "/(auth)/verify-otp",
-        params: {
-          phone: cleanNumber,
-          fullPhone: formattedE164,
-        },
-      });
     } catch (err: any) {
       console.warn("[SMS dispatch notice]:", err?.message);
+    } finally {
       setLoading(false);
-      router.push({
-        pathname: "/(auth)/verify-otp",
-        params: {
-          phone: cleanNumber,
-          fullPhone: formattedE164,
-        },
-      });
+      try {
+        router.push({
+          pathname: "/(auth)/verify-otp",
+          params: {
+            phone: cleanNumber,
+            fullPhone: formattedE164,
+          },
+        });
+      } catch (navErr) {
+        console.warn("Navigation fallback:", navErr);
+      }
     }
   };
 
@@ -120,18 +105,6 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-
-      {/* Firebase Recaptcha Verifier Modal */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        title="Security Verification"
-        cancelLabel="Close"
-        attemptInvisibleVerification={true}
-      />
-
-      {/* Invisible container for Firebase Web reCAPTCHA */}
-      {Platform.OS === "web" && <View id="recaptcha-container" style={{ display: "none" }} />}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

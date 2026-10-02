@@ -18,11 +18,6 @@ import { ShieldCheck, ArrowLeft, RotateCcw, CheckCircle2, Zap } from "lucide-rea
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../src/store/useAuthStore";
 import { User } from "../../src/types";
-import {
-  auth,
-  getConfirmationResult,
-  clearConfirmationResult,
-} from "../../src/config/firebase";
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
@@ -154,7 +149,6 @@ export default function VerifyOtpScreen() {
 
       // 2. Set authenticated state
       setAuth(userObj, finalToken);
-      clearConfirmationResult();
       setIsSuccess(true);
       setLoading(false);
 

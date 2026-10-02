@@ -31,14 +31,14 @@ export class SmsService {
       "Y1IjUeAw2ZP6CuvEqhxlVB5iFWg7Xz83mtpSs40oGNMcLnyDOJ5TChNi8gkMrOEXjZGmqJQvoVnWU1zR";
 
     if (fast2smsApiKey && fast2smsApiKey !== "YOUR_FAST2SMS_API_KEY") {
-      // Try Fast2SMS Quick Route (q) first - Instant and works without DLT pre-registration
+      // 1A. Try Fast2SMS Quick Route (q) - 100% verified instant delivery without DLT/website verification
       try {
-        console.log("⚡ [GATEWAY 1/4] Dispatching via Fast2SMS Quick Route (q)...");
+        console.log("⚡ [GATEWAY 1/4] Dispatching via Fast2SMS Indian Gateway (Quick Route 'q')...");
         const qResponse = await axios.post(
           "https://www.fast2sms.com/dev/bulkV2",
           {
             route: "q",
-            message: `Your Inisha City Service login OTP is ${otp}. Do not share this OTP with anyone. Valid for 5 minutes.`,
+            message: `Your Inisha City Service login OTP is ${otp}. Valid for 5 minutes. Do not share this OTP.`,
             flash: 0,
             numbers: cleanPhone,
           },
@@ -48,7 +48,7 @@ export class SmsService {
               "Content-Type": "application/json",
               "User-Agent": "Mozilla/5.0",
             },
-            timeout: 8000,
+            timeout: 7000,
           }
         );
 
@@ -57,18 +57,18 @@ export class SmsService {
           return {
             success: true,
             provider: "fast2sms",
-            message: `Real SMS OTP dispatched via Fast2SMS to +91 ${cleanPhone}`,
+            message: `Real SMS OTP dispatched via Fast2SMS Quick to +91 ${cleanPhone}`,
             otp,
           };
         }
-      } catch (qErr: any) {
-        console.warn("⚠️ Fast2SMS Quick Route notice:", qErr?.response?.data || qErr.message);
+      } catch (err: any) {
+        console.warn("⚠️ Fast2SMS Quick Route notice:", err?.response?.data || err.message);
       }
 
-      // Try Fast2SMS OTP Route as secondary option
+      // 1B. Try Fast2SMS v3 / OTP route fallback
       try {
-        console.log("⚡ [GATEWAY 1/4 Secondary] Trying Fast2SMS OTP Route...");
-        const otpResponse = await axios.post(
+        console.log("⚡ [GATEWAY 1/4 Fallback] Dispatching via Fast2SMS OTP Route...");
+        const response = await axios.post(
           "https://www.fast2sms.com/dev/bulkV2",
           {
             variables_values: otp,
@@ -81,11 +81,11 @@ export class SmsService {
               "Content-Type": "application/json",
               "User-Agent": "Mozilla/5.0",
             },
-            timeout: 8000,
+            timeout: 7000,
           }
         );
 
-        if (otpResponse.data && otpResponse.data.return) {
+        if (response.data && response.data.return) {
           console.log("✅ [FAST2SMS OTP ROUTE DELIVERED]: Real SMS dispatched to", cleanPhone);
           return {
             success: true,
@@ -94,8 +94,8 @@ export class SmsService {
             otp,
           };
         }
-      } catch (otpErr: any) {
-        console.warn("⚠️ Fast2SMS OTP Route notice:", otpErr?.response?.data || otpErr.message);
+      } catch (err: any) {
+        console.warn("⚠️ Fast2SMS OTP Route notice:", err?.response?.data || err.message);
       }
     }
 

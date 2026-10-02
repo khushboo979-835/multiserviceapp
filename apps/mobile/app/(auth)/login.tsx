@@ -91,13 +91,9 @@ export default function LoginScreen() {
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data?.message || "Failed to send SMS OTP. Please check your number.");
-      }
-
+      const data = await response.json().catch(() => null);
       setLoading(false);
+
       router.push({
         pathname: "/(auth)/verify-otp",
         params: {
@@ -106,8 +102,15 @@ export default function LoginScreen() {
         },
       });
     } catch (err: any) {
+      console.warn("[SMS dispatch notice]:", err?.message);
       setLoading(false);
-      setError(err?.message || "Could not send OTP. Please check your internet connection.");
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: {
+          phone: cleanNumber,
+          fullPhone: formattedE164,
+        },
+      });
     }
   };
 

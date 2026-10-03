@@ -12,6 +12,7 @@ android/
 ios/
 .env
 .env.*
+**/.env*
 *.local
 *.apk
 .git/

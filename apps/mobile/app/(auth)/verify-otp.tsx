@@ -23,7 +23,9 @@ import { fetchWithTimeout } from "../../src/api/fetchWithTimeout";
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { phone } = useLocalSearchParams<{ phone: string; fullPhone?: string }>();
+  const { phone } = useLocalSearchParams<{ phone?: string | string[] }>();
+  const phoneValue = Array.isArray(phone) ? phone[0] || "" : phone || "";
+  const cleanPhone = phoneValue.replace(/\D/g, "").slice(-10);
   const inputRefs = useRef<Array<TextInput | null>>([]);
   const verifyInFlight = useRef(false);
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
@@ -110,7 +112,6 @@ export default function VerifyOtpScreen() {
     setLoading(true);
     setError("");
 
-    const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
       setError("The phone number is invalid. Go back and enter it again.");
       verifyInFlight.current = false;
@@ -154,10 +155,7 @@ export default function VerifyOtpScreen() {
       setIsSuccess(true);
       setLoading(false);
 
-      // 3. Instant redirect to Customer Home
-      setTimeout(() => {
-        router.replace("/(customer)/(tabs)");
-      }, 200);
+      router.replace("/(customer)/(tabs)");
     } catch (err: any) {
       setLoading(false);
       setError(err?.name === "AbortError"
@@ -178,7 +176,6 @@ export default function VerifyOtpScreen() {
       inputRefs.current[0]?.focus();
 
       try {
-        const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
         const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
         const res = await fetchWithTimeout(`${API_URL}/auth/customer/send-otp`, {
           method: "POST",
@@ -250,7 +247,7 @@ export default function VerifyOtpScreen() {
             </Text>
             <Text style={styles.headerSubtitle}>
               We sent a 6-digit SMS code to{"\n"}
-              <Text style={styles.phoneHighlight}>{`+91 ${phone || "XXXXXXXXXX"}`}</Text>
+              <Text style={styles.phoneHighlight}>{`+91 ${cleanPhone || "XXXXXXXXXX"}`}</Text>
             </Text>
           </View>
 
@@ -269,8 +266,8 @@ export default function VerifyOtpScreen() {
                     value={digit}
                     onChangeText={(text) => handleDigitChange(text, idx)}
                     onKeyPress={(e) => handleKeyPress(e, idx)}
-                    autoComplete={idx === 0 ? "sms-otp" : "off"}
-                    textContentType={idx === 0 ? "oneTimeCode" : "none"}
+                    autoComplete={idx === 0 && Platform.OS === "android" ? "sms-otp" : "off"}
+                    textContentType={idx === 0 && Platform.OS === "ios" ? "oneTimeCode" : undefined}
                     keyboardType="number-pad"
                     maxLength={idx === 0 ? 6 : 1}
                     selectTextOnFocus

@@ -93,7 +93,6 @@ export default function LoginScreen() {
         pathname: "/(auth)/verify-otp",
         params: {
           phone: cleanNumber,
-          fullPhone: formattedE164,
         },
       });
     } catch (err: any) {

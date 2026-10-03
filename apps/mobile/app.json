@@ -2,7 +2,7 @@
   "expo": {
     "name": "Inisha",
     "slug": "inisha-city-service",
-    "owner": "ehsaasnashasubmissions-team",
+    "owner": "khusbookumari78570",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.inishacityservice.app",
+      "package": "com.inishacity.service",
       "versionCode": 2,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -57,7 +57,7 @@
         "origin": "https://inishacityservice.com"
       },
       "eas": {
-        "projectId": "60330b5a-22b5-4959-8a19-ef20df64c754"
+        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
       }
     }
   }

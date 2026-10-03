@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Inisha",
+    "slug": "inisha-city-service",
+    "owner": "khusbookumari78570",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./apps/mobile/assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./apps/mobile/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.inishacityservice.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to find nearby service providers and track bookings in real time.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires background location access to allow service providers to receive bookings and track progress."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./apps/mobile/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.inishacity.service",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAOOch1BG92R9iYYnuyMEwEq0kj9uy5ysE"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./apps/mobile/assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://inishacityservice.com"
+        }
+      ]
+    ],
+    "scheme": "inishacityservice",
+    "extra": {
+      "router": {
+        "origin": "https://inishacityservice.com"
+      },
+      "eas": {
+        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
+      }
+    }
+  }
+}

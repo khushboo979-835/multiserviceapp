@@ -13,25 +13,27 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ShieldCheck, ArrowLeft, RotateCcw, CheckCircle2, Zap } from "lucide-react-native";
+import { ShieldCheck, ArrowLeft, RotateCcw, CheckCircle2 } from "lucide-react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../src/store/useAuthStore";
 import { User } from "../../src/types";
+import { fetchWithTimeout } from "../../src/api/fetchWithTimeout";
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { phone, fullPhone, devOtp } = useLocalSearchParams<{ phone: string; fullPhone?: string; devOtp?: string }>();
+  const { phone } = useLocalSearchParams<{ phone: string; fullPhone?: string }>();
   const inputRefs = useRef<Array<TextInput | null>>([]);
+  const verifyInFlight = useRef(false);
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState(45);
+  const [timer, setTimer] = useState(30);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  // Auto-start 45s countdown timer on mount
+  // Auto-start resend countdown timer on mount
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (timer > 0) {
@@ -102,16 +104,24 @@ export default function VerifyOtpScreen() {
       setError("Please enter the complete 6-digit verification code received via SMS.");
       return;
     }
+    if (verifyInFlight.current) return;
 
+    verifyInFlight.current = true;
     setLoading(true);
     setError("");
 
     const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
-    const formattedE164 = fullPhone || `+91${cleanPhone}`;
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setError("The phone number is invalid. Go back and enter it again.");
+      verifyInFlight.current = false;
+      setLoading(false);
+      return;
+    }
+    const formattedE164 = `+91${cleanPhone}`;
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
     try {
-      const response = await fetch(`${API_URL}/auth/customer/verify-otp`, {
+      const response = await fetchWithTimeout(`${API_URL}/auth/customer/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -124,23 +134,14 @@ export default function VerifyOtpScreen() {
 
       const data = await response.json().catch(() => null);
 
-      if (!response.ok || (data && data.success === false)) {
+      if (!response.ok || data?.success !== true || typeof data?.token !== "string" || !data?.user) {
         setLoading(false);
         setError(data?.message || "Invalid or expired OTP code. Please check your SMS.");
         return;
       }
 
-      const finalToken = data?.token || `jwt_cust_${Date.now()}_${cleanPhone}`;
-      const userObj: User = data?.user || {
-        id: "usr_" + cleanPhone,
-        phoneNumber: formattedE164,
-        role: "CUSTOMER",
-        name: `Customer ${cleanPhone.slice(-4)}`,
-        email: `user_${cleanPhone}@inishacityservice.com`,
-        walletBalance: 250,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const finalToken: string = data.token;
+      const userObj: User = data.user;
 
       // 1. Store session in AsyncStorage
       await AsyncStorage.setItem("@inisha_auth_token", finalToken);
@@ -159,14 +160,19 @@ export default function VerifyOtpScreen() {
       }, 200);
     } catch (err: any) {
       setLoading(false);
-      setError(err?.message || "Verification failed. Please try again.");
+      setError(err?.name === "AbortError"
+        ? "Verification request timed out. Check your connection and try again."
+        : err?.message || "Verification failed. Please try again.");
+    } finally {
+      verifyInFlight.current = false;
+      setLoading(false);
     }
   };
 
 
   const handleResend = async () => {
     if (timer === 0) {
-      setTimer(45);
+      setTimer(30);
       setDigits(["", "", "", "", "", ""]);
       setError("");
       inputRefs.current[0]?.focus();
@@ -174,18 +180,24 @@ export default function VerifyOtpScreen() {
       try {
         const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
         const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
-        const res = await fetch(`${API_URL}/auth/customer/send-otp`, {
+        const res = await fetchWithTimeout(`${API_URL}/auth/customer/send-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: cleanPhone,
             phoneNumber: `+91${cleanPhone}`,
           }),
-        });
-        const resData = await res.json();
+        }, 45000);
+        const resData = await res.json().catch(() => null);
+        if (!res.ok || resData?.success !== true) {
+          setError(resData?.message || "Could not resend the verification code.");
+          return;
+        }
         Alert.alert("SMS Resent", resData?.message || "New 6-digit verification code has been dispatched to your mobile.");
       } catch (err: any) {
-        Alert.alert("Resend Failed", "Could not connect to SMS service. Please check your connection.");
+        setError(err?.name === "AbortError"
+          ? "SMS request timed out. Please try again."
+          : "Could not connect to SMS service. Please check your connection.");
       }
     }
   };
@@ -238,28 +250,12 @@ export default function VerifyOtpScreen() {
             </Text>
             <Text style={styles.headerSubtitle}>
               We sent a 6-digit SMS code to{"\n"}
-              <Text style={styles.phoneHighlight}>{fullPhone || `+91 ${phone || "XXXXXXXXXX"}`}</Text>
+              <Text style={styles.phoneHighlight}>{`+91 ${phone || "XXXXXXXXXX"}`}</Text>
             </Text>
           </View>
 
           {/* OTP Input Card */}
           <View style={styles.card}>
-            {/* Quick 1-Sec Instant Login Chip */}
-            <TouchableOpacity
-              onPress={() => {
-                const autoCode = ["1", "2", "3", "4", "5", "6"];
-                setDigits(autoCode);
-                handleVerify("123456");
-              }}
-              style={styles.instantOtpBadge}
-              activeOpacity={0.8}
-            >
-              <Zap size={14} color="#ef4444" />
-              <Text style={styles.instantOtpText}>
-                Instant Code: <Text style={styles.instantOtpBold}>123456</Text> (Tap to auto-verify in 1 sec)
-              </Text>
-            </TouchableOpacity>
-
             {/* 6 Individual Numeric Boxes */}
             <View style={styles.slotsRow}>
               {digits.map((digit, idx) => {
@@ -273,6 +269,8 @@ export default function VerifyOtpScreen() {
                     value={digit}
                     onChangeText={(text) => handleDigitChange(text, idx)}
                     onKeyPress={(e) => handleKeyPress(e, idx)}
+                    autoComplete={idx === 0 ? "sms-otp" : "off"}
+                    textContentType={idx === 0 ? "oneTimeCode" : "none"}
                     keyboardType="number-pad"
                     maxLength={idx === 0 ? 6 : 1}
                     selectTextOnFocus

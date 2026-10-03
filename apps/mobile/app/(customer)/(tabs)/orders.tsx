@@ -36,6 +36,7 @@ import { useCartStore } from "../../../src/store/useCartStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
 import { StoreOrder } from "../../../src/types";
 import InishaHeader from "../../../src/components/common/InishaHeader";
+import SafeImage from "../../../src/components/common/SafeImage";
 
 const { width } = Dimensions.get("window");
 
@@ -274,11 +275,7 @@ export default function OrdersScreen() {
                   <View style={styles.orderItemsList}>
                     {order.items.map((it, idx) => (
                       <View key={idx} style={styles.orderItemRow}>
-                        <Image
-                          source={{ uri: it.product.imageUrl }}
-                          style={styles.orderItemThumb}
-                          resizeMode="cover"
-                        />
+                        <SafeImage uri={it?.product?.imageUrl} style={styles.orderItemThumb} resizeMode="cover" />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.orderItemName} numberOfLines={1}>
                             {it.product.name}
@@ -297,10 +294,7 @@ export default function OrdersScreen() {
                   {/* Delivery Partner Info */}
                   {order.deliveryPartner && (
                     <View style={styles.partnerCard}>
-                      <Image
-                        source={{ uri: order.deliveryPartner.photoUrl }}
-                        style={styles.partnerPhoto}
-                      />
+                      <SafeImage uri={order.deliveryPartner.photoUrl} style={styles.partnerPhoto} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.partnerName}>
                           {order.deliveryPartner.name}
@@ -379,7 +373,7 @@ export default function OrdersScreen() {
                         {activeBooking.providerName || "Assigned Certified Expert"}
                       </Text>
                       <Text style={styles.partnerVehicle}>
-                        OTP: {activeBooking.otp || "4819"} • 100% Verified
+                        OTP: {activeBooking.otp || "Pending"}
                       </Text>
                     </View>
                   </View>

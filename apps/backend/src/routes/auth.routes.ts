@@ -15,8 +15,10 @@ const hashPassword = (password: string) => {
  * High-security token valid for 60 days
  */
 const generateJwtToken = (payload: Record<string, any>, expiresInDays = 60): string => {
-  const secret =
-    process.env.JWT_SECRET || "supersecretkey_change_me_in_production_inisha_city";
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET must be configured with at least 32 characters");
+  }
   const header = { alg: "HS256", typ: "JWT" };
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
@@ -36,6 +38,8 @@ const generateJwtToken = (payload: Record<string, any>, expiresInDays = 60): str
 
 // In-memory fallback in case MongoDB is in cold boot or disconnected
 const memoryOtpStore = new Map<string, { otp: string; expiresAt: number; attempts: number }>();
+const otpLastSentAt = new Map<string, number>();
+const otpSendInFlight = new Set<string>();
 
 /**
  * Endpoint: POST /api/auth/firebase-sync
@@ -145,6 +149,20 @@ const handleSendCustomerOtp = async (req: Request, res: Response) => {
       });
     }
 
+    const now = Date.now();
+    const lastSentAt = otpLastSentAt.get(phone) || 0;
+    if (otpSendInFlight.has(phone) || now - lastSentAt < 30_000) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((30_000 - (now - lastSentAt)) / 1000));
+      return res.status(429).json({
+        success: false,
+        message: `Please wait ${retryAfterSeconds} seconds before requesting another OTP.`,
+        retryAfterSeconds,
+      });
+    }
+
+    otpSendInFlight.add(phone);
+
+    try {
     // Generate secure 6-digit cryptographic OTP code via crypto.randomInt
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
@@ -166,14 +184,27 @@ const handleSendCustomerOtp = async (req: Request, res: Response) => {
     // Send Real Telecom SMS via multi-gateway SmsService (Fast2SMS, 2Factor, MSG91, Twilio)
     const smsResult = await SmsService.sendOtpSms(phone, otp);
 
+    if (!smsResult.success) {
+      memoryOtpStore.delete(phone);
+      await Otp.deleteMany({ phone }).catch(() => undefined);
+      return res.status(503).json({
+        success: false,
+        message: smsResult.message,
+      });
+    }
+
+    otpLastSentAt.set(phone, Date.now());
+
     return res.status(200).json({
       success: true,
       message: "Verification OTP code sent via SMS to your mobile.",
       phone: `+91${phone}`,
       provider: smsResult.provider,
       expiresInSeconds: 300,
-      otp, // Included for instant autofill / testing
     });
+    } finally {
+      otpSendInFlight.delete(phone);
+    }
   } catch (error: any) {
     console.error("send-otp error:", error);
     return res.status(500).json({
@@ -202,30 +233,46 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
 
     let isValid = false;
 
-    // Master test bypass for seamless development
-    if (otp === "123456" || otp === "999999") {
-      isValid = true;
+    // Check DB OTP
+    let otpDoc = null;
+    try {
+      otpDoc = await Otp.findOne({ phone: cleanPhone });
+    } catch {
+      // Use the in-memory fallback if the database is unavailable.
     }
 
-    // Check DB OTP
-    if (!isValid) {
-      try {
-        const otpDoc = await Otp.findOne({ phone: cleanPhone, otp: otp });
-        if (otpDoc && otpDoc.expiresAt.getTime() > Date.now()) {
-          isValid = true;
-          await Otp.deleteOne({ _id: otpDoc._id });
-        }
-      } catch {
-        // DB check fallback
+    if (otpDoc) {
+      if (otpDoc.expiresAt.getTime() <= Date.now() || otpDoc.attempts >= 5) {
+        await Otp.deleteOne({ _id: otpDoc._id });
+        memoryOtpStore.delete(cleanPhone);
+        return res.status(400).json({ success: false, message: "OTP expired or too many attempts. Request a new code." });
+      }
+
+      if (otpDoc.otp === otp) {
+        isValid = true;
+        await Otp.deleteOne({ _id: otpDoc._id });
+        memoryOtpStore.delete(cleanPhone);
+      } else {
+        otpDoc.attempts += 1;
+        await otpDoc.save();
       }
     }
 
     // Check In-Memory OTP Store
     if (!isValid) {
       const memEntry = memoryOtpStore.get(cleanPhone);
-      if (memEntry && memEntry.otp === otp && memEntry.expiresAt > Date.now()) {
+      if (memEntry && (memEntry.expiresAt <= Date.now() || memEntry.attempts >= 5)) {
+        memoryOtpStore.delete(cleanPhone);
+      } else if (memEntry && memEntry.otp === otp) {
         isValid = true;
         memoryOtpStore.delete(cleanPhone);
+        await Otp.deleteMany({ phone: cleanPhone }).catch(() => undefined);
+      } else if (memEntry) {
+        memEntry.attempts += 1;
+        if (memEntry.attempts >= 5) {
+          memoryOtpStore.delete(cleanPhone);
+          await Otp.deleteMany({ phone: cleanPhone }).catch(() => undefined);
+        }
       }
     }
 

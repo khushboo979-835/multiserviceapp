@@ -5,6 +5,7 @@ import { ProviderProfile } from "../models/ProviderProfile";
 import { Booking } from "../models/Booking";
 import { Service } from "../models/Service";
 import { AdminSettings } from "../models/AdminSettings";
+import { constantTimeStringEqual, createAdminToken, requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
 
@@ -20,34 +21,43 @@ router.post("/login", async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
     const identifier = String(username || email || "").trim().toLowerCase();
-    const pass = String(password || "").trim();
+    const pass = String(password || "");
+    const configuredUsername = process.env.ADMIN_USERNAME?.trim().toLowerCase();
+    const configuredPassword = process.env.ADMIN_PASSWORD;
 
-    if (
-      (identifier === "admin@inishacityservice.com" ||
-        identifier === "admin" ||
-        identifier === "root") &&
-      (pass === "admin123" || pass === "Inisha@Admin2026" || pass === "admin@2026")
-    ) {
-      const token = "jwt_admin_" + crypto.randomBytes(24).toString("hex");
-      return res.status(200).json({
-        success: true,
-        token,
-        admin: {
-          name: "Inisha Super Admin",
-          email: "admin@inishacityservice.com",
-          role: "ADMIN",
-        },
+    if (!configuredUsername || !configuredPassword) {
+      return res.status(503).json({
+        success: false,
+        message: "Admin login is not configured on the server",
       });
     }
 
-    return res.status(401).json({
-      success: false,
-      message: "Invalid admin credentials",
+    if (
+      !constantTimeStringEqual(identifier, configuredUsername) ||
+      !constantTimeStringEqual(pass, configuredPassword)
+    ) {
+      return res.status(401).json({ success: false, message: "Invalid admin credentials" });
+    }
+
+    const token = createAdminToken();
+    if (!token) {
+      return res.status(503).json({
+        success: false,
+        message: "Admin token signing is not configured on the server",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      token,
+      admin: { name: "Inisha Super Admin", email: configuredUsername, role: "ADMIN" },
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
+router.use(requireAdmin);
 
 /**
  * 2. Real-Time Overview Metrics from multiserviceapp database

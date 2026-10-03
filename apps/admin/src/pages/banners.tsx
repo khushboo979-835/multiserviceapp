@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image as ImageIcon,
   Plus,
@@ -11,21 +11,10 @@ import {
   X,
   Inbox,
   Eye,
+  Pencil,
 } from "lucide-react";
-import {
-  collection,
-  query,
-  orderBy,
-  getDocs,
-  onSnapshot,
-  doc,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-  Unsubscribe,
-} from "firebase/firestore";
-import { db } from "../config/firebase";
 import ImageUploadPicker from "../components/ImageUploadPicker";
+import apiClient from "../api/apiClient";
 
 interface BannerItem {
   id: string;
@@ -53,33 +42,26 @@ export default function BannerManagementPage() {
     targetCategory: "Mobile Repair",
   });
 
-  const unsubRef = useRef<Unsubscribe | null>(null);
+  const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
 
   // 1. Fast On-Demand Banners Loader (Eliminates continuous channel ping loops)
   const fetchBanners = async () => {
     try {
-      const snap = await getDocs(query(collection(db, "banners"), orderBy("createdAt", "desc")));
-      const list: BannerItem[] = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          title: d.title || "Special Promotional Offer",
-          subtitle: d.subtitle || "Book verified professionals at home",
-          tag: d.tag || "OFFER",
-          imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
-          targetCategory: d.targetCategory || "All Services",
-          isActive: d.isActive !== false,
-          order: d.order || 1,
-          createdAt: d.createdAt || Date.now(),
-        });
-      });
-
-      if (list.length > 0) {
-        setBanners(list);
-      }
-    } catch (e) {
-      console.warn("Banners fetch error:", e);
+      const response = await apiClient.get("/banners/admin");
+      const list = Array.isArray(response.data?.banners) ? response.data.banners : [];
+      setBanners(list.map((banner: any) => ({
+        ...banner,
+        id: String(banner.id || banner._id || ""),
+        title: banner.title || "Special offer",
+        subtitle: banner.subtitle || "",
+        tag: banner.tag || "OFFER",
+        imageUrl: banner.imageUrl || "",
+        targetCategory: banner.targetCategory || "All Services",
+        isActive: banner.isActive !== false,
+        order: Number(banner.order) || 0,
+      })).filter((banner: BannerItem) => banner.id));
+    } catch (error: any) {
+      alert(error.response?.data?.message || error.message || "Unable to load banners");
     } finally {
       setLoading(false);
     }
@@ -93,20 +75,20 @@ export default function BannerManagementPage() {
   const handleToggleActive = async (id: string, current: boolean) => {
     const nextVal = !current;
     try {
-      await updateDoc(doc(db, "banners", id), { isActive: nextVal });
+      await apiClient.put(`/banners/${id}`, { isActive: nextVal });
       setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, isActive: nextVal } : b)));
-    } catch {
-      setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, isActive: nextVal } : b)));
+    } catch (error: any) {
+      alert(error.response?.data?.message || error.message || "Unable to update banner");
     }
   };
 
   const handleDeleteBanner = async (id: string) => {
     if (!confirm("Are you sure you want to remove this promo banner?")) return;
     try {
-      await deleteDoc(doc(db, "banners", id));
+      await apiClient.delete(`/banners/${id}`);
       setBanners((prev) => prev.filter((b) => b.id !== id));
-    } catch {
-      setBanners((prev) => prev.filter((b) => b.id !== id));
+    } catch (error: any) {
+      alert(error.response?.data?.message || error.message || "Unable to delete banner");
     }
   };
 
@@ -118,8 +100,6 @@ export default function BannerManagementPage() {
     }
 
     setIsSaving(true);
-    const docId = `banner_${Date.now()}`;
-
     try {
       const bannerData = {
         title: formData.title.trim(),
@@ -127,13 +107,22 @@ export default function BannerManagementPage() {
         tag: formData.tag.trim().toUpperCase(),
         imageUrl: formData.imageUrl.trim(),
         targetCategory: formData.targetCategory,
-        isActive: true,
+        isActive: editingBannerId ? banners.find((banner) => banner.id === editingBannerId)?.isActive ?? true : true,
         createdAt: Date.now(),
       };
 
-      await setDoc(doc(db, "banners", docId), bannerData);
+      const response = editingBannerId
+        ? await apiClient.put(`/banners/${editingBannerId}`, bannerData)
+        : await apiClient.post("/banners", bannerData);
+      const savedBanner = response.data?.banner;
+      if (!savedBanner?._id) throw new Error("Server did not return the saved banner");
+
+      setBanners((previous) => editingBannerId
+        ? previous.map((banner) => banner.id === editingBannerId ? { ...bannerData, id: editingBannerId } : banner)
+        : [{ ...bannerData, id: savedBanner._id }, ...previous]);
 
       setModalOpen(false);
+      setEditingBannerId(null);
       setFormData({
         title: "",
         subtitle: "",
@@ -141,12 +130,24 @@ export default function BannerManagementPage() {
         imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
         targetCategory: "Mobile Repair",
       });
-      alert("Promotional banner added successfully!");
+      alert(editingBannerId ? "Banner updated successfully" : "Banner created successfully");
     } catch (err: any) {
-      alert("Error saving banner: " + err.message);
+      alert(err.response?.data?.message || err.message || "Unable to save banner");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleEditBanner = (banner: BannerItem) => {
+    setEditingBannerId(banner.id);
+    setFormData({
+      title: banner.title,
+      subtitle: banner.subtitle || "",
+      tag: banner.tag || "OFFER",
+      imageUrl: banner.imageUrl,
+      targetCategory: banner.targetCategory || "All Services",
+    });
+    setModalOpen(true);
   };
 
   return (
@@ -249,6 +250,15 @@ export default function BannerManagementPage() {
                 </button>
 
                 <button
+                  onClick={() => handleEditBanner(banner)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                  title="Edit Banner"
+                  aria-label="Edit banner"
+                >
+                  <Pencil size={14} />
+                </button>
+
+                <button
                   onClick={() => handleDeleteBanner(banner.id)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
                   title="Delete Banner"
@@ -269,7 +279,7 @@ export default function BannerManagementPage() {
               <div>
                 <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
                   <ImageIcon className="text-red-600" size={18} />
-                  Add Promotional Banner
+                  {editingBannerId ? "Edit Promotional Banner" : "Add Promotional Banner"}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">Publish promo banner to customer app</p>
               </div>
@@ -352,7 +362,7 @@ export default function BannerManagementPage() {
               <div className="flex gap-3 pt-3">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => { setModalOpen(false); setEditingBannerId(null); }}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs"
                 >
                   Cancel
@@ -362,7 +372,7 @@ export default function BannerManagementPage() {
                   disabled={isSaving}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
                 >
-                  {isSaving ? "Saving..." : "Publish Banner"}
+                  {isSaving ? "Saving..." : editingBannerId ? "Save Changes" : "Publish Banner"}
                 </button>
               </div>
             </form>

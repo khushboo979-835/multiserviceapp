@@ -136,7 +136,7 @@ export default function ProviderDashboardScreen() {
                 },
                 scheduledDate: data.scheduledDate || new Date().toISOString().split("T")[0],
                 scheduledTime: data.scheduledTime || "Immediate Doorstep Visit",
-                otp: data.otp || "5273",
+                otp: data.otp,
               };
 
               setIncomingBooking(formattedJob);
@@ -235,7 +235,6 @@ export default function ProviderDashboardScreen() {
         ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        otp: "5273",
       };
 
       // Sync accepted status to Firestore

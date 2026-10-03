@@ -1,4 +1,5 @@
 import { Schema, model, Document } from "mongoose";
+import crypto from "crypto";
 
 export interface IBooking extends Document {
   customerId: string;
@@ -123,7 +124,7 @@ const BookingSchema = new Schema<IBooking>(
     otp: String,
     startServiceOtp: {
       type: String,
-      default: () => Math.floor(1000 + Math.random() * 9000).toString(),
+      default: () => crypto.randomInt(1000, 10000).toString(),
     },
     providerCoords: {
       latitude: Number,

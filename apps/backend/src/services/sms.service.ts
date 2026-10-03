@@ -4,7 +4,6 @@ export interface SmsSendResult {
   success: boolean;
   provider: "msg91" | "fast2sms" | "twilio" | "twofactor" | "sandbox";
   message: string;
-  otp: string;
 }
 
 export class SmsService {
@@ -17,18 +16,10 @@ export class SmsService {
     const fullIndianPhone = `+91${cleanPhone}`;
     const messageText = `Your Inisha City Service login OTP is ${otp}. Do not share this OTP with anyone. Valid for 5 minutes.`;
 
-    console.log("\n==================================================");
-    console.log(`📡 [REAL TELECOM SMS DISPATCH]`);
-    console.log(`📱 Destination Phone: +91 ${cleanPhone}`);
-    console.log(`🔑 Verification OTP: ${otp}`);
-    console.log(`📄 Template: "${messageText}"`);
-    console.log("==================================================\n");
+    console.log("Dispatching login OTP through configured SMS providers");
 
     // 1. Fast2SMS Indian Telecom Gateway (Most reliable & instant for Indian numbers)
-    const fast2smsApiKey =
-      process.env.FAST2SMS_API_KEY ||
-      process.env.FAST2SMS_KEY ||
-      "Y1IjUeAw2ZP6CuvEqhxlVB5iFWg7Xz83mtpSs40oGNMcLnyDOJ5TChNi8gkMrOEXjZGmqJQvoVnWU1zR";
+    const fast2smsApiKey = process.env.FAST2SMS_API_KEY || process.env.FAST2SMS_KEY;
 
     if (fast2smsApiKey && fast2smsApiKey !== "YOUR_FAST2SMS_API_KEY") {
       // 1A. Try Fast2SMS Quick Route (q) - 100% verified instant delivery without DLT/website verification
@@ -58,7 +49,6 @@ export class SmsService {
             success: true,
             provider: "fast2sms",
             message: `Real SMS OTP dispatched via Fast2SMS Quick to +91 ${cleanPhone}`,
-            otp,
           };
         }
       } catch (err: any) {
@@ -91,7 +81,6 @@ export class SmsService {
             success: true,
             provider: "fast2sms",
             message: `Real SMS OTP dispatched via Fast2SMS to +91 ${cleanPhone}`,
-            otp,
           };
         }
       } catch (err: any) {
@@ -112,7 +101,6 @@ export class SmsService {
             success: true,
             provider: "twofactor",
             message: `Real SMS OTP dispatched via 2Factor to +91 ${cleanPhone}`,
-            otp,
           };
         }
       } catch (err: any) {
@@ -137,7 +125,6 @@ export class SmsService {
             success: true,
             provider: "msg91",
             message: `Real SMS OTP dispatched via MSG91 to +91 ${cleanPhone}`,
-            otp,
           };
         }
       } catch (err: any) {
@@ -176,7 +163,6 @@ export class SmsService {
             success: true,
             provider: "twilio",
             message: `Real SMS OTP dispatched via Twilio to ${fullIndianPhone}`,
-            otp,
           };
         }
       } catch (err: any) {
@@ -185,12 +171,11 @@ export class SmsService {
     }
 
     // 5. Sandbox / Console Logging Fallback
-    console.log(`ℹ️ [SANDBOX OTP READY]: +91 ${cleanPhone} -> OTP Code: ${otp}`);
+    console.warn("No configured SMS provider accepted the OTP request");
     return {
-      success: true,
+      success: false,
       provider: "sandbox",
-      message: `OTP generated for +91 ${cleanPhone}. Code: ${otp}`,
-      otp,
+      message: "SMS delivery is not configured. Please contact support or try again later.",
     };
   }
 }

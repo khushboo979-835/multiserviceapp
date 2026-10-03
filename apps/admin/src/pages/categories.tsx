@@ -453,26 +453,21 @@ export default function AdminCategoriesAndServices() {
   const handleSaveInlinePrice = async () => {
     if (!selectedService) return;
     const updated = { ...selectedService, basePrice: Number(editingPrice) };
-    const updatedList = services.map((s) => (s.id === selectedService.id ? updated : s));
-
-    setServices(updatedList);
-    setSelectedService(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
-    }
 
     setSavingStatus("Saving price change...");
     try {
       await apiClient.put(`/categories/${selectedService.id}`, updated);
+      const updatedList = services.map((service) => service.id === selectedService.id ? updated : service);
+      setServices(updatedList);
+      setSelectedService(updated);
+      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
       setSavingStatus("Saved to database!");
       setTimeout(() => setSavingStatus(null), 2500);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Backend save price error:", err);
-      // Fallback try firestore
-      try {
-        await setDoc(doc(db, "categories", selectedService.id), updated, { merge: true });
-      } catch {}
       setSavingStatus(null);
+      alert(err.response?.data?.message || err.message || "Price was not saved");
+      return;
     }
 
     alert(`Base rate for ${selectedService.name} updated to ₹${editingPrice} (Live across all apps)!`);
@@ -482,27 +477,23 @@ export default function AdminCategoriesAndServices() {
     e.preventDefault();
     if (!editServiceForm) return;
 
-    const updatedList = services.map((s) => (s.id === editServiceForm.id ? editServiceForm : s));
-    setServices(updatedList);
-    if (selectedService?.id === editServiceForm.id) {
-      setSelectedService(editServiceForm);
-      setEditingPrice(editServiceForm.basePrice);
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
-    }
-
     setSavingStatus("Saving service updates...");
     try {
       await apiClient.put(`/categories/${editServiceForm.id}`, editServiceForm);
+      const updatedList = services.map((service) => service.id === editServiceForm.id ? editServiceForm : service);
+      setServices(updatedList);
+      if (selectedService?.id === editServiceForm.id) {
+        setSelectedService(editServiceForm);
+        setEditingPrice(editServiceForm.basePrice);
+      }
+      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
       setSavingStatus("Saved to database!");
       setTimeout(() => setSavingStatus(null), 2500);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Backend save service error:", err);
-      try {
-        await setDoc(doc(db, "categories", editServiceForm.id), editServiceForm, { merge: true });
-      } catch {}
       setSavingStatus(null);
+      alert(err.response?.data?.message || err.message || "Service was not saved");
+      return;
     }
 
     setEditServiceModalOpen(false);
@@ -515,26 +506,23 @@ export default function AdminCategoriesAndServices() {
       return;
     }
 
-    const filtered = services.filter((s) => s.id !== serviceId);
-    setServices(filtered);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_services", JSON.stringify(filtered));
+    try {
+      await apiClient.delete(`/categories/${serviceId}`);
+    } catch (err: any) {
+      console.error("Backend delete category error:", err);
+      alert(err.response?.data?.message || err.message || "Service was not deleted");
+      return;
     }
+
+    const filtered = services.filter((service) => service.id !== serviceId);
+    setServices(filtered);
+    localStorage.setItem("inisha_admin_services", JSON.stringify(filtered));
     if (selectedService?.id === serviceId) {
       setSelectedService(filtered[0] || null);
       setEditingPrice(filtered[0]?.basePrice || 0);
     }
     if (editServiceModalOpen) {
       setEditServiceModalOpen(false);
-    }
-
-    try {
-      await apiClient.delete(`/categories/${serviceId}`);
-    } catch (err) {
-      console.error("Backend delete category error:", err);
-      try {
-        await deleteDoc(doc(db, "categories", serviceId));
-      } catch {}
     }
 
     alert(`Service removed successfully!`);
@@ -581,22 +569,19 @@ export default function AdminCategoriesAndServices() {
       isActive: true,
     };
 
+    try {
+      await apiClient.post("/categories", newSrv);
+    } catch (err: any) {
+      console.error("Backend create service error:", err);
+      alert(err.response?.data?.message || err.message || "Service was not created");
+      return;
+    }
+
     const updatedList = [...services, newSrv];
     setServices(updatedList);
     setSelectedService(newSrv);
     setEditingPrice(newSrv.basePrice);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
-    }
-
-    try {
-      await apiClient.post("/categories", newSrv);
-    } catch (err) {
-      console.error("Backend create service error:", err);
-      try {
-        await setDoc(doc(db, "categories", newSrv.id), newSrv);
-      } catch {}
-    }
+    localStorage.setItem("inisha_admin_services", JSON.stringify(updatedList));
 
     setNewServiceModalOpen(false);
     setNewServiceName("");
@@ -619,21 +604,18 @@ export default function AdminCategoriesAndServices() {
       imageUrl: newProd.imageUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80",
     };
 
-    const updatedProds = [prod, ...storeProducts];
-    setStoreProducts(updatedProds);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
-    }
-    setProductModalOpen(false);
-
     try {
       await apiClient.post("/ecommerce/products", prod);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Product backend save error:", err);
-      try {
-        await setDoc(doc(db, "store_products", prod.id), prod);
-      } catch {}
+      alert(err.response?.data?.message || err.message || "Product could not be saved");
+      return;
     }
+
+    const updatedProds = [prod, ...storeProducts];
+    setStoreProducts(updatedProds);
+    localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
+    setProductModalOpen(false);
 
     setNewProd({
       name: "",
@@ -655,20 +637,17 @@ export default function AdminCategoriesAndServices() {
     e.preventDefault();
     if (!editingProduct) return;
 
-    const updatedProds = storeProducts.map((p) => (p.id === editingProduct.id ? editingProduct : p));
-    setStoreProducts(updatedProds);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
-    }
-
     try {
       await apiClient.put(`/ecommerce/products/${editingProduct.id}`, editingProduct);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Product edit backend error:", err);
-      try {
-        await setDoc(doc(db, "store_products", editingProduct.id), editingProduct, { merge: true });
-      } catch {}
+      alert(err.response?.data?.message || err.message || "Product could not be updated");
+      return;
     }
+
+    const updatedProds = storeProducts.map((product) => product.id === editingProduct.id ? editingProduct : product);
+    setStoreProducts(updatedProds);
+    localStorage.setItem("inisha_admin_products", JSON.stringify(updatedProds));
 
     setEditProductModalOpen(false);
     alert(`Product "${editingProduct.name}" updated successfully!`);
@@ -677,20 +656,17 @@ export default function AdminCategoriesAndServices() {
   const handleDeleteProduct = async (productId: string) => {
     if (!window.confirm("Are you sure you want to remove this product from the store?")) return;
 
-    const filtered = storeProducts.filter((p) => p.id !== productId);
-    setStoreProducts(filtered);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("inisha_admin_products", JSON.stringify(filtered));
-    }
-
     try {
       await apiClient.delete(`/ecommerce/products/${productId}`);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Product delete backend error:", err);
-      try {
-        await deleteDoc(doc(db, "store_products", productId));
-      } catch {}
+      alert(err.response?.data?.message || err.message || "Product could not be deleted");
+      return;
     }
+
+    const filtered = storeProducts.filter((product) => product.id !== productId);
+    setStoreProducts(filtered);
+    localStorage.setItem("inisha_admin_products", JSON.stringify(filtered));
 
     alert("Product removed from store!");
   };

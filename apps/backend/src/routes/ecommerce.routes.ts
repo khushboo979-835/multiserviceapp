@@ -1,8 +1,20 @@
 import { Router, Request, Response } from "express";
 import Product from "../models/Product";
 import Coupon from "../models/Coupon";
+import { requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
+
+const normalizeProductCategory = (value: unknown) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized.includes("groc") || normalized.includes("staple") || normalized.includes("dairy")) return "GROCERY";
+  if (normalized.includes("accessor")) return "MOBILE_ACCESSORIES";
+  if (normalized.includes("phone") || normalized.includes("mobile")) return "MOBILE_PHONES";
+  if (normalized.includes("beauty") || normalized.includes("salon") || normalized.includes("parlour")) return "BEAUTY_PARLOUR";
+  if (normalized.includes("elect")) return "ELECTRONICS";
+  if (normalized.includes("home")) return "HOME_NEEDS";
+  return "MOBILE_ACCESSORIES";
+};
 
 // Default initial store products
 const DEFAULT_PRODUCTS = [
@@ -84,26 +96,16 @@ router.get("/products", async (req: Request, res: Response) => {
       ];
     }
 
-    let products = await Product.find(query).sort({ createdAt: -1 });
-
-    if (!products || products.length === 0) {
-      try {
-        await Product.insertMany(DEFAULT_PRODUCTS);
-        products = await Product.find(query).sort({ createdAt: -1 });
-      } catch {
-        // Fallback
-      }
-    }
-
-    return res.status(200).json(products && products.length > 0 ? products : DEFAULT_PRODUCTS);
+    const products = await Product.find(query).sort({ createdAt: -1 });
+    return res.status(200).json(products);
   } catch (error) {
     console.error("Error fetching products:", error);
-    return res.status(200).json(DEFAULT_PRODUCTS);
+    return res.status(503).json({ success: false, message: "Unable to load products from the database" });
   }
 });
 
 // POST /api/ecommerce/products - Admin create product
-router.post("/products", async (req: Request, res: Response) => {
+router.post("/products", requireAdmin, async (req: Request, res: Response) => {
   try {
     const productData = req.body;
     const prodId = productData.id || `prod_${Date.now()}`;
@@ -113,7 +115,7 @@ router.post("/products", async (req: Request, res: Response) => {
         ...productData,
         id: prodId,
         inStock: productData.inStock ?? true,
-        category: productData.category || "MOBILE_ACCESSORIES",
+        category: normalizeProductCategory(productData.categoryName || productData.category),
         categoryName: productData.categoryName || productData.category || "General",
         price: Number(productData.price || 0),
         originalPrice: Number(productData.originalPrice || productData.mrp || productData.price || 0),
@@ -122,7 +124,9 @@ router.post("/products", async (req: Request, res: Response) => {
     );
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "PRODUCT_CREATED", id: prodId, timestamp: Date.now() });
+      const event = { action: "CREATED", id: prodId, timestamp: Date.now() };
+      io.emit("product:updated", event);
+      io.emit("catalog_updated", { type: "PRODUCT_CREATED", ...event });
     }
 
     return res.status(201).json(product);
@@ -133,7 +137,7 @@ router.post("/products", async (req: Request, res: Response) => {
 });
 
 // PUT /api/ecommerce/products/:id - Admin update product
-router.put("/products/:id", async (req: Request, res: Response) => {
+router.put("/products/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const productData = req.body;
@@ -143,6 +147,10 @@ router.put("/products/:id", async (req: Request, res: Response) => {
       {
         $set: {
           ...productData,
+          category: productData.category !== undefined
+            ? normalizeProductCategory(productData.categoryName || productData.category)
+            : undefined,
+          categoryName: productData.categoryName || productData.category || undefined,
           price: productData.price !== undefined ? Number(productData.price) : undefined,
           originalPrice: productData.mrp !== undefined ? Number(productData.mrp) : (productData.originalPrice !== undefined ? Number(productData.originalPrice) : undefined),
           stock: productData.stock !== undefined ? Number(productData.stock) : undefined,
@@ -153,7 +161,9 @@ router.put("/products/:id", async (req: Request, res: Response) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "PRODUCT_UPDATED", id, timestamp: Date.now() });
+      const event = { action: "UPDATED", id, timestamp: Date.now() };
+      io.emit("product:updated", event);
+      io.emit("catalog_updated", { type: "PRODUCT_UPDATED", ...event });
     }
 
     return res.status(200).json(updated);
@@ -164,14 +174,16 @@ router.put("/products/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/ecommerce/products/:id - Admin delete product
-router.delete("/products/:id", async (req: Request, res: Response) => {
+router.delete("/products/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await Product.findOneAndDelete({ $or: [{ id }, { _id: id }] });
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "PRODUCT_DELETED", id, timestamp: Date.now() });
+      const event = { action: "DELETED", id, timestamp: Date.now() };
+      io.emit("product:updated", event);
+      io.emit("catalog_updated", { type: "PRODUCT_DELETED", ...event });
     }
 
     return res.status(200).json({ success: true, message: "Product deleted successfully" });

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { UploadCloud, Image as ImageIcon, X, Link, Check, Sparkles } from "lucide-react";
+import apiClient from "../api/apiClient";
 
 interface ImageUploadPickerProps {
   value: string;
@@ -14,13 +15,15 @@ export default function ImageUploadPicker({
   label = "Service / Product Image",
   placeholderText = "Upload image from Phone Gallery / Files or paste URL",
 }: ImageUploadPickerProps) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [activeTab, setActiveTab] = useState<"UPLOAD" | "URL">(
     value && value.startsWith("http") && !value.startsWith("data:") ? "URL" : "UPLOAD"
   );
   const [urlInput, setUrlInput] = useState(value && !value.startsWith("data:") ? value : "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -35,12 +38,30 @@ export default function ImageUploadPicker({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      onChange(result);
-    };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    setUploadError("");
+    try {
+      const { data: signature } = await apiClient.post("/media/cloudinary-signature");
+      const body = new FormData();
+      body.append("file", file);
+      body.append("api_key", signature.apiKey);
+      body.append("timestamp", String(signature.timestamp));
+      body.append("folder", signature.folder);
+      body.append("signature", signature.signature);
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloudName)}/image/upload`, {
+        method: "POST",
+        body,
+      });
+      const result = await response.json();
+      if (!response.ok || !result.secure_url) {
+        throw new Error(result.error?.message || "Cloudinary rejected this image");
+      }
+      onChange(result.secure_url);
+    } catch (error: any) {
+      setUploadError(error?.message || "Image upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleUrlSubmit = () => {
@@ -105,6 +126,9 @@ export default function ImageUploadPicker({
             src={value}
             alt="Preview"
             className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm bg-white"
+            onError={(event) => {
+              event.currentTarget.src = "/brand-logo.png";
+            }}
           />
           <div className="flex-1 min-w-0">
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -117,9 +141,10 @@ export default function ImageUploadPicker({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
                 className="text-[11px] font-bold text-blue-600 hover:underline"
               >
-                Change Photo
+                {uploading ? "Uploading..." : "Change Photo"}
               </button>
             </div>
           </div>
@@ -142,7 +167,7 @@ export default function ImageUploadPicker({
             <UploadCloud size={20} />
           </div>
           <span className="text-xs font-black text-slate-800">
-            Click to Select from Gallery / File Manager
+            {uploading ? "Uploading image..." : "Click to Select from Gallery / File Manager"}
           </span>
           <span className="text-[10px] text-slate-500 mt-0.5">
             Supports PNG, JPG, JPEG, WebP from phone or computer (Max 5MB)
@@ -167,6 +192,7 @@ export default function ImageUploadPicker({
           </button>
         </div>
       )}
+      {uploadError ? <p role="alert" className="text-xs font-medium text-red-600">{uploadError}</p> : null}
     </div>
   );
 }

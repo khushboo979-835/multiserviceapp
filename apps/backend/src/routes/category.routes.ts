@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { CategoryModel } from "../models/Category";
+import { requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
 
@@ -487,33 +488,14 @@ const SEED_CATEGORIES = [
  */
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    let categories = await CategoryModel.find({ isActive: true }).sort({ orderIndex: 1 }).lean();
-
-    // If database is empty, seed with all default 15 categories
-    if (!categories || categories.length === 0) {
-      try {
-        await CategoryModel.insertMany(SEED_CATEGORIES);
-        categories = await CategoryModel.find({ isActive: true }).sort({ orderIndex: 1 }).lean();
-      } catch (seedErr) {
-        console.warn("Seeding error:", seedErr);
-      }
-    }
-
-    const result = (categories && categories.length > 0) ? categories.map((c) => ({
+    const categories = await CategoryModel.find({ isActive: true }).sort({ orderIndex: 1 }).lean();
+    const result = categories.map((c) => ({
       id: c.categoryId || (c as any)._id?.toString(),
       name: c.name,
       slug: c.slug,
       description: c.description,
       imageUrl: c.imageUrl,
       subcategories: c.subcategories || [],
-      isActive: c.isActive,
-    })) : SEED_CATEGORIES.map((c) => ({
-      id: c.categoryId,
-      name: c.name,
-      slug: c.slug,
-      description: c.description,
-      imageUrl: c.imageUrl,
-      subcategories: c.subcategories,
       isActive: c.isActive,
     }));
 
@@ -523,19 +505,8 @@ router.get("/", async (_req: Request, res: Response) => {
       categories: result,
     });
   } catch (error: any) {
-    return res.status(200).json({
-      success: true,
-      count: SEED_CATEGORIES.length,
-      categories: SEED_CATEGORIES.map((c) => ({
-        id: c.categoryId,
-        name: c.name,
-        slug: c.slug,
-        description: c.description,
-        imageUrl: c.imageUrl,
-        subcategories: c.subcategories,
-        isActive: c.isActive,
-      })),
-    });
+    console.error("Category list error:", error);
+    return res.status(503).json({ success: false, message: "Unable to load categories from the database" });
   }
 });
 
@@ -573,7 +544,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 /**
  * POST /api/categories (Admin Dynamic Future Service Addition)
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id, name, slug, description, imageUrl, iconName, basePrice, subcategories, fields, isActive } = req.body;
 
@@ -643,7 +614,10 @@ router.post("/", async (req: Request, res: Response) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "CATEGORY_CREATED", id: categoryId, timestamp: Date.now() });
+      const event = { action: "CREATED", id: categoryId, timestamp: Date.now() };
+      io.emit("category:updated", event);
+      io.emit("service:updated", event);
+      io.emit("catalog_updated", { type: "CATEGORY_CREATED", ...event });
     }
 
     return res.status(201).json({
@@ -659,7 +633,7 @@ router.post("/", async (req: Request, res: Response) => {
 /**
  * PUT /api/categories/:id (Admin Update Service Category & Pricing)
  */
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, slug, description, imageUrl, iconName, basePrice, subcategories, fields, isActive } = req.body;
@@ -732,7 +706,10 @@ router.put("/:id", async (req: Request, res: Response) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "CATEGORY_UPDATED", id: categoryId, timestamp: Date.now() });
+      const event = { action: "UPDATED", id: categoryId, timestamp: Date.now() };
+      io.emit("category:updated", event);
+      io.emit("service:updated", event);
+      io.emit("catalog_updated", { type: "CATEGORY_UPDATED", ...event });
     }
 
     return res.status(200).json({
@@ -748,7 +725,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 /**
  * DELETE /api/categories/:id (Admin Delete Category)
  */
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await CategoryModel.findOneAndDelete({
@@ -757,7 +734,10 @@ router.delete("/:id", async (req: Request, res: Response) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("catalog_updated", { type: "CATEGORY_DELETED", id, timestamp: Date.now() });
+      const event = { action: "DELETED", id, timestamp: Date.now() };
+      io.emit("category:updated", event);
+      io.emit("service:updated", event);
+      io.emit("catalog_updated", { type: "CATEGORY_DELETED", ...event });
     }
 
     return res.status(200).json({

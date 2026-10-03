@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   View,
   Text,
@@ -14,15 +15,16 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
-import { io } from "socket.io-client";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
-import { MOCK_CATEGORIES, MOCK_PRODUCTS, MOCK_COUPONS } from "../../../src/constants/mockData";
+import { MOCK_COUPONS } from "../../../src/constants/mockData";
 import { Category, Subcategory, Booking, BookingStatus } from "../../../src/types";
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import SafeImage from "../../../src/components/common/SafeImage";
+import { catalogKeys, fetchCatalogBanners, fetchCatalogCategories, fetchCatalogProducts } from "../../../src/api/catalog";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
@@ -89,33 +91,6 @@ import {
   Truck,
 } from "lucide-react-native";
 
-const BANNER_SLIDES = [
-  {
-    id: "banner_1",
-    tag: "INISHA",
-    title: "Professional Services at\nYour Doorstep | Book Now",
-    buttonText: "Book Now",
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
-    action: "SERVICES",
-  },
-  {
-    id: "banner_2",
-    tag: "BEST DEALS",
-    title: "Best Deals on Mobiles &\nAccessories | Fast Delivery",
-    buttonText: "Shop Deals",
-    image: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&q=80",
-    action: "STORE",
-  },
-  {
-    id: "banner_3",
-    tag: "INSTANT GROCERY",
-    title: "Grocery & Daily Needs\nDelivered in 20 Mins",
-    buttonText: "Order Now",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80",
-    action: "STORE",
-  },
-];
-
 const SUGGESTIONS = [
   "Electrician",
   "Parlour",
@@ -123,80 +98,6 @@ const SUGGESTIONS = [
   "Grocery",
   "AC Repair",
   "Cleaning",
-];
-
-const POPULAR_SERVICES_DATA = [
-  {
-    id: "pop_clean",
-    name: "Deep Home Cleaning",
-    rating: 4.8,
-    price: 799,
-    subtitle: "Availability is only",
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80",
-    categoryId: "cat_cleaning",
-  },
-  {
-    id: "pop_salon",
-    name: "Salon for Women",
-    rating: 4.8,
-    price: 799,
-    subtitle: "Availability is only",
-    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80",
-    categoryId: "cat_salon",
-  },
-  {
-    id: "pop_ac",
-    name: "AC Repair & Service",
-    rating: 4.8,
-    price: 799,
-    subtitle: "Doorstep technician",
-    image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80",
-    categoryId: "cat_ac_repair",
-  },
-  {
-    id: "pop_mobile",
-    name: "Mobile Screen Repair",
-    rating: 4.9,
-    price: 499,
-    subtitle: "Doorstep in 60 Mins",
-    image: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80",
-    categoryId: "cat_mobile",
-  },
-];
-
-const TOP_DEALS_DATA = [
-  {
-    id: "deal_1",
-    name: "Wireless Earbuds",
-    originalPrice: 1599,
-    price: 299,
-    discount: "15% OFF",
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80",
-  },
-  {
-    id: "deal_2",
-    name: "Fresh Organic Fruits",
-    originalPrice: 1000,
-    price: 199,
-    discount: "15% OFF",
-    image: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=500&q=80",
-  },
-  {
-    id: "deal_3",
-    name: "Smartphone Case",
-    originalPrice: 1699,
-    price: 279,
-    discount: "63% OFF",
-    image: "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=500&q=80",
-  },
-  {
-    id: "deal_4",
-    name: "65W Fast Charger",
-    originalPrice: 1499,
-    price: 699,
-    discount: "53% OFF",
-    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=500&q=80",
-  },
 ];
 
 export default function CustomerHomeScreen() {
@@ -211,7 +112,12 @@ export default function CustomerHomeScreen() {
     addBookingToHistory,
   } = useBookingStore();
 
-  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
+  const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: fetchCatalogCategories, staleTime: 0 });
+  const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: fetchCatalogBanners, staleTime: 0 });
+  const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
+  const categories = categoriesQuery.data ?? [];
+  const banners = bannersQuery.data ?? [];
+  const topDeals = (productsQuery.data ?? []).slice(0, 4);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
@@ -242,162 +148,15 @@ export default function CustomerHomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // 1. Fetch live categories from backend & Firestore
-  const fetchCategories = async () => {
-    try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
-      const res = await fetch(`${API_URL}/categories`);
-      if (res.ok) {
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (Array.isArray(data.categories) ? data.categories : []);
-        if (list.length > 0) {
-          const mapped: Category[] = list.map((c: any) => ({
-            id: c.id || c.categoryId,
-            name: c.name,
-            slug: c.slug || c.id,
-            description: c.description || "",
-            imageUrl: c.imageUrl || c.iconName || "sparkles",
-            isActive: c.isActive !== false,
-            subcategories: Array.isArray(c.subcategories) && c.subcategories.length > 0
-              ? c.subcategories.map((s: any) => ({
-                  id: s.id || `sub_${c.id}`,
-                  categoryId: c.id || c.categoryId,
-                  name: s.name || c.name,
-                  slug: s.slug || `sub_${c.id}`,
-                  description: s.description || c.description || "Certified professional doorstep service",
-                  basePrice: Number(s.basePrice) || 399,
-                  imageUrl: s.imageUrl || c.imageUrl || "sparkles",
-                  formConfig: s.formConfig || { fields: [] },
-                }))
-              : [
-                  {
-                    id: `sub_${c.id || c.categoryId}`,
-                    categoryId: c.id || c.categoryId,
-                    name: `${c.name} Standard Service`,
-                    slug: `sub_${c.id || c.categoryId}`,
-                    description: c.description || "Certified professional doorstep service",
-                    basePrice: Number(c.basePrice) || 399,
-                    imageUrl: c.imageUrl || "sparkles",
-                    formConfig: {
-                      fields: [
-                        { id: "details", label: "Requirement Details", type: "TEXT", validation: { required: true } },
-                        { id: "visit_slot", label: "Service Slot", type: "TIME_SLOT", validation: { required: true } },
-                        { id: "address", label: "Doorstep Address", type: "ADDRESS_GPS", validation: { required: true } },
-                      ],
-                    },
-                  },
-                ],
-          }));
-          setCategories(mapped);
-        }
-      }
-    } catch (err) {
-      console.log("Categories API load error:", err);
-    }
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchCategories();
+    await Promise.all([categoriesQuery.refetch(), bannersQuery.refetch()]);
     setRefreshing(false);
   };
 
-  // Auto-sync whenever screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchCategories();
-    }, [])
-  );
-
   useEffect(() => {
-    fetchCategories();
-
-    // 1. Live Socket.io event listener for instant zero-latency admin updates
-    const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
-    const socket = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 10,
-    });
-
-    socket.on("catalog_updated", () => {
-      fetchCategories();
-    });
-
-    // 2. High-frequency background polling (every 4 seconds) to guarantee sync
-    const syncInterval = setInterval(() => {
-      fetchCategories();
-    }, 4000);
-
-    // 3. Firebase Firestore backup listener
-    let unsubCat = () => {};
     let unsubNotif = () => {};
     try {
-      unsubCat = onSnapshot(collection(db, "categories"), (snap) => {
-        if (!snap.empty) {
-          const liveCats: Category[] = [];
-          snap.forEach((docSnap) => {
-            const d = docSnap.data();
-            const formFields = Array.isArray(d.fields) ? d.fields : (d.formConfig?.fields || []);
-            const mappedFields = formFields.map((f: any) => ({
-              id: f.id || `f_${Math.random().toString(36).substring(2, 7)}`,
-              label: f.label || "Requirement",
-              type: f.type || "TEXT",
-              validation: { required: f.required ?? true },
-              options: f.options || undefined,
-              placeholder: f.placeholder || undefined,
-            }));
-
-            liveCats.push({
-              id: docSnap.id,
-              name: d.name || "Service",
-              slug: d.slug || docSnap.id,
-              isActive: d.isActive ?? true,
-              imageUrl: d.imageUrl || d.iconName || "sparkles",
-              description: d.description || "",
-              subcategories: d.subcategories || [
-                {
-                  id: `sub_${docSnap.id}`,
-                  categoryId: docSnap.id,
-                  name: d.name || "Doorstep Service",
-                  slug: `sub_${docSnap.id}`,
-                  description: d.description || "Certified doorstep professional service",
-                  basePrice: d.basePrice || 499,
-                  imageUrl: d.imageUrl || d.iconName || "sparkles",
-                  formConfig: {
-                    fields: mappedFields.length > 0 ? mappedFields : [
-                      {
-                        id: "details",
-                        label: "Requirement Details",
-                        type: "TEXT",
-                        placeholder: "Describe issue / requirement...",
-                        validation: { required: true },
-                      },
-                      {
-                        id: "visit_slot",
-                        label: "Service Slot",
-                        type: "TIME_SLOT",
-                        validation: { required: true },
-                      },
-                      {
-                        id: "address",
-                        label: "Doorstep Address",
-                        type: "ADDRESS_GPS",
-                        validation: { required: true },
-                      },
-                    ],
-                  },
-                },
-              ],
-            });
-          });
-          if (liveCats.length > 0) {
-            setCategories(liveCats);
-          }
-        }
-      });
-
       unsubNotif = onSnapshot(
         query(collection(db, "broadcast_notifications"), orderBy("sentAt", "desc"), limit(1)),
         (snap) => {
@@ -412,12 +171,13 @@ export default function CustomerHomeScreen() {
     } catch {}
 
     return () => {
-      clearInterval(syncInterval);
-      socket.disconnect();
-      unsubCat();
       unsubNotif();
     };
   }, []);
+
+  useEffect(() => {
+    setActiveBannerIndex((index) => Math.min(index, Math.max(0, banners.length - 1)));
+  }, [banners.length]);
 
   // Fetch real device GPS coordinates on mount
   useEffect(() => {
@@ -773,7 +533,7 @@ export default function CustomerHomeScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </View>
 
-        {/* 3. Hero Carousel Banners (Matching Image 1) */}
+        {/* 3. Admin-managed hero carousel */}
         <View style={styles.bannerCarouselContainer}>
           <ScrollView
             horizontal
@@ -787,32 +547,33 @@ export default function CustomerHomeScreen() {
             }}
             scrollEventThrottle={16}
           >
-            {BANNER_SLIDES.map((banner) => (
+            {banners.map((banner) => (
               <View key={banner.id} style={styles.bannerSlideCard}>
                 <View style={styles.bannerTextContent}>
                   <Text style={styles.bannerTagText}>{banner.tag}</Text>
                   <Text style={styles.bannerTitleText}>{banner.title}</Text>
                   <TouchableOpacity
                     onPress={() => {
-                      if (banner.action === "STORE") setIsStoreOpen(true);
+                      const target = banner.targetCategory.toLowerCase();
+                      if (target.includes("store") || target.includes("product") || target.includes("grocery")) setIsStoreOpen(true);
                       else setIsAllServicesOpen(true);
                     }}
                     style={styles.bannerActionBtn}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.bannerActionBtnText}>{banner.buttonText}</Text>
+                    <Text style={styles.bannerActionBtnText}>Explore</Text>
                   </TouchableOpacity>
                 </View>
-                <Image source={{ uri: banner.image }} style={styles.bannerImage} />
+                <SafeImage uri={banner.imageUrl} style={styles.bannerImage} />
               </View>
             ))}
           </ScrollView>
 
           {/* Dots Pagination */}
           <View style={styles.dotsPagination}>
-            {BANNER_SLIDES.map((_, idx) => (
+            {banners.map((banner, idx) => (
               <View
-                key={idx}
+                key={banner.id}
                 style={[
                   styles.dotItem,
                   activeBannerIndex === idx && styles.dotItemActive,
@@ -822,7 +583,7 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* 4. Explore Categories: Dynamic Grid with Real-time Firestore categories */}
+        {/* 4. Explore Categories: MongoDB-backed live catalog */}
         <View style={styles.exploreSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Explore Categories</Text>
@@ -883,7 +644,7 @@ export default function CustomerHomeScreen() {
                   >
                     <View style={[styles.circularIconBox, { backgroundColor: bgColor }]}>
                       {cat.imageUrl && (cat.imageUrl.startsWith("http://") || cat.imageUrl.startsWith("https://") || cat.imageUrl.startsWith("data:image")) ? (
-                        <Image source={{ uri: cat.imageUrl }} style={{ width: 26, height: 26, borderRadius: 6 }} resizeMode="cover" />
+                        <SafeImage uri={cat.imageUrl} style={{ width: 26, height: 26, borderRadius: 6 }} resizeMode="cover" />
                       ) : norm.includes("salon") || norm.includes("parlour") || norm.includes("beauty") ? (
                         <Scissors size={24} color={iconColor} />
                       ) : norm.includes("elec") || norm.includes("zap") ? (
@@ -944,7 +705,7 @@ export default function CustomerHomeScreen() {
 
               return (
                 <View key={cat.id} style={styles.popularServiceCard}>
-                  <Image source={{ uri: imgUri }} style={styles.popularServiceImg} />
+                  <SafeImage uri={imgUri} style={styles.popularServiceImg} />
                   <View style={styles.popularServiceContent}>
                     <Text style={styles.popularServiceName} numberOfLines={1}>
                       {cat.name}
@@ -982,12 +743,12 @@ export default function CustomerHomeScreen() {
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {TOP_DEALS_DATA.map((deal) => (
+            {topDeals.map((deal) => (
               <View key={deal.id} style={styles.topDealCard}>
-                <Image source={{ uri: deal.image }} style={styles.topDealImg} />
-                {deal.discount && (
+                <SafeImage uri={deal.imageUrl} style={styles.topDealImg} />
+                {deal.discountPercentage > 0 && (
                   <View style={styles.dealDiscountBadge}>
-                    <Text style={styles.dealDiscountText}>{deal.discount}</Text>
+                    <Text style={styles.dealDiscountText}>{deal.discountPercentage}% OFF</Text>
                   </View>
                 )}
 
@@ -995,7 +756,7 @@ export default function CustomerHomeScreen() {
                   <Text style={styles.topDealName} numberOfLines={1}>
                     {deal.name}
                   </Text>
-                  <Text style={styles.dealOriginalPrice}>₹{deal.originalPrice}</Text>
+                  {deal.originalPrice > deal.price ? <Text style={styles.dealOriginalPrice}>₹{deal.originalPrice}</Text> : null}
 
                   <View style={styles.topDealBottomRow}>
                     <Text style={styles.dealFinalPrice}>₹{deal.price}</Text>
@@ -1282,7 +1043,9 @@ export default function CustomerHomeScreen() {
       <InAppAdminPortalModal
         visible={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
-        onAddCategory={(newCat) => setCategories([newCat, ...categories])}
+        onAddCategory={() => {
+          void categoriesQuery.refetch();
+        }}
       />
 
       <AllServicesModal

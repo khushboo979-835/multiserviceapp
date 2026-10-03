@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import crypto from "crypto";
 import { Booking } from "../models/Booking";
 import { ProviderProfile } from "../models/ProviderProfile";
 
@@ -28,7 +29,7 @@ export const createBooking = async (req: Request, res: Response) => {
       scheduledTime,
     } = req.body;
 
-    const startServiceOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const startServiceOtp = crypto.randomInt(1000, 10000).toString();
 
     // Look for available online provider
     const availableProvider = await ProviderProfile.findOne({
@@ -97,41 +98,7 @@ export const getBookingById = async (req: Request, res: Response) => {
     let booking = await Booking.findById(id).catch(() => null);
 
     if (!booking) {
-      // Mock active booking fallback for testing
-      const cachedTelemetry = telemetryStore.get(id);
-      return res.status(200).json({
-        success: true,
-        booking: {
-          _id: id,
-          id,
-          customerName: "Amrita Sen",
-          customerPhone: "+91 98765 43210",
-          providerId: "INP-8842",
-          providerName: "Rohan Sharma",
-          providerPhone: "+91 98123 45678",
-          subcategoryId: "sub_mob_doorstep",
-          selectedAddress: {
-            formattedAddress: "Cyber City, DLF Phase 2, Gurugram",
-            latitude: 28.4905,
-            longitude: 77.0898,
-          },
-          providerCoords: cachedTelemetry || {
-            latitude: 28.4985,
-            longitude: 77.0945,
-            heading: 185,
-            updatedAt: new Date(),
-          },
-          status: "EN_ROUTE",
-          startServiceOtp: "8421",
-          pricing: {
-            finalAmount: 499,
-          },
-          timeline: [
-            { status: "ASSIGNED", timestamp: new Date(Date.now() - 10 * 60000) },
-            { status: "EN_ROUTE", timestamp: new Date(Date.now() - 4 * 60000) },
-          ],
-        },
-      });
+      return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
     // Merge latest memory telemetry if available
@@ -218,12 +185,7 @@ export const verifyStartOtp = async (req: Request, res: Response) => {
 
     let isValid = false;
     if (booking) {
-      if (
-        booking.startServiceOtp === cleanOtp ||
-        booking.otp === cleanOtp ||
-        cleanOtp === "1234" ||
-        cleanOtp === "8421"
-      ) {
+      if ((booking.startServiceOtp && booking.startServiceOtp === cleanOtp) || (booking.otp && booking.otp === cleanOtp)) {
         isValid = true;
         booking.status = "IN_PROGRESS";
         booking.timeline.push({
@@ -232,11 +194,6 @@ export const verifyStartOtp = async (req: Request, res: Response) => {
           note: "Doorstep OTP verified by technician. Work started.",
         });
         await booking.save();
-      }
-    } else {
-      // Mock acceptance for demo IDs
-      if (cleanOtp === "1234" || cleanOtp === "8421" || cleanOtp.length === 4) {
-        isValid = true;
       }
     }
 

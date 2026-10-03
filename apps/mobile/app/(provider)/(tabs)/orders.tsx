@@ -7,6 +7,7 @@ import { Clock, MapPin, ShieldAlert, ArrowRight, MessageSquare, CheckCircle2, Us
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ChatModal from "../../../src/components/chat/ChatModal";
 import BrandLogo from "../../../src/components/common/BrandLogo";
+import { fetchWithTimeout } from "../../../src/api/fetchWithTimeout";
 import { db } from "../../../src/config/firebase";
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, setDoc } from "firebase/firestore";
 
@@ -109,16 +110,35 @@ export default function ProviderOrdersScreen() {
     }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     if (!activeBooking) return;
+    if (enteredOtp.trim().length !== 4) {
+      setOtpError("Enter the complete 4-digit code provided by the customer.");
+      return;
+    }
 
-    if (enteredOtp.trim() === (activeBooking.otp || "1234") || enteredOtp.trim() === "123456" || enteredOtp.trim() === "5273") {
-      setOtpError("");
+    setLoading(true);
+    setOtpError("");
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+      const response = await fetchWithTimeout(`${apiUrl}/bookings/${encodeURIComponent(activeBooking.id)}/verify-start-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: enteredOtp.trim() }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.success !== true) {
+        setOtpError(data?.message || "Incorrect verification code. Ask the customer for the current code.");
+        return;
+      }
+
       setOtpModalVisible(false);
       setEnteredOtp("");
-      handleUpdateStatus("IN_PROGRESS", "Service OTP verified by provider. Work in progress.");
-    } else {
-      setOtpError("Incorrect verification code. Ask customer for the code.");
+      await handleUpdateStatus("IN_PROGRESS", "Service OTP verified by provider. Work in progress.");
+    } catch (error: any) {
+      setOtpError(error?.name === "AbortError" ? "Verification timed out. Check the connection and retry." : "Could not verify the code. Check the connection and retry.");
+    } finally {
+      setLoading(false);
     }
   };
 

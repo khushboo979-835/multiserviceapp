@@ -36,6 +36,7 @@ import { useCartStore } from "../../../src/store/useCartStore";
 import { MOCK_COUPONS } from "../../../src/constants/mockData";
 import { Coupon } from "../../../src/types";
 import InishaHeader from "../../../src/components/common/InishaHeader";
+import SafeImage from "../../../src/components/common/SafeImage";
 
 const { width } = Dimensions.get("window");
 
@@ -198,11 +199,7 @@ export default function CartScreen() {
                 index < items.length - 1 && styles.itemRowBorder,
               ]}
             >
-              <Image
-                source={{ uri: item.product.imageUrl }}
-                style={styles.itemImg}
-                resizeMode="cover"
-              />
+              <SafeImage uri={item?.product?.imageUrl} style={styles.itemImg} resizeMode="cover" />
 
               <View style={styles.itemInfo}>
                 <Text style={styles.itemUnit}>{item.product.unit}</Text>

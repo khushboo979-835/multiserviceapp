@@ -14,6 +14,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import { fetchWithTimeout } from "../../../src/api/fetchWithTimeout";
 import {
   ArrowLeft,
   Navigation,
@@ -132,35 +133,24 @@ export default function ProviderActiveJobScreen() {
     setError("");
 
     try {
-      const API_URL =
-        process.env.EXPO_PUBLIC_API_URL || "http://10.245.65.61:5000/api";
-      const res = await fetch(`${API_URL}/bookings/${id}/verify-start-otp`, {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+      const res = await fetchWithTimeout(`${API_URL}/bookings/${encodeURIComponent(String(id))}/verify-start-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ otp: otp.trim() }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok && data.success) {
         setBooking((prev) => ({ ...prev, status: "IN_PROGRESS" }));
         Alert.alert("✅ OTP Verified!", "Doorstep work has officially started.");
       } else {
-        // Fallback test acceptance
-        if (otp === "1234" || otp === "8421") {
-          setBooking((prev) => ({ ...prev, status: "IN_PROGRESS" }));
-          Alert.alert("✅ OTP Verified!", "Doorstep work has officially started.");
-        } else {
-          setError(data.message || "Invalid OTP code. Please verify with customer.");
-        }
+        setError(data?.message || "Invalid OTP code. Please verify with customer.");
       }
-    } catch {
-      // Offline fallback
-      if (otp === "1234" || otp === "8421" || otp.length === 4) {
-        setBooking((prev) => ({ ...prev, status: "IN_PROGRESS" }));
-        Alert.alert("✅ OTP Verified!", "Doorstep work has officially started.");
-      } else {
-        setError("Verification failed. Check network connection.");
-      }
+    } catch (error: any) {
+      setError(error?.name === "AbortError"
+        ? "Verification timed out. Check the connection and retry."
+        : "Verification failed. Check network connection.");
     } finally {
       setVerifyingOtp(false);
     }
@@ -298,7 +288,7 @@ export default function ProviderActiveJobScreen() {
 
             <View style={styles.otpInputRow}>
               <TextInput
-                placeholder="4-digit OTP (e.g. 8421)"
+                placeholder="4-digit OTP"
                 placeholderTextColor="#94a3b8"
                 keyboardType="number-pad"
                 maxLength={4}

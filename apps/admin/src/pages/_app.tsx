@@ -34,11 +34,38 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [apkModalOpen, setApkModalOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    if (router.pathname === "/login") {
+      if (localStorage.getItem("admin_token")) {
+        router.replace("/dashboard");
+      }
+      setAuthChecked(true);
+      return;
+    }
+
+    if (!localStorage.getItem("admin_token")) {
+      setAuthChecked(false);
+      router.replace("/login");
+      return;
+    }
+
+    setAuthChecked(true);
+  }, [router.isReady, router.pathname]);
 
   // Auto-close mobile drawer on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [router.pathname]);
+
+  if (router.pathname === "/login") {
+    return <Component {...pageProps} />;
+  }
+
+  if (!authChecked) return null;
 
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -131,7 +158,7 @@ export default function App({ Component, pageProps }: AppProps) {
               onClick={() => {
                 if (typeof window !== "undefined") {
                   localStorage.removeItem("admin_token");
-                  router.push("/");
+                  router.push("/login");
                 }
               }}
               className="flex items-center gap-2.5 px-3.5 py-2.5 text-slate-600 hover:text-red-600 cursor-pointer rounded-xl hover:bg-red-50 transition-all duration-200"

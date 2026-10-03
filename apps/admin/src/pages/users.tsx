@@ -370,7 +370,7 @@ export default function UserManagementPage() {
 Hello *${user.name}*, your customer account is now active!
 
 📱 *Login Mobile:* +91 ${cleanNumber}
-🔑 *Password / OTP:* ${pass} (or instant OTP: 123456)
+🔑 *Password / OTP:* ${pass}
 💰 *Wallet Balance:* ₹${user.walletBalance}
 📲 *Open Customer Portal:* https://multiserviceapp-mobile.vercel.app
 
@@ -868,13 +868,6 @@ Book 15+ verified home repair & doorstep services anytime.`;
                 </span>
               </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Instant OTP Code</span>
-                <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  123456
-                </span>
-              </div>
-
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Wallet Balance</span>
                 <span className="text-xs font-mono font-black text-emerald-700">₹{createdUserSuccess.walletBalance}</span>
@@ -890,7 +883,6 @@ Book 15+ verified home repair & doorstep services anytime.`;
 Name: ${createdUserSuccess.name}
 Phone/Login ID: ${createdUserSuccess.phone}
 Password: ${pass}
-OTP Code: 123456
 Wallet Balance: ₹${createdUserSuccess.walletBalance}
 App Link: https://multiserviceapp-mobile.vercel.app`;
                   copyToClipboard(text, "all");
@@ -996,17 +988,6 @@ App Link: https://multiserviceapp-mobile.vercel.app`;
                 </button>
               </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                <div>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Instant OTP Bypass Code
-                  </span>
-                  <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5">
-                    123456
-                  </span>
-                </div>
-              </div>
-
               <div className="flex justify-between items-center">
                 <div>
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
@@ -1028,7 +1009,6 @@ App Link: https://multiserviceapp-mobile.vercel.app`;
 Name: ${viewCredentialsUser.name}
 Phone/Login: ${viewCredentialsUser.phone}
 Password: ${pass}
-OTP Code: 123456
 Wallet Balance: ₹${viewCredentialsUser.walletBalance}
 App Link: https://multiserviceapp-mobile.vercel.app`;
                   copyToClipboard(text, "all");

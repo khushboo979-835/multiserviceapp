@@ -252,7 +252,7 @@ export default function TrackBookingScreen() {
                   <Text style={styles.otpSubtitle}>Share with partner upon doorstep arrival</Text>
                 </View>
               </View>
-              <Text style={styles.otpCode}>{activeBooking.otp || "5273"}</Text>
+              <Text style={styles.otpCode}>{activeBooking.otp || "Pending"}</Text>
             </View>
           )}
 

@@ -27,6 +27,7 @@ import {
 } from "lucide-react-native";
 import { PricingDetail, PaymentMethod } from "../../types";
 import { PaymentService } from "../../services/payment.service";
+import SafeImage from "../common/SafeImage";
 
 interface PaymentModalProps {
   visible: boolean;
@@ -208,11 +209,7 @@ export default function PaymentModal({
 
               {/* QR Image Visual */}
               <View style={styles.qrImageBox}>
-                <Image
-                  source={{ uri: qrImageUrl }}
-                  style={styles.qrImage}
-                  resizeMode="contain"
-                />
+                <SafeImage uri={qrImageUrl} style={styles.qrImage} resizeMode="contain" />
               </View>
 
               {/* Company UPI ID with Copy Button */}

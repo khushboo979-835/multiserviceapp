@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowRight, ShieldCheck, Sparkles, Briefcase, ShoppingBag } from "lucide-react-native";
 import BrandLogo from "../../src/components/common/BrandLogo";
+import { fetchWithTimeout } from "../../src/api/fetchWithTimeout";
 
 const { width } = Dimensions.get("window");
 
@@ -73,29 +74,35 @@ export default function LoginScreen() {
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
 
     try {
-      await fetch(`${API_URL}/auth/customer/send-otp`, {
+      const response = await fetchWithTimeout(`${API_URL}/auth/customer/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone: cleanNumber,
           phoneNumber: formattedE164,
         }),
+      }, 45000);
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || data?.success !== true) {
+        setError(data?.message || "Could not send an OTP. Please try again.");
+        return;
+      }
+
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: {
+          phone: cleanNumber,
+          fullPhone: formattedE164,
+        },
       });
     } catch (err: any) {
       console.warn("[SMS dispatch notice]:", err?.message);
+      setError(err?.name === "AbortError"
+        ? "The SMS service took too long to respond. Please retry."
+        : "Could not connect to the SMS service. Check your connection and try again.");
     } finally {
       setLoading(false);
-      try {
-        router.push({
-          pathname: "/(auth)/verify-otp",
-          params: {
-            phone: cleanNumber,
-            fullPhone: formattedE164,
-          },
-        });
-      } catch (navErr) {
-        console.warn("Navigation fallback:", navErr);
-      }
     }
   };
 

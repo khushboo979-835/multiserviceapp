@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  Image,
 } from "react-native";
 import {
   X,
@@ -28,6 +27,7 @@ import {
   Truck,
 } from "lucide-react-native";
 import { Category, Subcategory } from "../../types";
+import SafeImage from "../common/SafeImage";
 
 interface AllServicesModalProps {
   visible: boolean;
@@ -40,11 +40,7 @@ interface AllServicesModalProps {
 const getCategoryIcon = (iconName: string, imageUrl: string | undefined, color: string, size: number) => {
   if (imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://") || imageUrl.startsWith("data:image"))) {
     return (
-      <Image
-        source={{ uri: imageUrl }}
-        style={{ width: size + 4, height: size + 4, borderRadius: 8 }}
-        resizeMode="cover"
-      />
+      <SafeImage uri={imageUrl} style={{ width: size + 4, height: size + 4, borderRadius: 8 }} resizeMode="cover" />
     );
   }
 

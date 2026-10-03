@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("admin_token");
-        window.location.href = "/";
+        window.location.href = "/login";
       }
       return Promise.reject(error);
     }

@@ -280,6 +280,19 @@ export interface MobileBrand {
   repairs: { name: string; price: number }[];
 }
 
+export interface ProductVariant {
+  name: string;
+  options: string[];
+  price?: number;
+  mrp?: number;
+  image?: string;
+}
+
+export interface ProductSpecification {
+  label: string;
+  value: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -288,13 +301,20 @@ export interface Product {
   description: string;
   price: number;
   originalPrice: number;
+  mrp?: number;
   discountPercentage: number;
   unit: string;
   imageUrl: string;
+  images?: string[];
   inStock: boolean;
+  stock?: number;
   rating: number;
+  ratingsCount?: number;
   deliveryTimeMins: number;
+  sellerName?: string;
   brand?: string;
+  variants?: ProductVariant[];
+  specifications?: ProductSpecification[];
 }
 
 export type StoreOrderStatus =

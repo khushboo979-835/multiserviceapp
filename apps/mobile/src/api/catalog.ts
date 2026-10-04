@@ -111,28 +111,67 @@ const productCategory = (value: unknown): ProductTypeCategory => {
   return "MOBILE_ACCESSORIES";
 };
 
+export const normalizeProduct = (item: any, index = 0): Product => {
+  const price = numberOr(item.price, 0);
+  const originalPrice = numberOr(item.originalPrice ?? item.mrp, price);
+  const imageUrl = nonEmptyString(item.imageUrl || (Array.isArray(item.images) && item.images[0]), "");
+  const images = Array.isArray(item.images) && item.images.length > 0
+    ? item.images.filter((img: any) => typeof img === "string" && img.trim())
+    : imageUrl ? [imageUrl] : [];
+
+  const variants = Array.isArray(item.variants)
+    ? item.variants.map((v: any) => ({
+        name: nonEmptyString(v.name, "Option"),
+        options: Array.isArray(v.options) ? v.options.map((o: any) => String(o)) : [],
+        price: v.price !== undefined ? numberOr(v.price, price) : undefined,
+        mrp: v.mrp !== undefined ? numberOr(v.mrp, originalPrice) : undefined,
+        image: typeof v.image === "string" ? v.image : undefined,
+      }))
+    : undefined;
+
+  const specifications = Array.isArray(item.specifications)
+    ? item.specifications.map((s: any) => ({
+        label: nonEmptyString(s.label, ""),
+        value: nonEmptyString(s.value, ""),
+      })).filter((s: any) => s.label && s.value)
+    : undefined;
+
+  return {
+    id: nonEmptyString(item.id || item._id, `product-${index}`),
+    name: nonEmptyString(item.name, "Product"),
+    category: productCategory(item.categoryName || item.category),
+    categoryName: nonEmptyString(item.categoryName || item.category, "General"),
+    description: nonEmptyString(item.description, ""),
+    price,
+    originalPrice,
+    mrp: originalPrice,
+    discountPercentage: numberOr(
+      item.discountPercentage,
+      originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0
+    ),
+    unit: nonEmptyString(item.unit, "1 Unit"),
+    imageUrl: images[0] || imageUrl,
+    images: images.length > 0 ? images : [imageUrl || "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&q=80"],
+    inStock: item.inStock !== false && !(typeof item.stock === "number" && item.stock <= 0),
+    stock: numberOr(item.stock, 100),
+    rating: numberOr(item.rating, 4.8),
+    ratingsCount: numberOr(item.ratingsCount, 120),
+    deliveryTimeMins: numberOr(item.deliveryTimeMins, 30),
+    sellerName: nonEmptyString(item.sellerName, "Inisha Verified Partner"),
+    brand: typeof item.brand === "string" ? item.brand : undefined,
+    variants,
+    specifications,
+  };
+};
+
 export const fetchCatalogProducts = async (): Promise<Product[]> => {
   const list = asList(await fetchJson("/ecommerce/products"), "products");
-  return list.filter((item) => item && typeof item === "object").map((item, index) => {
-    const price = numberOr(item.price, 0);
-    const originalPrice = numberOr(item.originalPrice ?? item.mrp, price);
-    return {
-      id: nonEmptyString(item.id || item._id, `product-${index}`),
-      name: nonEmptyString(item.name, "Product"),
-      category: productCategory(item.categoryName || item.category),
-      categoryName: nonEmptyString(item.categoryName || item.category, "General"),
-      description: nonEmptyString(item.description, ""),
-      price,
-      originalPrice,
-      discountPercentage: numberOr(item.discountPercentage, originalPrice > price ? Math.round((originalPrice - price) / originalPrice * 100) : 0),
-      unit: nonEmptyString(item.unit, "1 Unit"),
-      imageUrl: nonEmptyString(item.imageUrl, ""),
-      inStock: item.inStock !== false && !(typeof item.stock === "number" && item.stock <= 0),
-      rating: numberOr(item.rating, 0),
-      deliveryTimeMins: numberOr(item.deliveryTimeMins, 30),
-      brand: typeof item.brand === "string" ? item.brand : undefined,
-    };
-  });
+  return list.filter((item) => item && typeof item === "object").map((item, index) => normalizeProduct(item, index));
+};
+
+export const fetchProductDetails = async (id: string): Promise<Product> => {
+  const data = await fetchJson(`/ecommerce/products/${encodeURIComponent(id)}`);
+  return normalizeProduct(data);
 };
 
 export const fetchCatalogBanners = async (): Promise<CatalogBanner[]> => {

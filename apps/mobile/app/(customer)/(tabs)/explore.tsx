@@ -245,7 +245,11 @@ export default function ExploreScreen() {
             return (
               <View key={product.id} style={styles.productCard}>
                 {/* Product Image & Badges */}
-                <View style={styles.productImgContainer}>
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/product/${product.id}` as any)}
+                  style={styles.productImgContainer}
+                >
                   <SafeImage uri={product.imageUrl} style={styles.productImg} resizeMode="cover" />
                   {product.discountPercentage > 0 && (
                     <View style={styles.discountBadge}>
@@ -260,14 +264,19 @@ export default function ExploreScreen() {
                       {product.deliveryTimeMins}m
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Product Details */}
                 <View style={styles.productDetails}>
                   <Text style={styles.productUnit}>{product.unit}</Text>
-                  <Text style={styles.productName} numberOfLines={2}>
-                    {product.name}
-                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => router.push(`/product/${product.id}` as any)}
+                  >
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {product.name}
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Rating */}
                   <View style={styles.ratingRow}>

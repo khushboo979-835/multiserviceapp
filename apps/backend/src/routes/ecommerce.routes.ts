@@ -104,27 +104,59 @@ router.get("/products", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/ecommerce/products/:id - Get single product details
+router.get("/products/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findOne({ $or: [{ id }, { _id: id }] });
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    return res.status(200).json(product);
+  } catch (error) {
+    console.error("Error fetching product details:", error);
+    return res.status(500).json({ success: false, message: "Failed to load product details" });
+  }
+});
+
 // POST /api/ecommerce/products - Admin create product
 router.post("/products", requireAdmin, async (req: Request, res: Response) => {
   try {
     const productData = req.body;
     const prodId = productData.id || `prod_${Date.now()}`;
+    const images = Array.isArray(productData.images) && productData.images.length > 0
+      ? productData.images
+      : productData.imageUrl ? [productData.imageUrl] : [];
+    const primaryImage = images[0] || productData.imageUrl || "";
+    const price = Number(productData.price || 0);
+    const originalPrice = Number(productData.originalPrice || productData.mrp || productData.price || 0);
+    const discount = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+
     const product = await Product.findOneAndUpdate(
       { id: prodId },
       {
         ...productData,
         id: prodId,
+        imageUrl: primaryImage,
+        images: images.length > 0 ? images : [primaryImage],
         inStock: productData.inStock ?? true,
+        stock: productData.stock !== undefined ? Number(productData.stock) : 100,
         category: normalizeProductCategory(productData.categoryName || productData.category),
         categoryName: productData.categoryName || productData.category || "General",
-        price: Number(productData.price || 0),
-        originalPrice: Number(productData.originalPrice || productData.mrp || productData.price || 0),
+        price,
+        originalPrice,
+        mrp: originalPrice,
+        discountPercentage: discount,
+        variants: Array.isArray(productData.variants) ? productData.variants : [],
+        specifications: Array.isArray(productData.specifications) ? productData.specifications : [],
+        sellerName: productData.sellerName || "Inisha Retail Partner",
+        brand: productData.brand || "",
       },
       { upsert: true, new: true }
     );
     const io = req.app.get("io");
     if (io) {
-      const event = { action: "CREATED", id: prodId, timestamp: Date.now() };
+      const event = { action: "CREATED", id: prodId, product, timestamp: Date.now() };
       io.emit("product:updated", event);
       io.emit("catalog_updated", { type: "PRODUCT_CREATED", ...event });
     }
@@ -142,26 +174,50 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
     const { id } = req.params;
     const productData = req.body;
 
+    const images = Array.isArray(productData.images) && productData.images.length > 0
+      ? productData.images
+      : productData.imageUrl ? [productData.imageUrl] : undefined;
+    const primaryImage = images ? images[0] : productData.imageUrl;
+
+    const price = productData.price !== undefined ? Number(productData.price) : undefined;
+    const originalPrice = productData.mrp !== undefined
+      ? Number(productData.mrp)
+      : productData.originalPrice !== undefined
+      ? Number(productData.originalPrice)
+      : undefined;
+
+    const updatePayload: any = {
+      ...productData,
+      category: productData.category !== undefined
+        ? normalizeProductCategory(productData.categoryName || productData.category)
+        : undefined,
+      categoryName: productData.categoryName || productData.category || undefined,
+      price,
+      originalPrice,
+      mrp: originalPrice,
+      stock: productData.stock !== undefined ? Number(productData.stock) : undefined,
+    };
+
+    if (images) {
+      updatePayload.images = images;
+      if (primaryImage) updatePayload.imageUrl = primaryImage;
+    } else if (productData.imageUrl) {
+      updatePayload.imageUrl = productData.imageUrl;
+    }
+
+    if (price !== undefined && originalPrice !== undefined && originalPrice > 0) {
+      updatePayload.discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+    }
+
     const updated = await Product.findOneAndUpdate(
       { $or: [{ id }, { _id: id }] },
-      {
-        $set: {
-          ...productData,
-          category: productData.category !== undefined
-            ? normalizeProductCategory(productData.categoryName || productData.category)
-            : undefined,
-          categoryName: productData.categoryName || productData.category || undefined,
-          price: productData.price !== undefined ? Number(productData.price) : undefined,
-          originalPrice: productData.mrp !== undefined ? Number(productData.mrp) : (productData.originalPrice !== undefined ? Number(productData.originalPrice) : undefined),
-          stock: productData.stock !== undefined ? Number(productData.stock) : undefined,
-        },
-      },
+      { $set: updatePayload },
       { upsert: true, new: true }
     );
 
     const io = req.app.get("io");
     if (io) {
-      const event = { action: "UPDATED", id, timestamp: Date.now() };
+      const event = { action: "UPDATED", id, product: updated, timestamp: Date.now() };
       io.emit("product:updated", event);
       io.emit("catalog_updated", { type: "PRODUCT_UPDATED", ...event });
     }

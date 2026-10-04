@@ -14,6 +14,7 @@ import {
   Wallet,
   Image as ImageIcon,
   Layers,
+  Package,
   Bell,
   BarChart3,
   ShieldAlert,
@@ -69,6 +70,8 @@ export default function App({ Component, pageProps }: AppProps) {
 
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Products & Inventory", href: "/products", icon: Package },
+    { name: "Categories & Services", href: "/categories", icon: Layers },
     { name: "User Management", href: "/users", icon: Users },
     { name: "Provider & KYC", href: "/providers", icon: UserCheck },
     { name: "Booking Management", href: "/bookings", icon: Briefcase },
@@ -76,7 +79,6 @@ export default function App({ Component, pageProps }: AppProps) {
     { name: "Coupon Management", href: "/coupons", icon: Tag },
     { name: "Wallet & Payouts", href: "/wallets", icon: Wallet },
     { name: "Banner Management", href: "/banners", icon: ImageIcon },
-    { name: "Categories & Services", href: "/categories", icon: Layers },
     { name: "Push Notifications", href: "/notifications", icon: Bell },
     { name: "Reports & Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Dispute & Refunds", href: "/disputes", icon: ShieldAlert },

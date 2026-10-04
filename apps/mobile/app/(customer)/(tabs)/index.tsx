@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import io from "socket.io-client";
 import {
   View,
   Text,
@@ -112,12 +113,32 @@ export default function CustomerHomeScreen() {
     addBookingToHistory,
   } = useBookingStore();
 
+  const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: fetchCatalogCategories, staleTime: 0 });
   const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: fetchCatalogBanners, staleTime: 0 });
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
   const categories = categoriesQuery.data ?? [];
   const banners = bannersQuery.data ?? [];
   const topDeals = (productsQuery.data ?? []).slice(0, 4);
+
+  // Real-time Socket.IO synchronization for live products & catalog updates
+  useEffect(() => {
+    const socket = io(
+      process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "https://multiserviceapp-4pdw.onrender.com",
+      { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
+    );
+    socket.on("product:updated", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+    });
+    socket.on("catalog_updated", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+      queryClient.invalidateQueries({ queryKey: catalogKeys.categories });
+      queryClient.invalidateQueries({ queryKey: catalogKeys.banners });
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
@@ -744,7 +765,12 @@ export default function CustomerHomeScreen() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
             {topDeals.map((deal) => (
-              <View key={deal.id} style={styles.topDealCard}>
+              <TouchableOpacity
+                key={deal.id}
+                style={styles.topDealCard}
+                activeOpacity={0.9}
+                onPress={() => router.push(`/product/${deal.id}` as any)}
+              >
                 <SafeImage uri={deal.imageUrl} style={styles.topDealImg} />
                 {deal.discountPercentage > 0 && (
                   <View style={styles.dealDiscountBadge}>
@@ -761,15 +787,18 @@ export default function CustomerHomeScreen() {
                   <View style={styles.topDealBottomRow}>
                     <Text style={styles.dealFinalPrice}>₹{deal.price}</Text>
                     <TouchableOpacity
-                      onPress={() => setIsStoreOpen(true)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push(`/product/${deal.id}` as any);
+                      }}
                       style={styles.dealAddBtn}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.dealAddBtnText}>Add</Text>
+                      <Text style={styles.dealAddBtnText}>View</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>

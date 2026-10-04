@@ -102,56 +102,34 @@ export default function MultiImageUploadPicker({
     try {
       // Step 1: Immediately compress all selected files on client (ultra-fast <50ms)
       const compressedDataUrls = await Promise.all(
-        files.map((file) => compressImageFile(file))
+        files.map((file) => compressImageFile(file, 1000, 1000, 0.82))
       );
 
-      // Add compressed images immediately so user sees them right away
-      onChange([...images, ...compressedDataUrls]);
-
-      // Step 2: Try background Cloudinary upload if configured, without blocking user
-      try {
-        const { data } = await apiClient.post("/media/cloudinary-signature");
-        if (data && data.configured && data.signature && data.cloudName) {
-          const cloudUploads = await Promise.all(
-            files.map(async (file) => {
-              try {
-                const body = new FormData();
-                body.append("file", file);
-                body.append("api_key", data.apiKey);
-                body.append("timestamp", String(data.timestamp));
-                body.append("folder", data.folder);
-                body.append("signature", data.signature);
-
-                const response = await fetch(
-                  `https://api.cloudinary.com/v1_1/${encodeURIComponent(data.cloudName)}/image/upload`,
-                  {
-                    method: "POST",
-                    body,
-                  }
-                );
-                const result = await response.json();
-                if (response.ok && result.secure_url) {
-                  return result.secure_url as string;
-                }
-              } catch {
-                // Cloudinary failed/disabled - keep base64
-              }
-              return null;
-            })
-          );
-
-          // If any Cloudinary upload succeeded, upgrade the URLs
-          const successfulCloudUrls = cloudUploads.filter((url): url is string => Boolean(url));
-          if (successfulCloudUrls.length === files.length) {
-            onChange([...images, ...successfulCloudUrls]);
-          }
-        }
-      } catch {
-        // Cloudinary not configured or disabled - safely ignored
-      }
+      // Add images immediately to the product form
+      const updated = [...images, ...compressedDataUrls].slice(0, maxImages);
+      onChange(updated);
     } catch (err: any) {
       console.error("Image processing error:", err);
-      setUploadError("Could not read image file. Please try another image.");
+      // Fallback: Read as direct data URL
+      try {
+        const rawUrls = await Promise.all(
+          files.map(
+            (file) =>
+              new Promise<string>((resolve) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result as string);
+                r.onerror = () => resolve("");
+                r.readAsDataURL(file);
+              })
+          )
+        );
+        const valid = rawUrls.filter(Boolean);
+        if (valid.length > 0) {
+          onChange([...images, ...valid].slice(0, maxImages));
+        }
+      } catch {
+        setUploadError("Could not read image file. Please choose another photo.");
+      }
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

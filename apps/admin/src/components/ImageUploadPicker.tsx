@@ -83,38 +83,21 @@ export default function ImageUploadPicker({
     setUploading(true);
     setUploadError("");
     try {
-      // Step 1: Immediately compress image on client
-      const compressedDataUrl = await compressImageFile(file);
+      // Immediately compress image on client (<50ms)
+      const compressedDataUrl = await compressImageFile(file, 1000, 1000, 0.82);
       onChange(compressedDataUrl);
-
-      // Step 2: Background Cloudinary upgrade if configured
-      try {
-        const { data } = await apiClient.post("/media/cloudinary-signature");
-        if (data && data.configured && data.signature && data.cloudName) {
-          const body = new FormData();
-          body.append("file", file);
-          body.append("api_key", data.apiKey);
-          body.append("timestamp", String(data.timestamp));
-          body.append("folder", data.folder);
-          body.append("signature", data.signature);
-          const response = await fetch(
-            `https://api.cloudinary.com/v1_1/${encodeURIComponent(data.cloudName)}/image/upload`,
-            {
-              method: "POST",
-              body,
-            }
-          );
-          const result = await response.json();
-          if (response.ok && result.secure_url) {
-            onChange(result.secure_url);
-          }
-        }
-      } catch {
-        // Cloudinary failed/disabled - keep compressed data url
-      }
     } catch (error: any) {
       console.error("Image processing error:", error);
-      setUploadError("Could not read image file. Please try another image.");
+      // Fallback direct FileReader
+      try {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) onChange(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } catch {
+        setUploadError("Could not read image file. Please choose another photo.");
+      }
     } finally {
       setUploading(false);
     }

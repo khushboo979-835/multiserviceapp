@@ -1,9 +1,0 @@
-apps/backend/
-apps/admin/
-node_modules/
-.git/
-.expo/
-dist/
-*.tar.gz
-inspect_*
-log.bin

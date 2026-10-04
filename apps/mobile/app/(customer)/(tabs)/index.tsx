@@ -127,6 +127,9 @@ export default function CustomerHomeScreen() {
       process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "https://multiserviceapp-4pdw.onrender.com",
       { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
     );
+    socket.on("product:change", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+    });
     socket.on("product:updated", () => {
       queryClient.invalidateQueries({ queryKey: catalogKeys.products });
     });

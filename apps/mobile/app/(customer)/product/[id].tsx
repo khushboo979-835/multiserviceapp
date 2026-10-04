@@ -80,6 +80,13 @@ export default function ProductDetailsScreen() {
       reconnectionAttempts: 5,
     });
 
+    socket.on("product:change", (data: any) => {
+      if (!data || data.id === id || !data.id) {
+        queryClient.invalidateQueries({ queryKey: ["catalog", "product", id] });
+        queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+      }
+    });
+
     socket.on("product:updated", (data: any) => {
       if (!data || data.id === id || !data.id) {
         queryClient.invalidateQueries({ queryKey: ["catalog", "product", id] });

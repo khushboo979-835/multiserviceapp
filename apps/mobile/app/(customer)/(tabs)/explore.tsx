@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import io from "socket.io-client";
 import {
   View,
   Text,
@@ -54,8 +55,28 @@ const EXPLORE_TABS = [
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
   const products = productsQuery.data ?? [];
+
+  useEffect(() => {
+    const socket = io(
+      process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "https://multiserviceapp-4pdw.onrender.com",
+      { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
+    );
+    socket.on("product:change", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+    });
+    socket.on("product:updated", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+    });
+    socket.on("catalog_updated", () => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedBrand, setSelectedBrand] = useState<MobileBrand | null>(null);

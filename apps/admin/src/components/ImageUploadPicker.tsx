@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { UploadCloud, Image as ImageIcon, X, Link, Check, Sparkles } from "lucide-react";
+import { UploadCloud, Image as ImageIcon, X, Link, Check, Sparkles, Loader2 } from "lucide-react";
 import apiClient from "../api/apiClient";
 
 interface ImageUploadPickerProps {
@@ -9,48 +9,9 @@ interface ImageUploadPickerProps {
   placeholderText?: string;
 }
 
-// Helper to compress image client-side before upload or base64 storage
-const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", quality);
-        resolve(dataUrl);
-      };
-      img.onerror = () => {
-        resolve(event.target?.result as string);
-      };
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "gln413tb";
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "inisha_preset";
+const API_KEY = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "775595328596497";
 
 export default function ImageUploadPicker({
   value,
@@ -75,29 +36,59 @@ export default function ImageUploadPicker({
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert("Image size should be less than 15MB.");
-      return;
-    }
-
     setUploading(true);
     setUploadError("");
+
     try {
-      // Immediately compress image on client (<50ms)
-      const compressedDataUrl = await compressImageFile(file, 1000, 1000, 0.82);
-      onChange(compressedDataUrl);
-    } catch (error: any) {
-      console.error("Image processing error:", error);
-      // Fallback direct FileReader
+      let signatureData: any = null;
       try {
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (reader.result) onChange(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+        const { data } = await apiClient.post("/media/cloudinary-signature");
+        if (data && data.success) {
+          signatureData = data;
+        }
       } catch {
-        setUploadError("Could not read image file. Please choose another photo.");
+        signatureData = null;
       }
+
+      const activeCloud = signatureData?.cloudName || CLOUD_NAME;
+      const activePreset = signatureData?.uploadPreset || UPLOAD_PRESET;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      if (signatureData?.signature) {
+        formData.append("api_key", signatureData.apiKey || API_KEY);
+        formData.append("timestamp", String(signatureData.timestamp));
+        formData.append("folder", signatureData.folder || "inisha/catalog");
+        formData.append("signature", signatureData.signature);
+      } else {
+        formData.append("upload_preset", activePreset);
+        formData.append("folder", "inisha/catalog");
+      }
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${encodeURIComponent(activeCloud)}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+      if (response.ok && result.secure_url) {
+        onChange(result.secure_url);
+        return;
+      }
+
+      // Fallback to data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) onChange(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      console.error("Image upload error:", error);
+      setUploadError("Image upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -109,11 +100,20 @@ export default function ImageUploadPicker({
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    const oldUrl = value;
     onChange("");
     setUrlInput("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+
+    if (oldUrl && oldUrl.includes("cloudinary.com")) {
+      try {
+        await apiClient.delete("/media/cloudinary-asset", { data: { url: oldUrl } });
+      } catch (err) {
+        console.warn("Background asset deletion warning:", err);
+      }
     }
   };
 
@@ -149,7 +149,6 @@ export default function ImageUploadPicker({
         </div>
       </div>
 
-      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -158,13 +157,12 @@ export default function ImageUploadPicker({
         className="hidden"
       />
 
-      {/* If Image is selected: Show Preview Box */}
       {value ? (
         <div className="relative group rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-50 p-2 flex items-center gap-3">
           <img
             src={value}
             alt="Preview"
-            className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-sm bg-white"
+            className="w-16 h-16 rounded-xl object-contain border border-slate-200 shadow-sm bg-white p-1"
             onError={(event) => {
               event.currentTarget.src = "/brand-logo.png";
             }}
@@ -173,7 +171,7 @@ export default function ImageUploadPicker({
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Check size={14} className="text-emerald-500" /> Image Selected
             </span>
-            <p className="text-[10px] text-slate-500 truncate mt-0.5">
+            <p className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">
               {value.startsWith("data:") ? "Local File / Gallery Photo" : value}
             </p>
             <div className="flex gap-2 mt-1.5">
@@ -181,9 +179,15 @@ export default function ImageUploadPicker({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="text-[11px] font-bold text-blue-600 hover:underline"
+                className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
               >
-                {uploading ? "Uploading..." : "Change Photo"}
+                {uploading ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" /> Uploading...
+                  </>
+                ) : (
+                  "Change Photo"
+                )}
               </button>
             </div>
           </div>
@@ -197,23 +201,25 @@ export default function ImageUploadPicker({
           </button>
         </div>
       ) : activeTab === "UPLOAD" ? (
-        /* Upload from Gallery / Device View */
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-300 hover:border-red-500 bg-slate-50 hover:bg-red-50/20 transition rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer group text-center"
+          className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer group text-center transition ${
+            uploading
+              ? "bg-red-50/40 border-red-300 cursor-not-allowed"
+              : "border-slate-300 hover:border-red-500 bg-slate-50 hover:bg-red-50/20"
+          }`}
         >
           <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-            <UploadCloud size={20} />
+            {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
           </div>
           <span className="text-xs font-black text-slate-800">
-            {uploading ? "Uploading image..." : "Click to Select from Gallery / File Manager"}
+            {uploading ? "Uploading to Cloudinary..." : "Click to Select from Gallery / File Manager"}
           </span>
           <span className="text-[10px] text-slate-500 mt-0.5">
-            Supports PNG, JPG, JPEG, WebP from phone or computer (Max 5MB)
+            Cloudinary gln413tb CDN (PNG, JPG, JPEG, WebP)
           </span>
         </div>
       ) : (
-        /* Paste Web URL View */
         <div className="flex gap-2">
           <input
             type="url"

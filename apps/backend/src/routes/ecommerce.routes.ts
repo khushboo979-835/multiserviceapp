@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import Product from "../models/Product";
 import Coupon from "../models/Coupon";
 import { requireAdmin } from "../middleware/adminAuth";
+import { deleteCloudinaryAssets } from "../services/cloudinary.service";
 
 const router = Router();
 
@@ -154,10 +155,12 @@ router.post("/products", requireAdmin, async (req: Request, res: Response) => {
       },
       { upsert: true, new: true }
     );
+
     const io = req.app.get("io");
     if (io) {
-      const event = { action: "CREATED", id: prodId, product, timestamp: Date.now() };
-      io.emit("product:updated", event);
+      const event = { action: "CREATE", id: prodId, product, timestamp: Date.now() };
+      io.emit("product:change", event);
+      io.emit("product:updated", { ...event, action: "CREATED" });
       io.emit("catalog_updated", { type: "PRODUCT_CREATED", ...event });
     }
 
@@ -174,10 +177,22 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
     const { id } = req.params;
     const productData = req.body;
 
+    const existing = await Product.findOne({ $or: [{ id }, { _id: id }] });
+
     const images = Array.isArray(productData.images) && productData.images.length > 0
       ? productData.images
       : productData.imageUrl ? [productData.imageUrl] : undefined;
     const primaryImage = images ? images[0] : productData.imageUrl;
+
+    // Check if any old images were removed in this update and clean up Cloudinary storage
+    if (existing && Array.isArray(existing.images) && images) {
+      const removedImages = existing.images.filter((oldImg: string) => !images.includes(oldImg));
+      if (removedImages.length > 0) {
+        deleteCloudinaryAssets(removedImages).catch((err) =>
+          console.warn("Background asset cleanup warning:", err)
+        );
+      }
+    }
 
     const price = productData.price !== undefined ? Number(productData.price) : undefined;
     const originalPrice = productData.mrp !== undefined
@@ -217,8 +232,9 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
 
     const io = req.app.get("io");
     if (io) {
-      const event = { action: "UPDATED", id, product: updated, timestamp: Date.now() };
-      io.emit("product:updated", event);
+      const event = { action: "UPDATE", id, product: updated, timestamp: Date.now() };
+      io.emit("product:change", event);
+      io.emit("product:updated", { ...event, action: "UPDATED" });
       io.emit("catalog_updated", { type: "PRODUCT_UPDATED", ...event });
     }
 
@@ -233,12 +249,28 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
 router.delete("/products/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const existing = await Product.findOne({ $or: [{ id }, { _id: id }] });
+
+    if (existing) {
+      const allImages = [
+        ...(Array.isArray(existing.images) ? existing.images : []),
+        existing.imageUrl,
+      ].filter((img): img is string => typeof img === "string" && Boolean(img));
+
+      if (allImages.length > 0) {
+        deleteCloudinaryAssets(allImages).catch((err) =>
+          console.warn("Background asset cleanup warning:", err)
+        );
+      }
+    }
+
     await Product.findOneAndDelete({ $or: [{ id }, { _id: id }] });
 
     const io = req.app.get("io");
     if (io) {
-      const event = { action: "DELETED", id, timestamp: Date.now() };
-      io.emit("product:updated", event);
+      const event = { action: "DELETE", id, timestamp: Date.now() };
+      io.emit("product:change", event);
+      io.emit("product:updated", { ...event, action: "DELETED" });
       io.emit("catalog_updated", { type: "PRODUCT_DELETED", ...event });
     }
 

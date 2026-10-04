@@ -8,8 +8,10 @@ import {
   Star,
   Plus,
   Trash2,
-  MoveLeft,
-  MoveRight,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import apiClient from "../api/apiClient";
 
@@ -20,9 +22,21 @@ interface MultiImageUploadPickerProps {
   label?: string;
 }
 
-// Helper to compress images client-side before upload or base64 storage
-const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> => {
-  return new Promise((resolve, reject) => {
+const CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "gln413tb";
+const UPLOAD_PRESET =
+  process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "inisha_preset";
+const API_KEY =
+  process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "775595328596497";
+
+// Helper to compress image client-side before upload to speed up network transfer (<2 seconds)
+const compressImageFile = (
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 1200,
+  quality = 0.85
+): Promise<Blob> => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -47,19 +61,22 @@ const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, qualit
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(event.target?.result as string);
+          resolve(file);
           return;
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", quality);
-        resolve(dataUrl);
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob || file);
+          },
+          "image/jpeg",
+          quality
+        );
       };
-      img.onerror = () => {
-        resolve(event.target?.result as string);
-      };
+      img.onerror = () => resolve(file);
     };
-    reader.onerror = (error) => reject(error);
+    reader.onerror = () => resolve(file);
   });
 };
 
@@ -70,6 +87,7 @@ export default function MultiImageUploadPicker({
   label = "Product Gallery (Multi-Image)",
 }: MultiImageUploadPickerProps) {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [activeTab, setActiveTab] = useState<"UPLOAD" | "URL">("UPLOAD");
@@ -84,54 +102,83 @@ export default function MultiImageUploadPicker({
       return;
     }
 
-    // Validate types & sizes
+    // Validate image types
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
-        alert(`File ${file.name} is not a valid image format.`);
-        return;
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        alert(`File ${file.name} exceeds 15MB size limit.`);
+        alert(`File "${file.name}" is not a supported image format.`);
         return;
       }
     }
 
     setUploading(true);
     setUploadError("");
+    setUploadProgress(`Compressing & Uploading ${files.length} photo(s)...`);
 
     try {
-      // Step 1: Immediately compress all selected files on client (ultra-fast <50ms)
-      const compressedDataUrls = await Promise.all(
-        files.map((file) => compressImageFile(file, 1000, 1000, 0.82))
-      );
-
-      // Add images immediately to the product form
-      const updated = [...images, ...compressedDataUrls].slice(0, maxImages);
-      onChange(updated);
-    } catch (err: any) {
-      console.error("Image processing error:", err);
-      // Fallback: Read as direct data URL
+      // 1. Fetch signature or unsigned preset configuration
+      let signatureData: any = null;
       try {
-        const rawUrls = await Promise.all(
-          files.map(
-            (file) =>
-              new Promise<string>((resolve) => {
-                const r = new FileReader();
-                r.onload = () => resolve(r.result as string);
-                r.onerror = () => resolve("");
-                r.readAsDataURL(file);
-              })
-          )
-        );
-        const valid = rawUrls.filter(Boolean);
-        if (valid.length > 0) {
-          onChange([...images, ...valid].slice(0, maxImages));
+        const { data } = await apiClient.post("/media/cloudinary-signature");
+        if (data && data.success) {
+          signatureData = data;
         }
       } catch {
-        setUploadError("Could not read image file. Please choose another photo.");
+        signatureData = null;
       }
+
+      const activeCloud = signatureData?.cloudName || CLOUD_NAME;
+      const activePreset = signatureData?.uploadPreset || UPLOAD_PRESET;
+
+      // 2. Upload all images concurrently via Promise.all
+      const uploadPromises = files.map(async (file, index) => {
+        const compressedBlob = await compressImageFile(file);
+        const formData = new FormData();
+        formData.append("file", compressedBlob, file.name);
+
+        if (signatureData?.signature) {
+          // Signed upload
+          formData.append("api_key", signatureData.apiKey || API_KEY);
+          formData.append("timestamp", String(signatureData.timestamp));
+          formData.append("folder", signatureData.folder || "inisha/catalog");
+          formData.append("signature", signatureData.signature);
+        } else {
+          // Unsigned preset upload
+          formData.append("upload_preset", activePreset);
+          formData.append("folder", "inisha/catalog");
+        }
+
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${encodeURIComponent(activeCloud)}/image/upload`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const result = await response.json();
+        if (response.ok && result.secure_url) {
+          return result.secure_url as string;
+        }
+
+        // Fallback: Read as optimized Base64 data URL
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(compressedBlob);
+        });
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const validUrls = uploadedUrls.filter((url) => typeof url === "string" && url.trim().length > 0);
+
+      onChange([...images, ...validUrls].slice(0, maxImages));
+    } catch (err: any) {
+      console.error("Multi-image upload error:", err);
+      setUploadError(err?.message || "Upload encountered an issue. Please try again.");
     } finally {
       setUploading(false);
+      setUploadProgress("");
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -149,8 +196,20 @@ export default function MultiImageUploadPicker({
     setUrlInput("");
   };
 
-  const handleRemoveImage = (indexToRemove: number) => {
+  const handleRemoveImage = async (indexToRemove: number) => {
+    const urlToRemove = images[indexToRemove];
     onChange(images.filter((_, idx) => idx !== indexToRemove));
+
+    // Cleanup from Cloudinary storage in background if it's a Cloudinary asset
+    if (urlToRemove && urlToRemove.includes("cloudinary.com")) {
+      try {
+        await apiClient.delete("/media/cloudinary-asset", {
+          data: { url: urlToRemove },
+        });
+      } catch (err) {
+        console.warn("Background asset cleanup warning:", err);
+      }
+    }
   };
 
   const handleSetCover = (indexToCover: number) => {
@@ -158,6 +217,24 @@ export default function MultiImageUploadPicker({
     const item = images[indexToCover];
     const rest = images.filter((_, idx) => idx !== indexToCover);
     onChange([item, ...rest]);
+  };
+
+  const handleMoveLeft = (index: number) => {
+    if (index === 0) return;
+    const newImages = [...images];
+    const temp = newImages[index - 1];
+    newImages[index - 1] = newImages[index];
+    newImages[index] = temp;
+    onChange(newImages);
+  };
+
+  const handleMoveRight = (index: number) => {
+    if (index === images.length - 1) return;
+    const newImages = [...images];
+    const temp = newImages[index + 1];
+    newImages[index + 1] = newImages[index];
+    newImages[index] = temp;
+    onChange(newImages);
   };
 
   return (
@@ -215,18 +292,24 @@ export default function MultiImageUploadPicker({
               onClick={() => !uploading && fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition ${
                 uploading
-                  ? "bg-slate-100 border-slate-300 cursor-not-allowed opacity-75"
+                  ? "bg-red-50/40 border-red-300 cursor-not-allowed"
                   : "border-slate-300 hover:border-red-500 bg-slate-50 hover:bg-red-50/20"
               }`}
             >
               <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1.5">
-                <UploadCloud size={20} />
+                {uploading ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <UploadCloud size={20} />
+                )}
               </div>
               <span className="text-xs font-black text-slate-800">
-                {uploading ? "Uploading images to Cloudinary..." : "Click to select multiple product photos"}
+                {uploading
+                  ? uploadProgress || "Uploading images to Cloudinary..."
+                  : "Click to select 3–5 high-res product photos"}
               </span>
               <span className="text-[10px] text-slate-500 mt-0.5">
-                PNG, JPG, WebP up to 5MB each
+                High-Speed Cloudinary Upload Preset (PNG, JPG, WebP)
               </span>
             </div>
           ) : (
@@ -256,11 +339,13 @@ export default function MultiImageUploadPicker({
           {images.map((url, idx) => (
             <div
               key={idx}
-              className={`relative group rounded-xl border-2 overflow-hidden bg-slate-100 flex flex-col shadow-sm transition ${
-                idx === 0 ? "border-emerald-500 bg-emerald-50/20" : "border-slate-200"
+              className={`relative group rounded-2xl border-2 overflow-hidden bg-slate-100 flex flex-col shadow-sm transition ${
+                idx === 0
+                  ? "border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20"
+                  : "border-slate-200 hover:border-slate-300"
               }`}
             >
-              <div className="aspect-square w-full relative bg-white">
+              <div className="aspect-square w-full relative bg-white flex items-center justify-center">
                 <img
                   src={url}
                   alt={`Product view ${idx + 1}`}
@@ -273,19 +358,43 @@ export default function MultiImageUploadPicker({
                 {/* Primary Cover Badge */}
                 {idx === 0 ? (
                   <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow flex items-center gap-1">
-                    <Star size={10} fill="#FFFFFF" /> Cover
+                    <Star size={10} fill="#FFFFFF" /> Cover Photo
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleSetCover(idx)}
-                    className="absolute top-1.5 left-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition shadow"
+                    className="absolute top-1.5 left-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-[9px] font-bold px-2 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition shadow"
                   >
                     Make Cover
                   </button>
                 )}
 
-                {/* Delete button */}
+                {/* Reorder Buttons (Move Left / Right) */}
+                <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  {idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMoveLeft(idx)}
+                      className="w-5 h-5 rounded bg-slate-900/80 hover:bg-slate-900 text-white flex items-center justify-center text-[10px]"
+                      title="Move Left"
+                    >
+                      <ChevronLeft size={12} />
+                    </button>
+                  )}
+                  {idx < images.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMoveRight(idx)}
+                      className="w-5 h-5 rounded bg-slate-900/80 hover:bg-slate-900 text-white flex items-center justify-center text-[10px]"
+                      title="Move Right"
+                    >
+                      <ChevronRight size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Delete Button */}
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(idx)}
@@ -296,8 +405,13 @@ export default function MultiImageUploadPicker({
                 </button>
               </div>
 
-              <div className="p-1.5 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-500 font-mono truncate text-center">
-                Image {idx + 1}
+              <div className="p-1.5 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-500 font-mono truncate text-center flex items-center justify-between px-2">
+                <span>Photo {idx + 1}</span>
+                {url.includes("cloudinary.com") && (
+                  <span className="text-[8px] bg-sky-100 text-sky-700 px-1 rounded font-bold">
+                    Cloudinary
+                  </span>
+                )}
               </div>
             </div>
           ))}

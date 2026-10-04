@@ -253,7 +253,7 @@ export default function VerifyOtpScreen() {
 
           {/* OTP Input Card */}
           <View style={styles.card}>
-            {/* 6 Individual Numeric Boxes */}
+            {/* 6 Individual Numeric Boxes with Native Android/iOS SMS OTP Autofill */}
             <View style={styles.slotsRow}>
               {digits.map((digit, idx) => {
                 const isFilled = Boolean(digit);
@@ -266,8 +266,9 @@ export default function VerifyOtpScreen() {
                     value={digit}
                     onChangeText={(text) => handleDigitChange(text, idx)}
                     onKeyPress={(e) => handleKeyPress(e, idx)}
-                    autoComplete={idx === 0 && Platform.OS === "android" ? "sms-otp" : "off"}
-                    textContentType={idx === 0 && Platform.OS === "ios" ? "oneTimeCode" : undefined}
+                    autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
+                    textContentType="oneTimeCode"
+                    importantForAutofill="yes"
                     keyboardType="number-pad"
                     maxLength={idx === 0 ? 6 : 1}
                     selectTextOnFocus

@@ -54,6 +54,7 @@ export default function ProductDetailsScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [pincode, setPincode] = useState("800001");
 
   // Fetch Product Details with fallback to list if single endpoint takes time
@@ -504,11 +505,27 @@ export default function ProductDetailsScreen() {
           </View>
         </View>
 
-        {/* Product Description */}
+        {/* Product Description with Read More / Read Less Toggle */}
         {product.description ? (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionHeading}>Product Overview</Text>
-            <Text style={styles.descriptionText}>{product.description}</Text>
+            <Text
+              style={styles.descriptionText}
+              numberOfLines={isDescriptionExpanded ? undefined : 4}
+            >
+              {product.description}
+            </Text>
+            {product.description.length > 150 && (
+              <TouchableOpacity
+                onPress={() => setIsDescriptionExpanded((prev) => !prev)}
+                style={styles.readMoreBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.readMoreText}>
+                  {isDescriptionExpanded ? "Read Less ▲" : "Read More ▼"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : null}
 
@@ -532,7 +549,7 @@ export default function ProductDetailsScreen() {
             ) : null}
             <View style={styles.specRow}>
               <Text style={styles.specLabel}>Availability</Text>
-              <Text style={[styles.specValue, { color: product.inStock ? "#16A34A" : "#DC2626" }]}>
+              <Text style={[styles.specValue, { color: product.inStock ? "#16A34A" : "#DC2626", fontWeight: "700" }]}>
                 {product.inStock ? "In Stock (Fast Dispatch)" : "Out of Stock"}
               </Text>
             </View>
@@ -1070,6 +1087,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: "#475569",
+  },
+  readMoreBtn: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  readMoreText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#DC2626",
   },
   specTable: {
     borderRadius: 10,

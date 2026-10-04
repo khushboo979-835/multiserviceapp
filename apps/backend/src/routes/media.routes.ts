@@ -10,7 +10,11 @@ router.post("/cloudinary-signature", requireAdmin, (_req: Request, res: Response
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
   if (!cloudName || !apiKey || !apiSecret) {
-    return res.status(503).json({ success: false, message: "Cloudinary image upload is not configured" });
+    return res.status(200).json({
+      success: false,
+      configured: false,
+      message: "Cloudinary not configured. Fallback to direct client compression.",
+    });
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
@@ -23,6 +27,7 @@ router.post("/cloudinary-signature", requireAdmin, (_req: Request, res: Response
 
   return res.status(200).json({
     success: true,
+    configured: true,
     cloudName,
     apiKey,
     timestamp,
@@ -31,4 +36,24 @@ router.post("/cloudinary-signature", requireAdmin, (_req: Request, res: Response
   });
 });
 
-export default router;
+// Direct Image Upload / Storage endpoint
+router.post("/upload", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { image, name } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, message: "No image payload provided" });
+    }
+
+    // Return the image data URI or stored reference
+    return res.status(200).json({
+      success: true,
+      url: image,
+      name: name || "uploaded_image",
+    });
+  } catch (error: any) {
+    console.error("Direct upload error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Upload failed" });
+  }
+});
+
+export default router;

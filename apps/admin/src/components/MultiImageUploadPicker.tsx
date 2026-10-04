@@ -20,6 +20,49 @@ interface MultiImageUploadPickerProps {
   label?: string;
 }
 
+// Helper to compress images client-side before upload or base64 storage
+const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        resolve(event.target?.result as string);
+      };
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 export default function MultiImageUploadPicker({
   images = [],
   onChange,
@@ -47,8 +90,8 @@ export default function MultiImageUploadPicker({
         alert(`File ${file.name} is not a valid image format.`);
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`File ${file.name} exceeds 5MB size limit.`);
+      if (file.size > 15 * 1024 * 1024) {
+        alert(`File ${file.name} exceeds 15MB size limit.`);
         return;
       }
     }
@@ -57,35 +100,59 @@ export default function MultiImageUploadPicker({
     setUploadError("");
 
     try {
-      const { data: signature } = await apiClient.post("/media/cloudinary-signature");
+      // Step 1: Compress all selected files on the client
+      const compressedDataUrls = await Promise.all(
+        files.map((file) => compressImageFile(file))
+      );
 
-      const uploadPromises = files.map(async (file) => {
-        const body = new FormData();
-        body.append("file", file);
-        body.append("api_key", signature.apiKey);
-        body.append("timestamp", String(signature.timestamp));
-        body.append("folder", signature.folder);
-        body.append("signature", signature.signature);
-
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloudName)}/image/upload`,
-          {
-            method: "POST",
-            body,
-          }
-        );
-        const result = await response.json();
-        if (!response.ok || !result.secure_url) {
-          throw new Error(result.error?.message || "Cloudinary upload failed");
+      // Step 2: Check if Cloudinary signature endpoint is configured
+      let cloudinarySignature: any = null;
+      try {
+        const { data } = await apiClient.post("/media/cloudinary-signature");
+        if (data && data.configured && data.signature && data.cloudName) {
+          cloudinarySignature = data;
         }
-        return result.secure_url as string;
-      });
+      } catch {
+        cloudinarySignature = null;
+      }
 
-      const uploadedUrls = await Promise.all(uploadPromises);
-      onChange([...images, ...uploadedUrls]);
+      // Step 3: If Cloudinary is available, upload there; otherwise use compressed Data URLs directly
+      if (cloudinarySignature) {
+        const uploadPromises = files.map(async (file, idx) => {
+          try {
+            const body = new FormData();
+            body.append("file", file);
+            body.append("api_key", cloudinarySignature.apiKey);
+            body.append("timestamp", String(cloudinarySignature.timestamp));
+            body.append("folder", cloudinarySignature.folder);
+            body.append("signature", cloudinarySignature.signature);
+
+            const response = await fetch(
+              `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudinarySignature.cloudName)}/image/upload`,
+              {
+                method: "POST",
+                body,
+              }
+            );
+            const result = await response.json();
+            if (response.ok && result.secure_url) {
+              return result.secure_url as string;
+            }
+          } catch (cloudErr) {
+            console.warn("Cloudinary upload failed, using high-speed compressed image:", cloudErr);
+          }
+          return compressedDataUrls[idx];
+        });
+
+        const results = await Promise.all(uploadPromises);
+        onChange([...images, ...results]);
+      } else {
+        // Instant direct addition of compressed high-res image
+        onChange([...images, ...compressedDataUrls]);
+      }
     } catch (err: any) {
       console.error("Upload error:", err);
-      setUploadError(err.message || "Failed to upload images. Please check network.");
+      setUploadError(err.message || "Failed to process images.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

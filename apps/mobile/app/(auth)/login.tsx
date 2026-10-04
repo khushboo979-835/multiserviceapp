@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,12 @@ export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Eager backend warmup on mount to eliminate Render cold-start latency
+  useEffect(() => {
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+    fetch(`${API_URL}/health`).catch(() => {});
+  }, []);
 
   // Strictly validate 10-digit Indian mobile number
   const validatePhone = (phone: string): boolean => {

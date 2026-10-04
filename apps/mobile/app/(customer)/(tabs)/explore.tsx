@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import io from "socket.io-client";
 import {
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -33,7 +34,7 @@ import {
   Tag,
   Gift,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { MOCK_BRANDS } from "../../../src/constants/mockData";
 import { MobileBrand } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
@@ -58,25 +59,37 @@ export default function ExploreScreen() {
   const queryClient = useQueryClient();
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
   const products = productsQuery.data ?? [];
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-refetch when user navigates to Explore screen
+  useFocusEffect(
+    useCallback(() => {
+      productsQuery.refetch();
+    }, [productsQuery])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await productsQuery.refetch();
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     const socket = io(
       process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "https://multiserviceapp-4pdw.onrender.com",
       { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
     );
-    socket.on("product:change", () => {
+    const handleUpdate = () => {
       queryClient.invalidateQueries({ queryKey: catalogKeys.products });
-    });
-    socket.on("product:updated", () => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
-    });
-    socket.on("catalog_updated", () => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
-    });
+      productsQuery.refetch();
+    };
+    socket.on("product:change", handleUpdate);
+    socket.on("product:updated", handleUpdate);
+    socket.on("catalog_updated", handleUpdate);
     return () => {
       socket.disconnect();
     };
-  }, [queryClient]);
+  }, [queryClient, productsQuery]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedBrand, setSelectedBrand] = useState<MobileBrand | null>(null);
@@ -164,6 +177,14 @@ export default function ExploreScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#ef4444"]}
+            tintColor="#ef4444"
+          />
+        }
       >
         {/* Category Selector Tabs */}
         <ScrollView

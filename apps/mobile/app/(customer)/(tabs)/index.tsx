@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import io from "socket.io-client";
 import {
@@ -16,7 +16,7 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
@@ -119,7 +119,16 @@ export default function CustomerHomeScreen() {
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
   const categories = categoriesQuery.data ?? [];
   const banners = bannersQuery.data ?? [];
-  const topDeals = (productsQuery.data ?? []).slice(0, 4);
+  const topDeals = productsQuery.data ?? [];
+
+  // Focus refetch for instant live sync
+  useFocusEffect(
+    useCallback(() => {
+      categoriesQuery.refetch();
+      bannersQuery.refetch();
+      productsQuery.refetch();
+    }, [categoriesQuery, bannersQuery, productsQuery])
+  );
 
   // Real-time Socket.IO synchronization for live products & catalog updates
   useEffect(() => {
@@ -127,21 +136,24 @@ export default function CustomerHomeScreen() {
       process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "https://multiserviceapp-4pdw.onrender.com",
       { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
     );
-    socket.on("product:change", () => {
+    const handleProductUpdate = () => {
       queryClient.invalidateQueries({ queryKey: catalogKeys.products });
-    });
-    socket.on("product:updated", () => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
-    });
+      productsQuery.refetch();
+    };
+    socket.on("product:change", handleProductUpdate);
+    socket.on("product:updated", handleProductUpdate);
     socket.on("catalog_updated", () => {
       queryClient.invalidateQueries({ queryKey: catalogKeys.products });
       queryClient.invalidateQueries({ queryKey: catalogKeys.categories });
       queryClient.invalidateQueries({ queryKey: catalogKeys.banners });
+      productsQuery.refetch();
+      categoriesQuery.refetch();
+      bannersQuery.refetch();
     });
     return () => {
       socket.disconnect();
     };
-  }, [queryClient]);
+  }, [queryClient, productsQuery, categoriesQuery, bannersQuery]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
@@ -174,7 +186,7 @@ export default function CustomerHomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([categoriesQuery.refetch(), bannersQuery.refetch()]);
+    await Promise.all([categoriesQuery.refetch(), bannersQuery.refetch(), productsQuery.refetch()]);
     setRefreshing(false);
   };
 

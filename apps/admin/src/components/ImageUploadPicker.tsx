@@ -83,28 +83,22 @@ export default function ImageUploadPicker({
     setUploading(true);
     setUploadError("");
     try {
+      // Step 1: Immediately compress image on client
       const compressedDataUrl = await compressImageFile(file);
+      onChange(compressedDataUrl);
 
-      let cloudinarySignature: any = null;
+      // Step 2: Background Cloudinary upgrade if configured
       try {
         const { data } = await apiClient.post("/media/cloudinary-signature");
         if (data && data.configured && data.signature && data.cloudName) {
-          cloudinarySignature = data;
-        }
-      } catch {
-        cloudinarySignature = null;
-      }
-
-      if (cloudinarySignature) {
-        try {
           const body = new FormData();
           body.append("file", file);
-          body.append("api_key", cloudinarySignature.apiKey);
-          body.append("timestamp", String(cloudinarySignature.timestamp));
-          body.append("folder", cloudinarySignature.folder);
-          body.append("signature", cloudinarySignature.signature);
+          body.append("api_key", data.apiKey);
+          body.append("timestamp", String(data.timestamp));
+          body.append("folder", data.folder);
+          body.append("signature", data.signature);
           const response = await fetch(
-            `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudinarySignature.cloudName)}/image/upload`,
+            `https://api.cloudinary.com/v1_1/${encodeURIComponent(data.cloudName)}/image/upload`,
             {
               method: "POST",
               body,
@@ -113,17 +107,14 @@ export default function ImageUploadPicker({
           const result = await response.json();
           if (response.ok && result.secure_url) {
             onChange(result.secure_url);
-            return;
           }
-        } catch (cloudErr) {
-          console.warn("Cloudinary upload failed, using high-speed compressed image:", cloudErr);
         }
+      } catch {
+        // Cloudinary failed/disabled - keep compressed data url
       }
-
-      onChange(compressedDataUrl);
     } catch (error: any) {
       console.error("Image processing error:", error);
-      setUploadError(error?.message || "Failed to process image.");
+      setUploadError("Could not read image file. Please try another image.");
     } finally {
       setUploading(false);
     }

@@ -100,59 +100,58 @@ export default function MultiImageUploadPicker({
     setUploadError("");
 
     try {
-      // Step 1: Compress all selected files on the client
+      // Step 1: Immediately compress all selected files on client (ultra-fast <50ms)
       const compressedDataUrls = await Promise.all(
         files.map((file) => compressImageFile(file))
       );
 
-      // Step 2: Check if Cloudinary signature endpoint is configured
-      let cloudinarySignature: any = null;
+      // Add compressed images immediately so user sees them right away
+      onChange([...images, ...compressedDataUrls]);
+
+      // Step 2: Try background Cloudinary upload if configured, without blocking user
       try {
         const { data } = await apiClient.post("/media/cloudinary-signature");
         if (data && data.configured && data.signature && data.cloudName) {
-          cloudinarySignature = data;
+          const cloudUploads = await Promise.all(
+            files.map(async (file) => {
+              try {
+                const body = new FormData();
+                body.append("file", file);
+                body.append("api_key", data.apiKey);
+                body.append("timestamp", String(data.timestamp));
+                body.append("folder", data.folder);
+                body.append("signature", data.signature);
+
+                const response = await fetch(
+                  `https://api.cloudinary.com/v1_1/${encodeURIComponent(data.cloudName)}/image/upload`,
+                  {
+                    method: "POST",
+                    body,
+                  }
+                );
+                const result = await response.json();
+                if (response.ok && result.secure_url) {
+                  return result.secure_url as string;
+                }
+              } catch {
+                // Cloudinary failed/disabled - keep base64
+              }
+              return null;
+            })
+          );
+
+          // If any Cloudinary upload succeeded, upgrade the URLs
+          const successfulCloudUrls = cloudUploads.filter((url): url is string => Boolean(url));
+          if (successfulCloudUrls.length === files.length) {
+            onChange([...images, ...successfulCloudUrls]);
+          }
         }
       } catch {
-        cloudinarySignature = null;
-      }
-
-      // Step 3: If Cloudinary is available, upload there; otherwise use compressed Data URLs directly
-      if (cloudinarySignature) {
-        const uploadPromises = files.map(async (file, idx) => {
-          try {
-            const body = new FormData();
-            body.append("file", file);
-            body.append("api_key", cloudinarySignature.apiKey);
-            body.append("timestamp", String(cloudinarySignature.timestamp));
-            body.append("folder", cloudinarySignature.folder);
-            body.append("signature", cloudinarySignature.signature);
-
-            const response = await fetch(
-              `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudinarySignature.cloudName)}/image/upload`,
-              {
-                method: "POST",
-                body,
-              }
-            );
-            const result = await response.json();
-            if (response.ok && result.secure_url) {
-              return result.secure_url as string;
-            }
-          } catch (cloudErr) {
-            console.warn("Cloudinary upload failed, using high-speed compressed image:", cloudErr);
-          }
-          return compressedDataUrls[idx];
-        });
-
-        const results = await Promise.all(uploadPromises);
-        onChange([...images, ...results]);
-      } else {
-        // Instant direct addition of compressed high-res image
-        onChange([...images, ...compressedDataUrls]);
+        // Cloudinary not configured or disabled - safely ignored
       }
     } catch (err: any) {
-      console.error("Upload error:", err);
-      setUploadError(err.message || "Failed to process images.");
+      console.error("Image processing error:", err);
+      setUploadError("Could not read image file. Please try another image.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

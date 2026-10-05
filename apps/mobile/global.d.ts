@@ -24,3 +24,8 @@ declare module "*.svg" {
   const content: any;
   export default content;
 }
+
+declare namespace NodeJS {
+  type Timeout = any;
+  type Timer = any;
+}

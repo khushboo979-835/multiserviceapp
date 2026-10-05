@@ -113,6 +113,99 @@ app.get("/app", (req, res) => {
   `);
 });
 
+// Official Google Play Store Privacy Policy Page
+app.get(["/privacy-policy", "/privacy"], (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Privacy Policy - Inisha City Service</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 800px; margin: 0 auto; padding: 32px 20px; background: #f8fafc; }
+        .card { background: #ffffff; padding: 36px 28px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        h1 { color: #0f172a; font-size: 26px; margin-bottom: 8px; font-weight: 800; }
+        h2 { color: #1e293b; font-size: 18px; margin-top: 24px; margin-bottom: 8px; }
+        p, li { font-size: 14px; color: #475569; margin-bottom: 12px; }
+        ul { padding-left: 20px; }
+        .updated { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+        .contact-box { background: #f1f5f9; padding: 16px; border-radius: 10px; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Privacy Policy for Inisha City Service</h1>
+        <div class="updated">Last updated: October 2026</div>
+        <p>Inisha City Service ("we", "our", or "us") operates the Inisha mobile application and doorstep local services platform. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service.</p>
+        
+        <h2>1. Information We Collect</h2>
+        <p>While using our Service, we may ask you to provide us with certain personally identifiable information, including but not limited to:</p>
+        <ul>
+          <li><strong>Contact Information:</strong> Full name, phone number, email address, and delivery/service address.</li>
+          <li><strong>Location Data:</strong> Device GPS coordinates (with your permission) to calculate distances, dispatch nearby service technicians, track delivery drivers, and estimate arrival times.</li>
+          <li><strong>Payment & Transaction Information:</strong> Order details, invoice amounts, and transaction status (processed securely through authorized gateways).</li>
+        </ul>
+
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+          <li>To provide, maintain, and dispatch doorstep home repairs, salon services, and instant product delivery.</li>
+          <li>To allow live real-time GPS tracking between customer and assigned technician.</li>
+          <li>To notify you about changes to our Service, customer support, and order status updates.</li>
+        </ul>
+
+        <h2>3. Data Protection & Security</h2>
+        <p>The security of your personal information is important to us. We employ industry-standard encryption protocols (HTTPS/SSL) and secure database storage. We do not sell or rent your personal information to third parties.</p>
+
+        <h2>4. User Rights and Deletion</h2>
+        <p>You have the right to request access to or deletion of your personal data at any time by contacting our support team.</p>
+
+        <div class="contact-box">
+          <strong>Contact Us:</strong><br/>
+          Inisha City Service Support Team<br/>
+          Email: support@inishacityservice.com<br/>
+          Helpline: +91 95078 60048 / +91 73520 82614<br/>
+          Address: Sultanganj, Bihar - 813213, India
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// Official Terms of Service Page
+app.get(["/terms", "/terms-and-conditions"], (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Terms of Service - Inisha City Service</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 800px; margin: 0 auto; padding: 32px 20px; background: #f8fafc; }
+        .card { background: #ffffff; padding: 36px 28px; border-radius: 16px; border: 1px solid #e2e8f0; }
+        h1 { color: #0f172a; font-size: 26px; margin-bottom: 8px; font-weight: 800; }
+        h2 { color: #1e293b; font-size: 18px; margin-top: 24px; margin-bottom: 8px; }
+        p, li { font-size: 14px; color: #475569; margin-bottom: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Terms of Service</h1>
+        <p>Welcome to Inisha City Service. By downloading or using our mobile application or website, you agree to comply with and be bound by these terms.</p>
+        <h2>1. Services</h2>
+        <p>Inisha provides on-demand doorstep home repair services, salon at home, and local grocery and product delivery through verified partner technicians and sellers.</p>
+        <h2>2. Payments and Pricing</h2>
+        <p>Prices are transparently displayed before placing bookings or orders. Payments can be settled via UPI, online gateways, or Cash on Delivery.</p>
+        <h2>3. Warranty & Satisfaction Guarantee</h2>
+        <p>Services booked through Inisha come with genuine parts assurance and standard service guarantee terms as outlined in individual service descriptions.</p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 // Root & API Health Status Handlers
 const apiStatusHandler = (req: express.Request, res: express.Response) => {
   res.status(200).json({

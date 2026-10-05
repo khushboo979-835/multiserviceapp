@@ -8,6 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:apk": "npx eas-cli build --platform android --profile preview",
+    "build:aab": "npx eas-cli build --platform android --profile production",
+    "build:production": "npx eas-cli build --platform android --profile production",
     "ts:check": "tsc"
   },
   "dependencies": {

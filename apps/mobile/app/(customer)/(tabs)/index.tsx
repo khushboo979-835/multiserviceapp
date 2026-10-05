@@ -114,9 +114,9 @@ export default function CustomerHomeScreen() {
   } = useBookingStore();
 
   const queryClient = useQueryClient();
-  const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: fetchCatalogCategories, staleTime: 0 });
-  const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: fetchCatalogBanners, staleTime: 0 });
-  const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
+  const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: () => fetchCatalogCategories(), staleTime: 0 });
+  const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: () => fetchCatalogBanners(), staleTime: 0 });
+  const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: () => fetchCatalogProducts(), staleTime: 0 });
   const categories = categoriesQuery.data ?? [];
   const banners = bannersQuery.data ?? [];
   const topDeals = productsQuery.data ?? [];
@@ -729,15 +729,36 @@ export default function CustomerHomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
             {categories.slice(0, 6).map((cat) => {
               const basePrice = cat.subcategories?.[0]?.basePrice || 399;
+              const normSlug = (cat.slug || cat.id || cat.name || "").toLowerCase();
               const imgUri = (cat.imageUrl && cat.imageUrl.startsWith("http"))
                 ? cat.imageUrl
-                : (cat.id === "cat_mobile" || cat.slug?.includes("mobile")
-                  ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80"
-                  : cat.id === "cat_ac_repair" || cat.slug?.includes("ac")
-                  ? "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80"
-                  : cat.id === "cat_salon" || cat.slug?.includes("salon")
-                  ? "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80"
-                  : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80");
+                : normSlug.includes("mobile") || normSlug.includes("phone")
+                ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80"
+                : normSlug.includes("ac") || normSlug.includes("air") || normSlug.includes("wind")
+                ? "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80"
+                : normSlug.includes("elec") || normSlug.includes("zap") || normSlug.includes("wiring")
+                ? "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=600&q=80"
+                : normSlug.includes("plumb") || normSlug.includes("water") || normSlug.includes("pipe")
+                ? "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=600&q=80"
+                : normSlug.includes("clean") || normSlug.includes("sanit")
+                ? "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80"
+                : normSlug.includes("salon") || normSlug.includes("parlour") || normSlug.includes("beauty") || normSlug.includes("spa")
+                ? "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80"
+                : normSlug.includes("appliance") || normSlug.includes("geyser") || normSlug.includes("oven")
+                ? "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&q=80"
+                : normSlug.includes("carpenter") || normSlug.includes("wood") || normSlug.includes("furniture")
+                ? "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=600&q=80"
+                : normSlug.includes("paint")
+                ? "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=600&q=80"
+                : normSlug.includes("cctv") || normSlug.includes("camera") || normSlug.includes("security")
+                ? "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&q=80"
+                : normSlug.includes("ro") || normSlug.includes("purifier")
+                ? "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&q=80"
+                : normSlug.includes("computer") || normSlug.includes("laptop") || normSlug.includes("pc")
+                ? "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&q=80"
+                : normSlug.includes("washing") || normSlug.includes("fridge") || normSlug.includes("refrigerator")
+                ? "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&q=80"
+                : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80";
 
               return (
                 <View key={cat.id} style={styles.popularServiceCard}>

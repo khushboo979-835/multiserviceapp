@@ -41,6 +41,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/ecommerce", ecommerceRouter);
+app.use("/api/products", ecommerceRouter);
 app.use("/api/banners", bannerRouter);
 app.use("/api/media", mediaRouter);
 

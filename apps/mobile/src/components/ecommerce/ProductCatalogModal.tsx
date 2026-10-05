@@ -49,8 +49,12 @@ export default function ProductCatalogModal({
   onClose,
   onOrderPlaced,
 }: ProductCatalogModalProps) {
-  const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
-  const products = productsQuery.data ?? [];
+  const productsQuery = useQuery<Product[]>({
+    queryKey: catalogKeys.products,
+    queryFn: () => fetchCatalogProducts(),
+    staleTime: 0,
+  });
+  const products: Product[] = productsQuery.data ?? [];
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});

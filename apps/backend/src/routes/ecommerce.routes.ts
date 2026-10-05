@@ -81,19 +81,36 @@ const DEFAULT_PRODUCTS = [
   },
 ];
 
-// GET /api/ecommerce/products - Get all products with optional category filter
+// GET /api/ecommerce/products (and /api/products) - Get all products with optional category filter
 router.get("/products", async (req: Request, res: Response) => {
   try {
     const { category, search } = req.query;
     let query: any = {};
 
-    if (category && category !== "ALL") {
-      query.$or = [{ category }, { categoryName: category }];
+    if (category && category !== "ALL" && category !== "all") {
+      const catStr = String(category).trim();
+      const catEscaped = catStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const catRegex = new RegExp(catEscaped, "i");
+      
+      const orConditions: any[] = [
+        { category: catRegex },
+        { categoryName: catRegex },
+      ];
+      
+      const normalized = normalizeProductCategory(catStr);
+      if (normalized) {
+        orConditions.push({ category: normalized });
+      }
+      
+      query.$or = orConditions;
     }
     if (search) {
+      const searchRegex = new RegExp(String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       query.$or = [
-        { name: { $regex: search as string, $options: "i" } },
-        { description: { $regex: search as string, $options: "i" } },
+        ...(query.$or || []),
+        { name: searchRegex },
+        { description: searchRegex },
+        { brand: searchRegex },
       ];
     }
 

@@ -164,8 +164,9 @@ export const normalizeProduct = (item: any, index = 0): Product => {
   };
 };
 
-export const fetchCatalogProducts = async (): Promise<Product[]> => {
-  const list = asList(await fetchJson("/ecommerce/products"), "products");
+export const fetchCatalogProducts = async (category?: string): Promise<Product[]> => {
+  const queryParam = category && category !== "ALL" ? `?category=${encodeURIComponent(category)}` : "";
+  const list = asList(await fetchJson(`/ecommerce/products${queryParam}`), "products");
   return list.filter((item) => item && typeof item === "object").map((item, index) => normalizeProduct(item, index));
 };
 

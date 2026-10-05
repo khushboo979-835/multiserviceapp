@@ -57,7 +57,12 @@ const EXPLORE_TABS = [
 export default function ExploreScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: fetchCatalogProducts, staleTime: 0 });
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const productsQuery = useQuery({
+    queryKey: ["catalog", "products", selectedCategory],
+    queryFn: () => fetchCatalogProducts(selectedCategory),
+    staleTime: 0,
+  });
   const products = productsQuery.data ?? [];
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,7 +85,7 @@ export default function ExploreScreen() {
       { transports: ["websocket", "polling"], reconnectionAttempts: 5 }
     );
     const handleUpdate = () => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.products });
+      queryClient.invalidateQueries({ queryKey: ["catalog", "products", selectedCategory] });
       productsQuery.refetch();
     };
     socket.on("product:change", handleUpdate);
@@ -89,9 +94,8 @@ export default function ExploreScreen() {
     return () => {
       socket.disconnect();
     };
-  }, [queryClient, productsQuery]);
+  }, [queryClient, productsQuery, selectedCategory]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedBrand, setSelectedBrand] = useState<MobileBrand | null>(null);
   const [sortBy, setSortBy] = useState<"POPULAR" | "PRICE_LOW" | "PRICE_HIGH" | "RATING">("POPULAR");
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);

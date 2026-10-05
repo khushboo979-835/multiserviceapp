@@ -99,26 +99,7 @@ const INITIAL_ORDERS: StoreOrder[] = [
 ];
 
 export const useCartStore = create<CartStore>((set, get) => ({
-  items: [
-    {
-      product: {
-        id: "prod_acc_1",
-        name: "65W SuperVOOC / Dash Fast Charger with Type-C Cable",
-        category: "MOBILE_ACCESSORIES",
-        categoryName: "Mobile Accessories",
-        description: "Ultra-fast charging with surge protection.",
-        price: 699,
-        originalPrice: 1499,
-        discountPercentage: 53,
-        unit: "1 Pack",
-        imageUrl: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=500&q=80",
-        inStock: true,
-        rating: 4.9,
-        deliveryTimeMins: 20,
-      },
-      quantity: 1,
-    },
-  ],
+  items: [],
   isGift: false,
   giftRecipientName: "",
   giftMessage: "",

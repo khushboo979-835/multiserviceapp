@@ -12,7 +12,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ShoppingBag,
   Trash2,
@@ -42,6 +42,7 @@ const { width } = Dimensions.get("window");
 
 export default function CartScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     items,
     updateQuantity,
@@ -123,17 +124,8 @@ export default function CartScreen() {
       const order = placeOrder(deliveryAddress, paymentLabel);
       setIsPlacingOrder(false);
 
-      Alert.alert(
-        "🎉 Order Placed Successfully!",
-        `Order ${order.orderNumber} is confirmed.\nDelivery in 10-15 minutes! Delivery OTP: ${order.otp}`,
-        [
-          {
-            text: "Track Live Order",
-            onPress: () => router.push("/(customer)/(tabs)/orders"),
-          },
-        ]
-      );
-    }, 1200);
+      router.push(`/(customer)/track-order/${order.id}` as any);
+    }, 1000);
   };
 
   if (items.length === 0) {
@@ -477,11 +469,16 @@ export default function CartScreen() {
         </View>
 
         {/* Extra Bottom Spacing */}
-        <View style={{ height: 110 }} />
+        <View style={{ height: Math.max(insets.bottom, 16) + 90 }} />
       </ScrollView>
 
       {/* Fixed Bottom Checkout Bar */}
-      <View style={styles.bottomCheckoutBar}>
+      <View
+        style={[
+          styles.bottomCheckoutBar,
+          { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+        ]}
+      >
         <View>
           <Text style={styles.checkoutTotalLabel}>To Pay</Text>
           <Text style={styles.checkoutTotalAmount}>₹{finalTotal}</Text>

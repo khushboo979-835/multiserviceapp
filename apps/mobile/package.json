@@ -10,7 +10,8 @@
     "build:apk": "npx eas-cli build --platform android --profile preview",
     "build:aab": "npx eas-cli build --platform android --profile production",
     "build:production": "npx eas-cli build --platform android --profile production",
-    "ts:check": "tsc"
+    "ts:check": "tsc",
+    "eas-build-pre-install": "echo pre-install ok"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

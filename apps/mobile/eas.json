@@ -9,7 +9,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     },
     "preview": {
@@ -19,7 +20,8 @@
         "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     },
     "production": {
@@ -28,7 +30,8 @@
         "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     }
   },

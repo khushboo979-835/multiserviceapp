@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 12.0.0",
+    "version": ">= 10.0.0",
     "appVersionSource": "remote",
     "requireCommit": false
   },
@@ -16,9 +16,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://multiserviceapp-4pdw.onrender.com/api",
-        "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com",
-        "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1"
+        "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"
       },
       "android": {
         "buildType": "apk"
@@ -27,9 +25,7 @@
     "production": {
       "env": {
         "EXPO_PUBLIC_API_URL": "https://multiserviceapp-4pdw.onrender.com/api",
-        "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com",
-        "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1"
+        "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"
       },
       "android": {
         "buildType": "app-bundle"

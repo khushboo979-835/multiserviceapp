@@ -2,7 +2,7 @@
   "expo": {
     "name": "Inisha",
     "slug": "inisha-city-service",
-    "owner": "khusbookumari78570",
+    "owner": "inshaservice",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -57,7 +57,7 @@
         "origin": "https://inishacityservice.com"
       },
       "eas": {
-        "projectId": "237a6fd9-ca52-4cbf-ac0f-8813a528723b"
+        "projectId": "37f13d43-b36d-44d2-80d1-21b8bfe0d9ea"
       }
     }
   }

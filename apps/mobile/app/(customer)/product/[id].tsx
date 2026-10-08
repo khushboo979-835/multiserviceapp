@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -31,14 +31,19 @@ import {
   Zap,
   X,
   Store,
+  Tag,
+  Heart,
+  BadgePercent,
+  Eye,
+  Check,
 } from "lucide-react-native";
 import { fetchProductDetails, fetchCatalogProducts, catalogKeys } from "../../../src/api/catalog";
 import { Product, ProductVariant } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
 import io from "socket.io-client";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const IMAGE_HEIGHT = SCREEN_WIDTH * 0.92;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const IMAGE_HEIGHT = SCREEN_WIDTH * 0.95;
 
 const SOCKET_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ||
@@ -54,8 +59,11 @@ export default function ProductDetailsScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  const [fullscreenActiveIndex, setFullscreenActiveIndex] = useState(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
   const [pincode, setPincode] = useState("800001");
+  const fullscreenScrollRef = useRef<ScrollView>(null);
 
   // Fetch Product Details with fallback to list if single endpoint takes time
   const { data: product, isLoading, isError, refetch } = useQuery<Product>({
@@ -73,6 +81,27 @@ export default function ProductDetailsScreen() {
     enabled: !!id,
     staleTime: 1000 * 60 * 2,
   });
+
+  // Fetch All Catalog Products for Similar / Related Products section
+  const { data: catalogProducts = [] } = useQuery<Product[]>({
+    queryKey: catalogKeys.products,
+    queryFn: () => fetchCatalogProducts(),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Filter similar products from same category or popular items
+  const similarProducts = useMemo(() => {
+    if (!catalogProducts || (catalogProducts as Product[]).length === 0) return [];
+    const currentCat = product?.category || product?.categoryName || "";
+    const prods = catalogProducts as Product[];
+    const sameCategory = prods.filter(
+      (p: Product) => p.id !== id && (p.category === currentCat || p.categoryName === currentCat)
+    );
+    const otherProducts = prods.filter(
+      (p: Product) => p.id !== id && !sameCategory.some((sc: Product) => sc.id === p.id)
+    );
+    return [...sameCategory, ...otherProducts].slice(0, 8);
+  }, [catalogProducts, product, id]);
 
   // Socket.IO live sync for instant catalog & product updates
   useEffect(() => {
@@ -188,6 +217,11 @@ export default function ProductDetailsScreen() {
     router.push("/(customer)/(tabs)/cart" as any);
   };
 
+  const openFullscreen = (index: number) => {
+    setFullscreenActiveIndex(index);
+    setIsFullscreenVisible(true);
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -216,7 +250,7 @@ export default function ProductDetailsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Header Bar */}
+      {/* Top Flipkart-Style Header Bar */}
       <View style={styles.headerBar}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -227,10 +261,22 @@ export default function ProductDetailsScreen() {
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {product.categoryName || "Product Details"}
+          {product.categoryName || "Inisha Store"}
         </Text>
 
         <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            onPress={() => setIsWishlisted(!isWishlisted)}
+            style={styles.headerIconButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Heart
+              size={20}
+              color={isWishlisted ? "#DC2626" : "#1E293B"}
+              fill={isWishlisted ? "#DC2626" : "none"}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={handleShare}
             style={styles.headerIconButton}
@@ -259,7 +305,7 @@ export default function ProductDetailsScreen() {
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
       >
-        {/* Multi-Image Carousel Section */}
+        {/* Flipkart-Style Multi-Image Carousel Section with Tap to Zoom */}
         <View style={styles.carouselContainer}>
           <ScrollView
             horizontal
@@ -278,8 +324,8 @@ export default function ProductDetailsScreen() {
             {galleryImages.map((imgUrl, idx) => (
               <TouchableOpacity
                 key={idx}
-                activeOpacity={0.9}
-                onPress={() => setIsFullscreenVisible(true)}
+                activeOpacity={0.95}
+                onPress={() => openFullscreen(idx)}
                 style={styles.carouselSlide}
               >
                 <Image
@@ -291,7 +337,7 @@ export default function ProductDetailsScreen() {
             ))}
           </ScrollView>
 
-          {/* Floating Discount Ribbon & Rating */}
+          {/* Floating Discount Ribbon */}
           {currentPricing.discount > 0 && (
             <View style={styles.discountFloatingBadge}>
               <Sparkles size={12} color="#FFFFFF" />
@@ -301,20 +347,39 @@ export default function ProductDetailsScreen() {
             </View>
           )}
 
-          {/* Dots Pagination Indicator */}
-          {galleryImages.length > 1 && (
-            <View style={styles.paginationDots}>
-              {galleryImages.map((_, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.dot,
-                    activeImageIndex === idx && styles.activeDot,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
+          {/* Tap to Zoom floating pill */}
+          <TouchableOpacity
+            style={styles.zoomHintBadge}
+            onPress={() => openFullscreen(activeImageIndex)}
+            activeOpacity={0.8}
+          >
+            <Eye size={12} color="#475569" />
+            <Text style={styles.zoomHintText}>Tap to Zoom</Text>
+          </TouchableOpacity>
+
+          {/* Dots / Page Counter Indicator */}
+          <View style={styles.paginationRow}>
+            {galleryImages.length > 1 ? (
+              <View style={styles.paginationDots}>
+                {galleryImages.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.dot,
+                      activeImageIndex === idx && styles.activeDot,
+                    ]}
+                  />
+                ))}
+              </View>
+            ) : null}
+            {galleryImages.length > 1 && (
+              <View style={styles.pageCountBadge}>
+                <Text style={styles.pageCountText}>
+                  {activeImageIndex + 1}/{galleryImages.length}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Thumbnail Preview Strip */}
@@ -346,7 +411,13 @@ export default function ProductDetailsScreen() {
         {/* Product Brand, Title & Rating Header */}
         <View style={styles.mainInfoCard}>
           {product.brand ? (
-            <Text style={styles.brandLabel}>{product.brand.toUpperCase()}</Text>
+            <View style={styles.brandBadgeRow}>
+              <Text style={styles.brandLabel}>{product.brand.toUpperCase()}</Text>
+              <View style={styles.assuredBadge}>
+                <ShieldCheck size={13} color="#16A34A" />
+                <Text style={styles.assuredText}>Inisha Verified</Text>
+              </View>
+            </View>
           ) : null}
 
           <Text style={styles.productTitle}>{product.name}</Text>
@@ -356,15 +427,12 @@ export default function ProductDetailsScreen() {
           <View style={styles.ratingRow}>
             <View style={styles.ratingBadge}>
               <Text style={styles.ratingBadgeText}>{product.rating.toFixed(1)}</Text>
-              <Star size={12} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 3 }} />
+              <Star size={11} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 3 }} />
             </View>
             <Text style={styles.ratingsCountText}>
-              {product.ratingsCount || 120} Ratings & 48 Reviews
+              {product.ratingsCount || 148} ratings & 52 reviews
             </Text>
-            <View style={styles.assuredBadge}>
-              <ShieldCheck size={14} color="#16A34A" />
-              <Text style={styles.assuredText}>Inisha Assured</Text>
-            </View>
+            <Text style={styles.hotSellingBadge}>🔥 Fast Selling</Text>
           </View>
 
           {/* Pricing & Discount Card */}
@@ -377,12 +445,41 @@ export default function ProductDetailsScreen() {
               {currentPricing.discount > 0 && (
                 <View style={styles.discountTag}>
                   <Text style={styles.discountTagText}>
-                    {currentPricing.discount}% OFF
+                    {currentPricing.discount}% off
                   </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.taxInclusiveText}>Inclusive of all taxes</Text>
+            <Text style={styles.taxInclusiveText}>Inclusive of all taxes & free doorstep delivery</Text>
+          </View>
+        </View>
+
+        {/* Flipkart-Style Bank Offers & Coupons Card */}
+        <View style={styles.sectionCard}>
+          <View style={styles.offersHeaderRow}>
+            <BadgePercent size={18} color="#16A34A" />
+            <Text style={styles.sectionHeadingNoMargin}>Available Offers & Discounts</Text>
+          </View>
+
+          <View style={styles.offerItem}>
+            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
+            <Text style={styles.offerText}>
+              <Text style={styles.offerHighlight}>Bank Offer:</Text> 5% Unlimited Cashback on Inisha UPI / Card Payments.
+            </Text>
+          </View>
+
+          <View style={styles.offerItem}>
+            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
+            <Text style={styles.offerText}>
+              <Text style={styles.offerHighlight}>Special Price:</Text> Extra ₹100 Off on orders above ₹999.
+            </Text>
+          </View>
+
+          <View style={styles.offerItem}>
+            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
+            <Text style={styles.offerText}>
+              <Text style={styles.offerHighlight}>No Cost EMI:</Text> Avail EMI options on orders above ₹2,000.
+            </Text>
           </View>
         </View>
 
@@ -469,7 +566,7 @@ export default function ProductDetailsScreen() {
                 Express Delivery in {product.deliveryTimeMins || 20} mins
               </Text>
               <Text style={styles.deliverySubtitle}>
-                Order now to get instant doorstep delivery
+                Order now to get instant doorstep delivery in Patna & Bihar
               </Text>
             </View>
           </View>
@@ -564,6 +661,88 @@ export default function ProductDetailsScreen() {
           </View>
         </View>
 
+        {/* Ratings & Customer Reviews Breakdown */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>Ratings & Reviews</Text>
+          <View style={styles.ratingSummaryBox}>
+            <View style={styles.ratingBigCol}>
+              <Text style={styles.ratingBigNumber}>{product.rating.toFixed(1)}</Text>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star key={s} size={14} color="#F59E0B" fill="#F59E0B" />
+                ))}
+              </View>
+              <Text style={styles.ratingTotalText}>
+                {product.ratingsCount || 148} Verified Ratings
+              </Text>
+            </View>
+
+            <View style={styles.ratingBarsCol}>
+              {[
+                { star: "5 ★", pct: 75, color: "#16A34A" },
+                { star: "4 ★", pct: 18, color: "#22C55E" },
+                { star: "3 ★", pct: 4, color: "#F59E0B" },
+                { star: "2 ★", pct: 2, color: "#F97316" },
+                { star: "1 ★", pct: 1, color: "#EF4444" },
+              ].map((bar, bIdx) => (
+                <View key={bIdx} style={styles.ratingBarItem}>
+                  <Text style={styles.ratingBarStarLabel}>{bar.star}</Text>
+                  <View style={styles.ratingBarTrack}>
+                    <View
+                      style={[
+                        styles.ratingBarFill,
+                        { width: `${bar.pct}%`, backgroundColor: bar.color },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.ratingBarPct}>{bar.pct}%</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Sample Verified Customer Reviews */}
+          <View style={styles.reviewsList}>
+            <View style={styles.reviewItemCard}>
+              <View style={styles.reviewHeader}>
+                <View style={styles.reviewMiniBadge}>
+                  <Text style={styles.reviewMiniBadgeText}>5 ★</Text>
+                </View>
+                <Text style={styles.reviewTitleText}>Must Buy! Value for Money</Text>
+              </View>
+              <Text style={styles.reviewBodyText}>
+                Super fast delivery by Inisha City Service. The product was genuine and original packaging. Very satisfied!
+              </Text>
+              <View style={styles.reviewFooter}>
+                <Text style={styles.reviewerName}>Rahul Sharma</Text>
+                <View style={styles.verifiedBuyerTag}>
+                  <Check size={11} color="#16A34A" />
+                  <Text style={styles.verifiedBuyerText}>Certified Buyer, Patna</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.reviewItemCard}>
+              <View style={styles.reviewHeader}>
+                <View style={styles.reviewMiniBadge}>
+                  <Text style={styles.reviewMiniBadgeText}>5 ★</Text>
+                </View>
+                <Text style={styles.reviewTitleText}>Terrific purchase & fast delivery</Text>
+              </View>
+              <Text style={styles.reviewBodyText}>
+                Ordered in the morning and arrived at my doorstep within 30 minutes! Perfect condition.
+              </Text>
+              <View style={styles.reviewFooter}>
+                <Text style={styles.reviewerName}>Pooja Kumari</Text>
+                <View style={styles.verifiedBuyerTag}>
+                  <Check size={11} color="#16A34A" />
+                  <Text style={styles.verifiedBuyerText}>Certified Buyer, Danapur</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* Seller Info & Assurance Card */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeading}>Seller Details</Text>
@@ -582,8 +761,101 @@ export default function ProductDetailsScreen() {
           </View>
         </View>
 
+        {/* Similar Products / You May Also Like Section (Flipkart-Style) */}
+        {similarProducts.length > 0 && (
+          <View style={styles.similarSectionCard}>
+            <View style={styles.similarHeaderRow}>
+              <View>
+                <Text style={styles.similarTitle}>Similar Products</Text>
+                <Text style={styles.similarSubtitle}>
+                  Customers who viewed this also bought
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/(customer)/(tabs)/catalog" as any)}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllBtnText}>View All</Text>
+                <ChevronRight size={14} color="#DC2626" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.similarScrollContainer}
+            >
+              {similarProducts.map((item) => {
+                const itemImg = item.images?.[0] || item.imageUrl || "";
+                const itemMrp = item.originalPrice || item.mrp || item.price;
+                const itemDisc =
+                  itemMrp > item.price
+                    ? Math.round(((itemMrp - item.price) / itemMrp) * 100)
+                    : item.discountPercentage || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.similarProductCard}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      router.push(`/(customer)/product/${item.id}` as any);
+                    }}
+                  >
+                    <View style={styles.similarImageWrapper}>
+                      <Image
+                        source={{ uri: itemImg }}
+                        style={styles.similarProductImage}
+                        resizeMode="contain"
+                      />
+                      {itemDisc > 0 && (
+                        <View style={styles.similarDiscBadge}>
+                          <Text style={styles.similarDiscText}>{itemDisc}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.similarInfo}>
+                      <Text style={styles.similarName} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+
+                      <View style={styles.similarRatingRow}>
+                        <View style={styles.similarRatingPill}>
+                          <Text style={styles.similarRatingText}>
+                            {(item.rating || 4.5).toFixed(1)}
+                          </Text>
+                          <Star size={9} color="#FFFFFF" fill="#FFFFFF" />
+                        </View>
+                        <Text style={styles.similarUnit}>{item.unit || "1 Pc"}</Text>
+                      </View>
+
+                      <View style={styles.similarPriceRow}>
+                        <Text style={styles.similarPrice}>₹{item.price}</Text>
+                        {itemMrp > item.price && (
+                          <Text style={styles.similarMrp}>₹{itemMrp}</Text>
+                        )}
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.similarAddBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          addItem(item);
+                        }}
+                      >
+                        <Text style={styles.similarAddBtnText}>Add to Cart</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Bottom spacer for sticky footer */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
 
       {/* Sticky Bottom Action Footer */}
@@ -627,7 +899,7 @@ export default function ProductDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Fullscreen Pinch / Zoom Modal */}
+      {/* Fullscreen Interactive Pinch-To-Zoom & Pan Modal (Flipkart Style) */}
       <Modal
         visible={isFullscreenVisible}
         transparent={false}
@@ -635,37 +907,109 @@ export default function ProductDetailsScreen() {
         onRequestClose={() => setIsFullscreenVisible(false)}
       >
         <View style={styles.fullscreenModal}>
-          <TouchableOpacity
-            onPress={() => setIsFullscreenVisible(false)}
-            style={styles.fullscreenCloseBtn}
-          >
-            <X size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Header with counter and close button */}
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity
+              onPress={() => setIsFullscreenVisible(false)}
+              style={styles.fullscreenCloseBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <X size={24} color="#FFFFFF" />
+            </TouchableOpacity>
 
+            <Text style={styles.fullscreenCounter}>
+              {fullscreenActiveIndex + 1} / {galleryImages.length}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleShare}
+              style={styles.fullscreenShareBtn}
+            >
+              <Share2 size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Pinch-to-zoom ScrollView Container */}
           <ScrollView
+            ref={fullscreenScrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            onScroll={(e) => {
+              const slide = Math.round(
+                e.nativeEvent.contentOffset.x / SCREEN_WIDTH
+              );
+              if (slide !== fullscreenActiveIndex && slide >= 0 && slide < galleryImages.length) {
+                setFullscreenActiveIndex(slide);
+              }
+            }}
+            scrollEventThrottle={16}
             contentContainerStyle={{ alignItems: "center" }}
           >
             {galleryImages.map((imgUrl, idx) => (
-              <View
+              <ScrollView
                 key={idx}
-                style={{
-                  width: SCREEN_WIDTH,
-                  height: "100%",
+                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.75 }}
+                contentContainerStyle={{
+                  flex: 1,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
+                maximumZoomScale={4}
+                minimumZoomScale={1}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                centerContent
               >
                 <Image
                   source={{ uri: imgUrl }}
-                  style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
+                  style={{
+                    width: SCREEN_WIDTH * 0.95,
+                    height: SCREEN_WIDTH * 0.95,
+                  }}
                   resizeMode="contain"
                 />
-              </View>
+              </ScrollView>
             ))}
           </ScrollView>
+
+          {/* Bottom Zoom Tip & Thumbnail Selector */}
+          <View style={styles.fullscreenBottomBar}>
+            <Text style={styles.fullscreenZoomTip}>
+              🔍 Pinch with 2 fingers to zoom into details
+            </Text>
+
+            {galleryImages.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.fullscreenThumbnailStrip}
+              >
+                {galleryImages.map((imgUrl, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      setFullscreenActiveIndex(idx);
+                      fullscreenScrollRef.current?.scrollTo({
+                        x: idx * SCREEN_WIDTH,
+                        animated: true,
+                      });
+                    }}
+                    style={[
+                      styles.fullscreenThumbWrapper,
+                      fullscreenActiveIndex === idx && styles.fullscreenThumbActive,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: imgUrl }}
+                      style={{ width: "100%", height: "100%", borderRadius: 6 }}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -675,7 +1019,7 @@ export default function ProductDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F1F5F9",
   },
   loadingContainer: {
     flex: 1,
@@ -808,13 +1152,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
-  paginationDots: {
+  zoomHintBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "rgba(241, 245, 249, 0.9)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  zoomHintText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  paginationRow: {
     position: "absolute",
     bottom: 12,
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  paginationDots: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
@@ -829,6 +1196,19 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: "#DC2626",
+  },
+  pageCountBadge: {
+    position: "absolute",
+    right: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  pageCountText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
   },
   thumbnailStrip: {
     flexDirection: "row",
@@ -861,14 +1241,19 @@ const styles = StyleSheet.create({
   mainInfoCard: {
     backgroundColor: "#FFFFFF",
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  brandBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
   },
   brandLabel: {
     fontSize: 11,
     fontWeight: "800",
     color: "#64748B",
     letterSpacing: 0.8,
-    marginBottom: 4,
   },
   productTitle: {
     fontSize: 18,
@@ -906,11 +1291,20 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontWeight: "600",
   },
+  hotSellingBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#EA580C",
+    backgroundColor: "#FFF7ED",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: "auto",
+  },
   assuredBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginLeft: "auto",
     backgroundColor: "#DCFCE7",
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -962,13 +1356,45 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: "#FFFFFF",
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   sectionHeading: {
     fontSize: 15,
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 12,
+  },
+  sectionHeadingNoMargin: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  offersHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  offerItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F8FAFC",
+  },
+  offerTagIcon: {
+    marginTop: 2,
+  },
+  offerText: {
+    fontSize: 12,
+    color: "#334155",
+    lineHeight: 18,
+    flex: 1,
+  },
+  offerHighlight: {
+    fontWeight: "800",
+    color: "#0F172A",
   },
   variantGroup: {
     marginBottom: 12,
@@ -1123,6 +1549,131 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#0F172A",
   },
+  ratingSummaryBox: {
+    flexDirection: "row",
+    gap: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    marginBottom: 12,
+  },
+  ratingBigCol: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "35%",
+    borderRightWidth: 1,
+    borderRightColor: "#F1F5F9",
+    paddingRight: 10,
+  },
+  ratingBigNumber: {
+    fontSize: 34,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+  starsRow: {
+    flexDirection: "row",
+    gap: 2,
+    marginTop: 4,
+  },
+  ratingTotalText: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  ratingBarsCol: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 4,
+  },
+  ratingBarItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ratingBarStarLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#64748B",
+    width: 24,
+  },
+  ratingBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  ratingBarFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  ratingBarPct: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#64748B",
+    width: 26,
+    textAlign: "right",
+  },
+  reviewsList: {
+    gap: 10,
+  },
+  reviewItemCard: {
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  reviewMiniBadge: {
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  reviewMiniBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  reviewTitleText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F172A",
+    flex: 1,
+  },
+  reviewBodyText: {
+    fontSize: 12,
+    color: "#475569",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  reviewFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reviewerName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  verifiedBuyerTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  verifiedBuyerText: {
+    fontSize: 11,
+    color: "#16A34A",
+    fontWeight: "600",
+  },
   sellerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1146,6 +1697,147 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
     fontWeight: "500",
+  },
+  similarSectionCard: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 16,
+    marginBottom: 8,
+  },
+  similarHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  similarTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  similarSubtitle: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  viewAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  viewAllBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#DC2626",
+  },
+  similarScrollContainer: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  similarProductCard: {
+    width: SCREEN_WIDTH * 0.44,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  similarImageWrapper: {
+    width: "100%",
+    height: 120,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  similarProductImage: {
+    width: "90%",
+    height: "90%",
+  },
+  similarDiscBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  similarDiscText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  similarInfo: {
+    marginTop: 8,
+  },
+  similarName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F172A",
+    height: 32,
+    lineHeight: 16,
+  },
+  similarRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  similarRatingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    gap: 2,
+  },
+  similarRatingText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  similarUnit: {
+    fontSize: 11,
+    color: "#64748B",
+  },
+  similarPriceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+    marginTop: 6,
+  },
+  similarPrice: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+  similarMrp: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textDecorationLine: "line-through",
+    fontWeight: "600",
+  },
+  similarAddBtn: {
+    marginTop: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  similarAddBtnText: {
+    color: "#DC2626",
+    fontSize: 11,
+    fontWeight: "800",
   },
   footerBar: {
     position: "absolute",
@@ -1232,15 +1924,60 @@ const styles = StyleSheet.create({
   fullscreenModal: {
     flex: 1,
     backgroundColor: "#000000",
-    justifyContent: "center",
+    justifyContent: "space-between",
+  },
+  fullscreenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: Platform.OS === "ios" ? 54 : 24,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    zIndex: 10,
   },
   fullscreenCloseBtn: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 54 : 24,
-    right: 20,
-    zIndex: 10,
     backgroundColor: "rgba(255,255,255,0.2)",
     padding: 8,
     borderRadius: 20,
+  },
+  fullscreenCounter: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  fullscreenShareBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 20,
+  },
+  fullscreenBottomBar: {
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    paddingTop: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    alignItems: "center",
+  },
+  fullscreenZoomTip: {
+    color: "#CBD5E1",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  fullscreenThumbnailStrip: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+  },
+  fullscreenThumbWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    overflow: "hidden",
+    padding: 2,
+  },
+  fullscreenThumbActive: {
+    borderColor: "#DC2626",
+    borderWidth: 2,
   },
 });

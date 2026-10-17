@@ -206,6 +206,61 @@ app.get(["/terms", "/terms-and-conditions"], (req, res) => {
   `);
 });
 
+// Official Account & Data Deletion Request Page (Google Play Store Compliant)
+app.get(["/delete-account", "/account-deletion"], (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Account & Data Deletion - Inisha City Service</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 800px; margin: 0 auto; padding: 32px 20px; background: #f8fafc; }
+        .card { background: #ffffff; padding: 36px 28px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        h1 { color: #0f172a; font-size: 26px; margin-bottom: 8px; font-weight: 800; }
+        h2 { color: #1e293b; font-size: 18px; margin-top: 24px; margin-bottom: 8px; }
+        p, li { font-size: 14px; color: #475569; margin-bottom: 12px; }
+        ul, ol { padding-left: 20px; }
+        .badge { display: inline-block; background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
+        .contact-box { background: #f1f5f9; padding: 18px; border-radius: 12px; margin-top: 24px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="badge">Inisha City Service • User Privacy</div>
+        <h1>Request Account & Data Deletion</h1>
+        <p>At Inisha City Service, we respect your privacy and give you full control over your personal data. You can request deletion of your account and associated personal data at any time.</p>
+
+        <h2>How to Delete Your Account</h2>
+        <ol>
+          <li><strong>From inside the App:</strong> Open the Inisha City Service app &gt; Go to <em>Profile</em> &gt; Tap on <em>Delete Account</em> &gt; Confirm deletion.</li>
+          <li><strong>By Email Request:</strong> Send an email from your registered mobile number/email address to <strong>support@inishacityservice.com</strong> or <strong>inishacitysarvice@gmail.com</strong> with the subject line <em>"Account Deletion Request"</em>.</li>
+        </ol>
+
+        <h2>Types of Data Deleted</h2>
+        <ul>
+          <li>Profile details (Full Name, Phone Number, Email, Profile Picture).</li>
+          <li>Saved delivery addresses and GPS location history.</li>
+          <li>Active sessions and authentication tokens.</li>
+        </ul>
+
+        <h2>Data Retention Period</h2>
+        <p>Upon verification, your account and all associated personal data will be permanently purged from our active databases within <strong>7 business days</strong>. Anonymized transaction records required for tax or legal compliance are retained securely as mandated by local laws.</p>
+
+        <div class="contact-box">
+          <strong>Customer Support:</strong><br/>
+          Inisha City Service Support Team<br/>
+          Email: support@inishacityservice.com / inishacitysarvice@gmail.com<br/>
+          Phone: +91 95078 60048 / +91 73520 82614<br/>
+          Address: Sultanganj, Bihar - 813213, India
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 // Root & API Health Status Handlers
 const apiStatusHandler = (req: express.Request, res: express.Response) => {
   res.status(200).json({

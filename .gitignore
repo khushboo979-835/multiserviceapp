@@ -38,3 +38,5 @@ yarn-error.log*
 Thumbs.db
 *.apk
 apps/backend/public/*.apk
+
+*.aab

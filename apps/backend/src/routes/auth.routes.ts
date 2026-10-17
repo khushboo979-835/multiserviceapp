@@ -182,9 +182,11 @@ const handleSendCustomerOtp = async (req: Request, res: Response) => {
       }
 
       // Asynchronously trigger Real Telecom SMS dispatch (Fast2SMS Quick Route, 2Factor, etc.)
-      SmsService.sendOtpSms(phone, otp)
-        .then((res) => console.log(`[SMS Pipeline] ${phone}:`, res.message))
-        .catch((err) => console.error(`[SMS Pipeline Error] ${phone}:`, err.message));
+      if (phone !== "9999999999") {
+        SmsService.sendOtpSms(phone, otp)
+          .then((res) => console.log(`[SMS Pipeline] ${phone}:`, res.message))
+          .catch((err) => console.error(`[SMS Pipeline Error] ${phone}:`, err.message));
+      }
 
       // Instant Response to Mobile Client (< 100ms)
       return res.status(200).json({
@@ -224,6 +226,11 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
     }
 
     let isValid = false;
+
+    // Google Play Store Reviewer Demo Bypass
+    if (cleanPhone === "9999999999" && otp === "123456") {
+      isValid = true;
+    }
 
     // Check DB OTP
     let otpDoc = null;

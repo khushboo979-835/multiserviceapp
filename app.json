@@ -16,8 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.inishacityservice.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to find nearby service providers and track bookings in real time.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires background location access to allow service providers to receive bookings and track progress."
+        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to find nearby service providers and track bookings in real time."
       }
     },
     "android": {
@@ -26,12 +25,10 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.inishacity.service",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE"
+        "ACCESS_FINE_LOCATION"
       ],
       "config": {
         "googleMaps": {

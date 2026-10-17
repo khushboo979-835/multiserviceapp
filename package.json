@@ -9,6 +9,7 @@
     "apps/admin"
   ],
   "scripts": {
+    "build": "npm run build --workspace=apps/backend",
     "start": "node apps/backend/dist/server.js",
     "backend:build": "npm run build --workspace=apps/backend",
     "backend:dev": "npm run dev --workspace=apps/backend",

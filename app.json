@@ -4,6 +4,7 @@
     "slug": "inisha-city-service",
     "owner": "inshaservice",
     "version": "1.0.0",
+    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./apps/mobile/assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -25,7 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.inishacity.service",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -46,7 +47,8 @@
         {
           "origin": "https://inishacityservice.com"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "scheme": "inishacityservice",
     "extra": {

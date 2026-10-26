@@ -2,7 +2,7 @@
   "name": "inisha-city-service",
   "version": "1.0.0",
   "private": true,
-  "main": "apps/mobile/index.js",
+  "main": "index.js",
   "workspaces": [
     "apps/mobile",
     "apps/backend",

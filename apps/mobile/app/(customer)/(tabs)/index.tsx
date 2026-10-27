@@ -20,7 +20,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
-import { MOCK_COUPONS } from "../../../src/constants/mockData";
+import { MOCK_COUPONS, MOCK_CATEGORIES, MOCK_PRODUCTS } from "../../../src/constants/mockData";
 import { Category, Subcategory, Booking, BookingStatus } from "../../../src/types";
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
@@ -117,9 +117,9 @@ export default function CustomerHomeScreen() {
   const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: () => fetchCatalogCategories(), staleTime: 0 });
   const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: () => fetchCatalogBanners(), staleTime: 0 });
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: () => fetchCatalogProducts(), staleTime: 0 });
-  const categories = categoriesQuery.data ?? [];
+  const categories = (categoriesQuery.data && categoriesQuery.data.length > 0) ? categoriesQuery.data : MOCK_CATEGORIES;
   const banners = bannersQuery.data ?? [];
-  const topDeals = productsQuery.data ?? [];
+  const topDeals = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
 
   // Focus refetch for instant live sync
   useFocusEffect(

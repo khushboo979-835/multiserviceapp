@@ -8,12 +8,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
       "android": {
         "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://multiserviceapp-4pdw.onrender.com/api",
         "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"
@@ -23,6 +25,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://multiserviceapp-4pdw.onrender.com/api",
         "EXPO_PUBLIC_SOCKET_URL": "https://multiserviceapp-4pdw.onrender.com"

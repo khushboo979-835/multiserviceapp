@@ -35,7 +35,7 @@ import {
   Gift,
 } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { MOCK_BRANDS } from "../../../src/constants/mockData";
+import { MOCK_BRANDS, MOCK_PRODUCTS } from "../../../src/constants/mockData";
 import { MobileBrand } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
 import InishaHeader from "../../../src/components/common/InishaHeader";
@@ -63,7 +63,7 @@ export default function ExploreScreen() {
     queryFn: () => fetchCatalogProducts(selectedCategory),
     staleTime: 0,
   });
-  const products = productsQuery.data ?? [];
+  const products = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
   const [refreshing, setRefreshing] = useState(false);
 
   // Auto-refetch when user navigates to Explore screen

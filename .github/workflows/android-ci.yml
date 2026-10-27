@@ -1,0 +1,57 @@
+name: Android CI & Quality Validation
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/**'
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Dependencies, Routes & Hermes Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies Reproducibly
+        run: npm ci
+
+      - name: Run Expo Doctor Diagnostics
+        run: npx expo-doctor
+
+      - name: Verify Full Android Bundle & Hermes Bytecode Compilation
+        run: npx expo export --platform android
+
+      - name: Archive Android Production Export Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-export-bundle-${{ github.sha }}
+          path: dist/
+          retention-days: 7

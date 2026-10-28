@@ -87,7 +87,7 @@ export default function LoginScreen() {
           phone: cleanNumber,
           phoneNumber: formattedE164,
         }),
-      }, 45000);
+      }, 65000);
       const data = await response.json().catch(() => null);
 
       if (!response.ok || data?.success !== true) {

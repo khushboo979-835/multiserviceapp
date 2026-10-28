@@ -21,7 +21,7 @@ export interface CatalogBanner {
 
 const fetchJson = async (path: string) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), 50000);
   try {
     const response = await fetch(`${API_URL}${path}`, { signal: controller.signal });
     const data = await response.json().catch(() => null);

@@ -33,6 +33,9 @@ import {
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useCartStore } from "../../../src/store/useCartStore";
+import { useAuthStore } from "../../../src/store/useAuthStore";
+import { db } from "../../../src/config/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import { MOCK_COUPONS } from "../../../src/constants/mockData";
 import { Coupon } from "../../../src/types";
 import InishaHeader from "../../../src/components/common/InishaHeader";
@@ -43,6 +46,7 @@ const { width } = Dimensions.get("window");
 export default function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
   const {
     items,
     updateQuantity,
@@ -113,19 +117,90 @@ export default function CartScreen() {
     }
 
     setIsPlacingOrder(true);
-    setTimeout(() => {
-      const paymentLabel =
-        paymentMethod === "UPI"
-          ? "UPI Online (Paid)"
-          : paymentMethod === "WALLET"
-          ? "Inisha Wallet (Debited)"
-          : "Cash on Delivery (COD)";
+    const paymentLabel =
+      paymentMethod === "UPI"
+        ? "UPI Online (Paid)"
+        : paymentMethod === "WALLET"
+        ? "Inisha Wallet (Debited)"
+        : "Cash on Delivery (COD)";
 
-      const order = placeOrder(deliveryAddress, paymentLabel);
-      setIsPlacingOrder(false);
+    const order = placeOrder(deliveryAddress, paymentLabel);
+    setIsPlacingOrder(false);
 
-      router.push(`/(customer)/track-order/${order.id}` as any);
-    }, 1000);
+    // 1. Instantly navigate to Blinkit-style Live Order Tracking screen
+    router.push(`/(customer)/track-order/${order.id}` as any);
+
+    // 2. Dispatch to backend MongoDB Atlas for Admin Order Management
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+    fetch(`${API_URL}/bookings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerId: user?.id || "usr_customer_live",
+        customerName: user?.name || "Customer",
+        customerPhone: user?.phoneNumber || "+91 95078 60048",
+        categoryId: "INSHA_STORE",
+        subcategoryId: "PRODUCT_ORDER",
+        formValues: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          itemCount: order.items.length,
+          items: order.items.map((i) => ({
+            id: i.product.id,
+            name: i.product.name,
+            price: i.product.price,
+            quantity: i.quantity,
+          })),
+          deliveryAddress: deliveryAddress,
+          isGift: isGift,
+          giftRecipient: giftRecipientName,
+          giftMessage: giftMessage,
+        },
+        selectedAddress: {
+          formattedAddress: deliveryAddress,
+          latitude: 25.6127,
+          longitude: 85.1376,
+        },
+        pricing: {
+          basePrice: order.itemTotal,
+          tax: 0,
+          commission: 0,
+          couponDiscount: order.discountAmount,
+          addOnPrice: order.giftWrapFee,
+          providerEarnings: order.totalAmount,
+          finalAmount: order.totalAmount,
+        },
+        paymentMethod: paymentMethod === "COD" ? "CASH_AFTER_SERVICE" : paymentMethod,
+        paymentStatus: paymentMethod === "COD" ? "PENDING" : "SUCCESS",
+        scheduledDate: new Date().toISOString().split("T")[0],
+        scheduledTime: "15-20 Min Express Delivery",
+      }),
+    }).catch((err) => console.warn("Backend order sync notice:", err));
+
+    // 3. Dispatch to Firestore so Admin panel's real-time listener sees it immediately
+    try {
+      setDoc(doc(db, "bookings", order.id), {
+        id: order.id,
+        bookingId: order.orderNumber,
+        customerId: user?.id || "usr_customer_live",
+        customerName: user?.name || "Customer",
+        customerPhone: user?.phoneNumber || "+91 95078 60048",
+        serviceName: "Inisha Store Express Order",
+        serviceTitle: `Order #${order.orderNumber} (${order.items.length} items)`,
+        amount: order.totalAmount,
+        address: deliveryAddress,
+        paymentMethod: paymentLabel,
+        paymentStatus: paymentMethod === "COD" ? "PENDING_COD" : "PAID",
+        status: "PENDING",
+        otp: order.otp,
+        createdAt: Date.now(),
+        items: order.items.map((i) => ({
+          name: i.product.name,
+          quantity: i.quantity,
+          price: i.product.price,
+        })),
+      }).catch((fsErr) => console.warn("Firestore order sync notice:", fsErr));
+    } catch {}
   };
 
   if (items.length === 0) {

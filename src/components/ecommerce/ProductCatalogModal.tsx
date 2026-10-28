@@ -25,7 +25,7 @@ import {
   ShieldCheck,
 } from "lucide-react-native";
 import { Product, CartItem, Coupon } from "../../types";
-import { MOCK_COUPONS } from "../../constants/mockData";
+import { MOCK_COUPONS, MOCK_PRODUCTS } from "../../constants/mockData";
 import SafeImage from "../common/SafeImage";
 import { catalogKeys, fetchCatalogProducts } from "../../api/catalog";
 
@@ -54,7 +54,7 @@ export default function ProductCatalogModal({
     queryFn: () => fetchCatalogProducts(),
     staleTime: 0,
   });
-  const products: Product[] = productsQuery.data ?? [];
+  const products: Product[] = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});

@@ -18,11 +18,21 @@ export default function TrackBookingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { activeBooking, setActiveBooking, updateActiveBookingStatus } = useBookingStore();
+  const { activeBooking, setActiveBooking, updateActiveBookingStatus, bookingHistory } = useBookingStore();
   const [providerLoc, setProviderLoc] = useState<GeoLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatVisible, setChatVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+
+  // Restore booking from store history if needed
+  useEffect(() => {
+    if (!activeBooking || activeBooking.id !== id) {
+      const found = bookingHistory.find((b) => b.id === id);
+      if (found) {
+        setActiveBooking(found);
+      }
+    }
+  }, [id, activeBooking, bookingHistory]);
 
   const vehicleNo = (activeBooking as any)?.providerVehicle || "DL 07 " + (activeBooking?.id?.slice(-4) || "8842");
   const partnerRating = "4.9 ★";

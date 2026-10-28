@@ -313,8 +313,22 @@ export default function CustomerHomeScreen() {
         updatedAt: new Date().toISOString(),
       };
 
+      // 1. Instantly store in active booking state & navigate without blocking on network
+      setActiveBooking(newBooking);
+      addBookingToHistory(newBooking);
+      setIsFormOpen(false);
+      setSelectedSubcategory(null);
+      setSelectedCategory(null);
+      setBookingLoading(false);
+
+      router.push({
+        pathname: "/(customer)/track-booking/[id]",
+        params: { id: newBookingId },
+      });
+
+      // 2. Non-blocking Firestore sync for Admin Live Dashboard
       try {
-        await setDoc(doc(db, "bookings", newBookingId), {
+        setDoc(doc(db, "bookings", newBookingId), {
           ...newBooking,
           bookingId: `BK-${newBookingId.replace("bk_", "").toUpperCase()}`,
           serviceName: selectedSubcategory?.name || "Doorstep Service",
@@ -324,11 +338,14 @@ export default function CustomerHomeScreen() {
           customerPhone: newBooking.customerPhone,
           address: newBooking.selectedAddress.formattedAddress,
           createdAt: Date.now(),
+        }).catch((fsErr) => {
+          console.warn("Firestore booking sync notice:", fsErr);
         });
       } catch (fsErr) {
         console.warn("Firestore booking sync notice:", fsErr);
       }
 
+      // 3. Asynchronous background persistence to MongoDB Atlas
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
       fetch(`${API_URL}/bookings`, {
         method: "POST",
@@ -336,6 +353,7 @@ export default function CustomerHomeScreen() {
         body: JSON.stringify(newBooking),
       }).catch((apiErr) => console.warn("Backend booking dispatch sync:", apiErr));
 
+      // 4. Dispatch live socket event & technician notification
       try {
         const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
         const io = require("socket.io-client").io;
@@ -352,18 +370,6 @@ export default function CustomerHomeScreen() {
         selectedSubcategory?.name || "Doorstep Service",
         newBooking.pricing.providerEarnings
       ).catch(() => {});
-
-      setActiveBooking(newBooking);
-      addBookingToHistory(newBooking);
-
-      setIsFormOpen(false);
-      setSelectedSubcategory(null);
-      setSelectedCategory(null);
-
-      router.push({
-        pathname: "/(customer)/track-booking/[id]",
-        params: { id: newBookingId },
-      });
     } catch (err) {
       console.error("Booking creation failed:", err);
     } finally {
@@ -530,7 +536,7 @@ export default function CustomerHomeScreen() {
 
           {/* 2. Inisha Store Hub (Opens Store & Product Catalog) */}
           <TouchableOpacity
-            onPress={() => setIsStoreOpen(true)}
+            onPress={() => router.push("/(customer)/(tabs)/explore")}
             style={styles.hubCardInishaStore}
             activeOpacity={0.88}
           >
@@ -650,7 +656,7 @@ export default function CustomerHomeScreen() {
 
             {/* 2. Grocery & Needs */}
             <TouchableOpacity
-              onPress={() => setIsStoreOpen(true)}
+              onPress={() => router.push("/(customer)/(tabs)/explore")}
               style={styles.circularCatItem}
               activeOpacity={0.8}
             >

@@ -306,4 +306,15 @@ initTrackingSocket(io);
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Production server executing on port ${PORT}`);
+
+  // Keep-Alive Self-Ping: prevent Render free tier from going to sleep during active hours
+  const EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || "https://multiserviceapp-4pdw.onrender.com";
+  setInterval(() => {
+    try {
+      const https = require("https");
+      https.get(`${EXTERNAL_URL}/api/health`, (res: any) => {
+        // Silent keep-alive
+      }).on("error", () => {});
+    } catch {}
+  }, 10 * 60 * 1000); // every 10 minutes
 });

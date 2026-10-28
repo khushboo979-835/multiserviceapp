@@ -67,6 +67,12 @@ function CatalogSocketBridge() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Eagerly pre-warm backend to eliminate cold-start delay for OTP and live catalog
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+    fetch(`${apiUrl}/health`).catch(() => {});
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppErrorBoundary>

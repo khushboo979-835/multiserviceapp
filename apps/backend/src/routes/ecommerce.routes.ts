@@ -1,10 +1,18 @@
 import { Router, Request, Response } from "express";
+import mongoose from "mongoose";
 import Product from "../models/Product";
 import Coupon from "../models/Coupon";
 import { requireAdmin } from "../middleware/adminAuth";
 import { deleteCloudinaryAssets } from "../services/cloudinary.service";
 
 const router = Router();
+
+const buildProductQuery = (id: string) => {
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return { $or: [{ id }, { _id: id }] };
+  }
+  return { id };
+};
 
 const normalizeProductCategory = (value: unknown) => {
   const normalized = String(value || "").trim().toLowerCase();
@@ -126,7 +134,7 @@ router.get("/products", async (req: Request, res: Response) => {
 router.get("/products/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const product = await Product.findOne({ $or: [{ id }, { _id: id }] });
+    const product = await Product.findOne(buildProductQuery(id));
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
@@ -242,7 +250,7 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
     }
 
     const updated = await Product.findOneAndUpdate(
-      { $or: [{ id }, { _id: id }] },
+      buildProductQuery(id),
       { $set: updatePayload },
       { upsert: true, new: true }
     );
@@ -266,7 +274,7 @@ router.put("/products/:id", requireAdmin, async (req: Request, res: Response) =>
 router.delete("/products/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = await Product.findOne({ $or: [{ id }, { _id: id }] });
+    const existing = await Product.findOne(buildProductQuery(id));
 
     if (existing) {
       const allImages = [
@@ -281,7 +289,7 @@ router.delete("/products/:id", requireAdmin, async (req: Request, res: Response)
       }
     }
 
-    await Product.findOneAndDelete({ $or: [{ id }, { _id: id }] });
+    await Product.findOneAndDelete(buildProductQuery(id));
 
     const io = req.app.get("io");
     if (io) {

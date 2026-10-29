@@ -81,17 +81,19 @@ export default function RootLayout() {
           <SafeAreaProvider>
             <StatusBar style="light" />
             <Stack
+              initialRouteName="index"
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: "#0f172a" },
                 animation: "slide_from_right",
               }}
             >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               <Stack.Screen name="(customer)" options={{ headerShown: false }} />
               <Stack.Screen name="(product)" options={{ headerShown: false }} />
               <Stack.Screen name="(provider)" options={{ headerShown: false }} />
-              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" options={{ headerShown: false }} />
             </Stack>
           </SafeAreaProvider>
         </QueryClientProvider>

@@ -47,15 +47,21 @@ export default function Index() {
   };
 
   useEffect(() => {
-    if (!isInitialized) return;
+    // Fast branded splash (1000ms) for snappy instant app opening
+    if (isInitialized) {
+      navigationTimeoutRef.current = setTimeout(() => {
+        performNavigation();
+      }, 1000);
+    }
 
-    // 1600ms branded splash showing the new glowing Inisha theme
-    navigationTimeoutRef.current = setTimeout(() => {
+    // Safety fallback: guaranteed navigation after 1800ms even if AsyncStorage is delayed
+    const safetyTimer = setTimeout(() => {
       performNavigation();
-    }, 1600);
+    }, 1800);
 
     return () => {
       if (navigationTimeoutRef.current) clearTimeout(navigationTimeoutRef.current);
+      clearTimeout(safetyTimer);
     };
   }, [isInitialized, isAuthenticated, user]);
 

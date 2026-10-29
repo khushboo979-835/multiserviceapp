@@ -40,6 +40,7 @@ import {
 import { fetchProductDetails, fetchCatalogProducts, catalogKeys } from "../../../src/api/catalog";
 import { Product, ProductVariant } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import io from "socket.io-client";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -50,6 +51,7 @@ const SOCKET_URL =
   "https://multiserviceapp-4pdw.onrender.com";
 
 export default function ProductDetailsScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -63,6 +65,7 @@ export default function ProductDetailsScreen() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [pincode, setPincode] = useState("800001");
+  const [showCartToast, setShowCartToast] = useState(false);
   const fullscreenScrollRef = useRef<ScrollView>(null);
 
   // Fetch Product Details with fallback to list if single endpoint takes time
@@ -203,6 +206,8 @@ export default function ProductDetailsScreen() {
       price: currentPricing.price,
       originalPrice: currentPricing.originalPrice,
     });
+    setShowCartToast(true);
+    setTimeout(() => setShowCartToast(false), 3500);
   };
 
   const handleBuyNow = () => {
@@ -251,7 +256,7 @@ export default function ProductDetailsScreen() {
   return (
     <View style={styles.container}>
       {/* Top Flipkart-Style Header Bar */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 10) }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.headerIconButton}
@@ -855,11 +860,30 @@ export default function ProductDetailsScreen() {
         )}
 
         {/* Bottom spacer for sticky footer */}
-        <View style={{ height: 110 }} />
+        <View style={{ height: Math.max(insets.bottom, 16) + 85 }} />
       </ScrollView>
 
+      {/* Floating Add to Cart Toast Feedback */}
+      {showCartToast && (
+        <TouchableOpacity
+          onPress={() => router.push("/(customer)/(tabs)/cart" as any)}
+          style={[styles.floatingToast, { bottom: Math.max(insets.bottom, 16) + 68 }]}
+          activeOpacity={0.9}
+        >
+          <View style={styles.floatingToastLeft}>
+            <CheckCircle2 size={18} color="#16A34A" />
+            <Text style={styles.floatingToastText}>
+              Added to Cart! ({cartQuantity} item{cartQuantity > 1 ? "s" : ""})
+            </Text>
+          </View>
+          <View style={styles.floatingToastBtn}>
+            <Text style={styles.floatingToastBtnText}>View Cart →</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
       {/* Sticky Bottom Action Footer */}
-      <View style={styles.footerBar}>
+      <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         {cartQuantity > 0 ? (
           <View style={styles.stepperContainer}>
             <TouchableOpacity
@@ -1837,6 +1861,45 @@ const styles = StyleSheet.create({
   similarAddBtnText: {
     color: "#DC2626",
     fontSize: 11,
+    fontWeight: "800",
+  },
+  floatingToast: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 999,
+  },
+  floatingToastLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  floatingToastText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  floatingToastBtn: {
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  floatingToastBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "800",
   },
   footerBar: {

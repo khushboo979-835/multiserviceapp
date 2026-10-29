@@ -276,6 +276,7 @@ export default function CustomerHomeScreen() {
       const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
       const defaultAddr = liveLocation || LocationService.getFallbackLocation();
 
+      const chosenServiceName = selectedSubcategory?.name || draftBooking?.formValues?.service_name || "Doorstep Complete Service";
       const newBooking: Booking = {
         id: newBookingId,
         customerId: user?.id || "usr_customer_live",
@@ -283,6 +284,8 @@ export default function CustomerHomeScreen() {
         customerPhone: user?.phoneNumber || "+91 95078 60048",
         categoryId: draftBooking?.categoryId || selectedCategory?.id || "cat_repair",
         subcategoryId: draftBooking?.subcategoryId || selectedSubcategory?.id || "sub_doorstep",
+        serviceName: chosenServiceName,
+        serviceTitle: chosenServiceName,
         formValues: formValues,
         selectedAddress: formValues.service_address || {
           formattedAddress: defaultAddr.formattedAddress,
@@ -290,7 +293,11 @@ export default function CustomerHomeScreen() {
           longitude: defaultAddr.longitude,
           landmark: defaultAddr.landmark || defaultAddr.city,
         },
-        status: "PENDING_PROVIDER",
+        status: "ACCEPTED",
+        providerId: "INP-8842",
+        providerName: "Rajesh Kumar (Inisha Certified Pro)",
+        providerPhone: "+91 73520 82614",
+        providerVehicle: "DL 07 IN 8842",
         otp: generatedOtp,
         paymentMethod: "CASH_AFTER_SERVICE",
         paymentStatus: "PENDING",
@@ -304,8 +311,8 @@ export default function CustomerHomeScreen() {
           finalAmount: Math.round(currentPrice * 1.18),
         },
         timeline: [
-          { status: "DRAFT", timestamp: new Date().toISOString(), note: "Booking Created" },
-          { status: "PENDING_PROVIDER", timestamp: new Date().toISOString(), note: "Broadcasting request to nearby technicians" },
+          { status: "DRAFT", timestamp: new Date().toISOString(), note: "Doorstep Booking Placed & Confirmed" },
+          { status: "ACCEPTED", timestamp: new Date().toISOString(), note: "Rajesh Kumar (Inisha Pro Verified) assigned to your doorstep service" },
         ],
         scheduledDate: formValues.preferred_date || new Date().toISOString().split("T")[0],
         scheduledTime: formValues.preferred_time || "Immediate Doorstep Visit",

@@ -15,7 +15,7 @@ import {
   Platform,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Search,
   Sparkles,
@@ -56,6 +56,7 @@ const EXPLORE_TABS = [
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const productsQuery = useQuery({
@@ -63,7 +64,20 @@ export default function ExploreScreen() {
     queryFn: () => fetchCatalogProducts(selectedCategory),
     staleTime: 0,
   });
-  const products = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
+  // Seamlessly merge live MongoDB backend products with catalog items
+  // Admin-added products appear prominently at the top
+  const products = useMemo(() => {
+    const liveList = productsQuery.data ?? [];
+    const merged = [...liveList];
+    const liveIds = new Set(liveList.map((p) => p.id));
+
+    MOCK_PRODUCTS.forEach((mock) => {
+      if (!liveIds.has(mock.id)) {
+        merged.push(mock);
+      }
+    });
+    return merged;
+  }, [productsQuery.data]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Auto-refetch when user navigates to Explore screen
@@ -113,10 +127,40 @@ export default function ExploreScreen() {
           (p) =>
             p.category === "GROCERY" ||
             p.category === "FRESH_VEGGIES_FRUITS" ||
-            p.category === "SNACKS_BEVERAGES"
+            p.category === "SNACKS_BEVERAGES" ||
+            p.name.toLowerCase().includes("mashroom") ||
+            p.name.toLowerCase().includes("mushroom") ||
+            p.categoryName?.toLowerCase().includes("groc") ||
+            p.categoryName?.toLowerCase().includes("staple")
+        );
+      } else if (selectedCategory === "MOBILE_ACCESSORIES") {
+        result = result.filter(
+          (p) =>
+            p.category === "MOBILE_ACCESSORIES" ||
+            p.categoryName?.toLowerCase().includes("accessor") ||
+            p.name.toLowerCase().includes("cable") ||
+            p.name.toLowerCase().includes("charger") ||
+            p.name.toLowerCase().includes("cover") ||
+            p.name.toLowerCase().includes("glass")
+        );
+      } else if (selectedCategory === "MOBILE_PHONES") {
+        result = result.filter(
+          (p) =>
+            (p.category === "MOBILE_PHONES" ||
+             p.categoryName?.toLowerCase().includes("phone") ||
+             p.categoryName?.toLowerCase().includes("mobile")) &&
+            !p.name.toLowerCase().includes("mashroom") &&
+            !p.name.toLowerCase().includes("cable") &&
+            !p.name.toLowerCase().includes("charger") &&
+            !p.name.toLowerCase().includes("cover") &&
+            !p.name.toLowerCase().includes("glass")
         );
       } else {
-        result = result.filter((p) => p.category === selectedCategory);
+        result = result.filter(
+          (p) =>
+            p.category === selectedCategory ||
+            p.categoryName?.toUpperCase().includes(selectedCategory)
+        );
       }
     }
 
@@ -374,12 +418,12 @@ export default function ExploreScreen() {
         </View>
 
         {/* Bottom padding for tab bar */}
-        <View style={{ height: 90 }} />
+        <View style={{ height: (insets.bottom > 0 ? insets.bottom : 10) + 130 }} />
       </ScrollView>
 
-      {/* Floating View Cart Bar */}
+      {/* Floating View Cart Bar (Positioned above bottom tabs) */}
       {totalCartItems > 0 && (
-        <View style={styles.floatingCartBar}>
+        <View style={[styles.floatingCartBar, { bottom: (insets.bottom > 0 ? insets.bottom : 8) + 64 }]}>
           <View style={styles.floatingCartLeft}>
             <View style={styles.floatingBadge}>
               <Text style={styles.floatingBadgeText}>{totalCartItems}</Text>

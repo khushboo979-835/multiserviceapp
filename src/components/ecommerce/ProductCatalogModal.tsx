@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
   StyleSheet,
   Alert,
   Dimensions,
+  Platform,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ShoppingBag,
   X,
@@ -23,11 +25,13 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
+  Eye,
 } from "lucide-react-native";
 import { Product, CartItem, Coupon } from "../../types";
 import { MOCK_COUPONS, MOCK_PRODUCTS } from "../../constants/mockData";
 import SafeImage from "../common/SafeImage";
 import { catalogKeys, fetchCatalogProducts } from "../../api/catalog";
+import { useCartStore } from "../../store/useCartStore";
 
 interface ProductCatalogModalProps {
   visible: boolean;
@@ -49,6 +53,10 @@ export default function ProductCatalogModal({
   onClose,
   onOrderPlaced,
 }: ProductCatalogModalProps) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { addItem, updateQuantity: updateStoreQty, getItemQuantity } = useCartStore();
+
   const productsQuery = useQuery<Product[]>({
     queryKey: catalogKeys.products,
     queryFn: () => fetchCatalogProducts(),
@@ -71,8 +79,20 @@ export default function ProductCatalogModal({
     return matchesCat && matchesSearch;
   });
 
-  const addToCart = (productId: string) => {
-    setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
+  const handleOpenProduct = (productId: string) => {
+    onClose();
+    setTimeout(() => {
+      try {
+        router.push(`/(customer)/product/${productId}` as any);
+      } catch {
+        router.push(`/product/${productId}` as any);
+      }
+    }, 100);
+  };
+
+  const addToCart = (product: Product) => {
+    setCart((prev) => ({ ...prev, [product.id]: (prev[product.id] || 0) + 1 }));
+    addItem(product);
   };
 
   const removeFromCart = (productId: string) => {
@@ -85,6 +105,8 @@ export default function ProductCatalogModal({
       }
       return { ...prev, [productId]: current - 1 };
     });
+    const currentQty = getItemQuantity(productId);
+    updateStoreQty(productId, Math.max(0, currentQty - 1));
   };
 
   const totalCartCount = Object.values(cart).reduce((a, b) => a + b, 0);
@@ -134,15 +156,37 @@ export default function ProductCatalogModal({
     setCart({});
     setIsCheckoutOpen(false);
     onClose();
-    Alert.alert(
-      "Order Confirmed! 🚀",
-      `Order #${orderId} placed successfully. Delivery in 30 minutes to your address.`
-    );
+
+    // Instant Blinkit-style Live Order Tracking navigation
+    setTimeout(() => {
+      try {
+        router.push(`/(customer)/track-order/${orderId}` as any);
+      } catch {
+        router.push(`/track-order/${orderId}` as any);
+      }
+    }, 150);
+
+    // Non-blocking persistence to backend
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
+    fetch(`${API_URL}/bookings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookingId: `ORD-${orderId.slice(-6).toUpperCase()}`,
+        serviceName: `Quick Delivery (${cartItems.length} Items)`,
+        serviceTitle: `Quick Delivery (${cartItems.length} Items)`,
+        amount: finalTotal,
+        customerName: "Customer",
+        customerPhone: "+91 95078 60048",
+        status: "CONFIRMED",
+        createdAt: Date.now(),
+      }),
+    }).catch(() => {});
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
         {/* Top Header */}
         <View style={styles.topHeader}>
           <View style={styles.titleRow}>
@@ -183,26 +227,65 @@ export default function ProductCatalogModal({
 
         {/* Products Grid */}
         <ScrollView style={styles.productsScroll} showsVerticalScrollIndicator={false}>
-          <View style={styles.productsGrid}>
+          <View
+            style={[
+              styles.productsGrid,
+              {
+                paddingBottom:
+                  Platform.OS === "android"
+                    ? Math.max(insets.bottom, 48) + 120
+                    : Math.max(insets.bottom, 20) + 100,
+              },
+            ]}
+          >
             {filteredProducts.map((product) => {
               const qty = cart[product.id] || 0;
               return (
                 <View key={product.id} style={styles.productCard}>
-                  <SafeImage uri={product.imageUrl} style={styles.productImg} />
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>{product.discountPercentage}% OFF</Text>
-                  </View>
+                  {/* Clickable Image to View Details */}
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    onPress={() => handleOpenProduct(product.id)}
+                    style={styles.imageTouchable}
+                  >
+                    <SafeImage uri={product.imageUrl} style={styles.productImg} />
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>{product.discountPercentage}% OFF</Text>
+                    </View>
+
+                    {/* View Details Eye Pill */}
+                    <View style={styles.viewDetailsBadge}>
+                      <Eye size={11} color="#ffffff" />
+                      <Text style={styles.viewDetailsBadgeText}>View</Text>
+                    </View>
+                  </TouchableOpacity>
 
                   <View style={styles.productInfo}>
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {product.name}
-                    </Text>
+                    {/* Clickable Title to View Details */}
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => handleOpenProduct(product.id)}
+                    >
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                    </TouchableOpacity>
                     <Text style={styles.productUnit}>{product.unit}</Text>
 
                     <View style={styles.deliveryRow}>
                       <Clock size={12} color="#16a34a" />
                       <Text style={styles.deliveryTime}>{product.deliveryTimeMins} mins delivery</Text>
                     </View>
+
+                    {/* Dedicated View Details Button Row */}
+                    <TouchableOpacity
+                      onPress={() => handleOpenProduct(product.id)}
+                      style={styles.viewProductRowBtn}
+                      activeOpacity={0.8}
+                    >
+                      <Eye size={12} color="#475569" />
+                      <Text style={styles.viewProductRowText}>View Details & Specs</Text>
+                    </TouchableOpacity>
 
                     <View style={styles.priceRow}>
                       <View>
@@ -212,7 +295,7 @@ export default function ProductCatalogModal({
 
                       {qty === 0 ? (
                         <TouchableOpacity
-                          onPress={() => addToCart(product.id)}
+                          onPress={() => addToCart(product)}
                           style={styles.addBtn}
                           activeOpacity={0.85}
                         >
@@ -224,7 +307,7 @@ export default function ProductCatalogModal({
                             <Minus size={14} color="#ffffff" />
                           </TouchableOpacity>
                           <Text style={styles.qtyText}>{qty}</Text>
-                          <TouchableOpacity onPress={() => addToCart(product.id)} style={styles.qtyBtn}>
+                          <TouchableOpacity onPress={() => addToCart(product)} style={styles.qtyBtn}>
                             <Plus size={14} color="#ffffff" />
                           </TouchableOpacity>
                         </View>
@@ -237,9 +320,19 @@ export default function ProductCatalogModal({
           </View>
         </ScrollView>
 
-        {/* Floating Cart Bar */}
+        {/* Floating Cart Bar (Sitting cleanly above Android navigation) */}
         {totalCartCount > 0 && (
-          <View style={styles.floatingCartBar}>
+          <View
+            style={[
+              styles.floatingCartBar,
+              {
+                bottom:
+                  Platform.OS === "android"
+                    ? Math.max(insets.bottom, 48) + 16
+                    : Math.max(insets.bottom, 16) + 12,
+              },
+            ]}
+          >
             <View>
               <Text style={styles.cartItemsCount}>
                 {totalCartCount} {totalCartCount === 1 ? "Item" : "Items"} • ₹{subtotal}
@@ -258,10 +351,20 @@ export default function ProductCatalogModal({
           </View>
         )}
 
-        {/* Checkout Modal */}
+        {/* Checkout Modal (With Safe Area padding for Android 3-button navigation) */}
         <Modal visible={isCheckoutOpen} animationType="slide" transparent onRequestClose={() => setIsCheckoutOpen(false)}>
           <View style={styles.checkoutOverlay}>
-            <View style={styles.checkoutContainer}>
+            <View
+              style={[
+                styles.checkoutContainer,
+                {
+                  paddingBottom:
+                    Platform.OS === "android"
+                      ? Math.max(insets.bottom, 48) + 20
+                      : Math.max(insets.bottom, 20) + 16,
+                },
+              ]}
+            >
               <View style={styles.checkoutHeader}>
                 <Text style={styles.checkoutTitle}>Cart & Instant Checkout</Text>
                 <TouchableOpacity onPress={() => setIsCheckoutOpen(false)} style={styles.closeBtn}>
@@ -284,7 +387,7 @@ export default function ProductCatalogModal({
                         <Minus size={12} color="#0f172a" />
                       </TouchableOpacity>
                       <Text style={styles.qtyTextSmall}>{item.quantity}</Text>
-                      <TouchableOpacity onPress={() => addToCart(item.product.id)}>
+                      <TouchableOpacity onPress={() => addToCart(item.product)}>
                         <Plus size={12} color="#0f172a" />
                       </TouchableOpacity>
                     </View>
@@ -348,7 +451,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
-    paddingTop: 50,
   },
   topHeader: {
     flexDirection: "row",
@@ -428,7 +530,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     paddingHorizontal: 18,
     gap: 12,
-    paddingBottom: 100,
   },
   productCard: {
     width: cardWidth,
@@ -437,6 +538,10 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     borderRadius: 18,
     overflow: "hidden",
+  },
+  imageTouchable: {
+    position: "relative",
+    width: "100%",
   },
   productImg: {
     width: "100%",
@@ -453,6 +558,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   discountText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  viewDetailsBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  viewDetailsBadgeText: {
     color: "#ffffff",
     fontSize: 10,
     fontWeight: "800",
@@ -481,6 +603,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#16a34a",
+  },
+  viewProductRowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  viewProductRowText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#475569",
   },
   priceRow: {
     flexDirection: "row",
@@ -530,7 +668,6 @@ const styles = StyleSheet.create({
   },
   floatingCartBar: {
     position: "absolute",
-    bottom: 20,
     left: 16,
     right: 16,
     backgroundColor: "#0f172a",

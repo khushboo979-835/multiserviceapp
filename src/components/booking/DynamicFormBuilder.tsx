@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Platform,
 } from "react-native";
 import { FormField, BookingFormConfig, FormFieldOption } from "../../types";
 import { Check, Calendar, MapPin, Upload, Compass } from "lucide-react-native";
@@ -413,7 +414,7 @@ export default function DynamicFormBuilder({
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: Platform.OS === "android" ? 72 : 36,
   },
   fieldContainer: {
     marginBottom: 16,

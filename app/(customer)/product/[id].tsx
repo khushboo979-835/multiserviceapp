@@ -52,6 +52,7 @@ const SOCKET_URL =
 
 export default function ProductDetailsScreen() {
   const insets = useSafeAreaInsets();
+  const safeBottomBarPadding = Platform.OS === "android" ? Math.max(insets.bottom, 48) + 16 : Math.max(insets.bottom, 20) + 10;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -860,14 +861,14 @@ export default function ProductDetailsScreen() {
         )}
 
         {/* Bottom spacer for sticky footer */}
-        <View style={{ height: Math.max(insets.bottom, 16) + 85 }} />
+        <View style={{ height: safeBottomBarPadding + 85 }} />
       </ScrollView>
 
       {/* Floating Add to Cart Toast Feedback */}
       {showCartToast && (
         <TouchableOpacity
           onPress={() => router.push("/(customer)/(tabs)/cart" as any)}
-          style={[styles.floatingToast, { bottom: Math.max(insets.bottom, 16) + 68 }]}
+          style={[styles.floatingToast, { bottom: safeBottomBarPadding + 64 }]}
           activeOpacity={0.9}
         >
           <View style={styles.floatingToastLeft}>
@@ -882,8 +883,8 @@ export default function ProductDetailsScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Sticky Bottom Action Footer */}
-      <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+      {/* Sticky Bottom Action Footer (Sitting safely above Android 3-button navigation) */}
+      <View style={[styles.footerBar, { paddingBottom: safeBottomBarPadding }]}>
         {cartQuantity > 0 ? (
           <View style={styles.stepperContainer}>
             <TouchableOpacity

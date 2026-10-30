@@ -33,6 +33,7 @@ import {
   ArrowUpDown,
   Tag,
   Gift,
+  Eye,
 } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { MOCK_BRANDS, MOCK_PRODUCTS } from "../../../src/constants/mockData";
@@ -374,6 +375,16 @@ export default function ExploreScreen() {
                     <Text style={styles.ratingScore}>{product.rating}</Text>
                     <Text style={styles.ratingCategory}>• {product.categoryName}</Text>
                   </View>
+
+                  {/* View Details Quick Button */}
+                  <TouchableOpacity
+                    onPress={() => router.push(`/product/${product.id}` as any)}
+                    style={styles.viewSpecsBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Eye size={11} color="#475569" />
+                    <Text style={styles.viewSpecsText}>View Details & Specs</Text>
+                  </TouchableOpacity>
 
                   {/* Price & Action Button */}
                   <View style={styles.priceActionRow}>
@@ -856,6 +867,23 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     lineHeight: 16,
     height: 32,
+  },
+  viewSpecsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: 7,
+    marginTop: 4,
+    marginBottom: 4,
+    alignSelf: "flex-start",
+  },
+  viewSpecsText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#475569",
   },
   ratingRow: {
     flexDirection: "row",

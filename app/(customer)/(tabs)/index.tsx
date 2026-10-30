@@ -271,79 +271,97 @@ export default function CustomerHomeScreen() {
 
   const handleFormSubmit = async (formValues: Record<string, any>) => {
     setBookingLoading(true);
+    const newBookingId = `bk_${Math.floor(100000 + Math.random() * 900000)}`;
+    const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
+    const defaultAddr = liveLocation || LocationService.getFallbackLocation();
+    const chosenServiceName =
+      selectedSubcategory?.name ||
+      draftBooking?.formValues?.service_name ||
+      "Doorstep Complete Service";
+
+    const resolvedAddress = formValues.service_address || {
+      formattedAddress: defaultAddr.formattedAddress,
+      latitude: defaultAddr.latitude,
+      longitude: defaultAddr.longitude,
+      landmark: defaultAddr.landmark || defaultAddr.city,
+    };
+
+    const newBooking: Booking = {
+      id: newBookingId,
+      customerId: user?.id || "usr_customer_live",
+      customerName: user?.name || "Customer",
+      customerPhone: user?.phoneNumber || "+91 95078 60048",
+      categoryId: draftBooking?.categoryId || selectedCategory?.id || "cat_repair",
+      subcategoryId: draftBooking?.subcategoryId || selectedSubcategory?.id || "sub_doorstep",
+      serviceName: chosenServiceName,
+      serviceTitle: chosenServiceName,
+      formValues: formValues,
+      selectedAddress: resolvedAddress,
+      status: "ACCEPTED",
+      providerId: "INP-8842",
+      providerName: "Rajesh Kumar (Inisha Certified Pro)",
+      providerPhone: "+91 73520 82614",
+      providerVehicle: "DL 07 IN 8842",
+      otp: generatedOtp,
+      paymentMethod: "CASH_AFTER_SERVICE",
+      paymentStatus: "PENDING",
+      pricing: {
+        basePrice: currentPrice,
+        tax: Math.round(currentPrice * 0.18),
+        commission: Math.round(currentPrice * 0.15),
+        couponDiscount: 0,
+        addOnPrice: 0,
+        providerEarnings: Math.round(currentPrice * 0.85),
+        finalAmount: Math.round(currentPrice * 1.18),
+      },
+      timeline: [
+        { status: "DRAFT", timestamp: new Date().toISOString(), note: "Doorstep Booking Placed & Confirmed" },
+        { status: "ACCEPTED", timestamp: new Date().toISOString(), note: "Rajesh Kumar (Inisha Pro Verified) assigned to your doorstep service" },
+      ],
+      scheduledDate: formValues.preferred_date || new Date().toISOString().split("T")[0],
+      scheduledTime: formValues.preferred_time || "Immediate Doorstep Visit",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
     try {
-      const newBookingId = `bk_${Math.floor(100000 + Math.random() * 900000)}`;
-      const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
-      const defaultAddr = liveLocation || LocationService.getFallbackLocation();
-
-      const chosenServiceName = selectedSubcategory?.name || draftBooking?.formValues?.service_name || "Doorstep Complete Service";
-      const newBooking: Booking = {
-        id: newBookingId,
-        customerId: user?.id || "usr_customer_live",
-        customerName: user?.name || "Customer",
-        customerPhone: user?.phoneNumber || "+91 95078 60048",
-        categoryId: draftBooking?.categoryId || selectedCategory?.id || "cat_repair",
-        subcategoryId: draftBooking?.subcategoryId || selectedSubcategory?.id || "sub_doorstep",
-        serviceName: chosenServiceName,
-        serviceTitle: chosenServiceName,
-        formValues: formValues,
-        selectedAddress: formValues.service_address || {
-          formattedAddress: defaultAddr.formattedAddress,
-          latitude: defaultAddr.latitude,
-          longitude: defaultAddr.longitude,
-          landmark: defaultAddr.landmark || defaultAddr.city,
-        },
-        status: "ACCEPTED",
-        providerId: "INP-8842",
-        providerName: "Rajesh Kumar (Inisha Certified Pro)",
-        providerPhone: "+91 73520 82614",
-        providerVehicle: "DL 07 IN 8842",
-        otp: generatedOtp,
-        paymentMethod: "CASH_AFTER_SERVICE",
-        paymentStatus: "PENDING",
-        pricing: {
-          basePrice: currentPrice,
-          tax: Math.round(currentPrice * 0.18),
-          commission: Math.round(currentPrice * 0.15),
-          couponDiscount: 0,
-          addOnPrice: 0,
-          providerEarnings: Math.round(currentPrice * 0.85),
-          finalAmount: Math.round(currentPrice * 1.18),
-        },
-        timeline: [
-          { status: "DRAFT", timestamp: new Date().toISOString(), note: "Doorstep Booking Placed & Confirmed" },
-          { status: "ACCEPTED", timestamp: new Date().toISOString(), note: "Rajesh Kumar (Inisha Pro Verified) assigned to your doorstep service" },
-        ],
-        scheduledDate: formValues.preferred_date || new Date().toISOString().split("T")[0],
-        scheduledTime: formValues.preferred_time || "Immediate Doorstep Visit",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // 1. Instantly store in active booking state & navigate without blocking on network
+      // 1. Instantly save booking in local store so tracking screen renders immediately
       setActiveBooking(newBooking);
       addBookingToHistory(newBooking);
+
+      // 2. Immediately close modal and stop loading so button NEVER stays stuck spinning
       setIsFormOpen(false);
       setSelectedSubcategory(null);
       setSelectedCategory(null);
       setBookingLoading(false);
 
-      router.push({
-        pathname: "/(customer)/track-booking/[id]",
-        params: { id: newBookingId },
-      });
+      // 3. Guaranteed immediate navigation to Live Tracking screen
+      setTimeout(() => {
+        try {
+          router.push(`/(customer)/track-booking/${newBookingId}` as any);
+        } catch {
+          try {
+            router.push(`/track-booking/${newBookingId}` as any);
+          } catch {
+            router.push({
+              pathname: "/(customer)/track-booking/[id]",
+              params: { id: newBookingId },
+            } as any);
+          }
+        }
+      }, 50);
 
-      // 2. Non-blocking Firestore sync for Admin Live Dashboard
+      // 4. Non-blocking background Firestore sync for Admin Live Dashboard
       try {
         setDoc(doc(db, "bookings", newBookingId), {
           ...newBooking,
           bookingId: `BK-${newBookingId.replace("bk_", "").toUpperCase()}`,
-          serviceName: selectedSubcategory?.name || "Doorstep Service",
-          serviceTitle: selectedSubcategory?.name || "Doorstep Service",
+          serviceName: chosenServiceName,
+          serviceTitle: chosenServiceName,
           amount: newBooking.pricing.finalAmount,
           customerName: newBooking.customerName,
           customerPhone: newBooking.customerPhone,
-          address: newBooking.selectedAddress.formattedAddress,
+          address: resolvedAddress.formattedAddress,
           createdAt: Date.now(),
         }).catch((fsErr) => {
           console.warn("Firestore booking sync notice:", fsErr);
@@ -352,7 +370,7 @@ export default function CustomerHomeScreen() {
         console.warn("Firestore booking sync notice:", fsErr);
       }
 
-      // 3. Asynchronous background persistence to MongoDB Atlas
+      // 5. Asynchronous background persistence to MongoDB Atlas
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
       fetch(`${API_URL}/bookings`, {
         method: "POST",
@@ -360,7 +378,7 @@ export default function CustomerHomeScreen() {
         body: JSON.stringify(newBooking),
       }).catch((apiErr) => console.warn("Backend booking dispatch sync:", apiErr));
 
-      // 4. Dispatch live socket event & technician notification
+      // 6. Dispatch live socket event & technician notification
       try {
         const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || "https://multiserviceapp-4pdw.onrender.com";
         const io = require("socket.io-client").io;
@@ -368,18 +386,22 @@ export default function CustomerHomeScreen() {
         socket.emit("booking:create", newBooking);
         socket.emit("job:dispatch", {
           ...newBooking,
-          serviceName: selectedSubcategory?.name || "Doorstep Service",
+          serviceName: chosenServiceName,
         });
       } catch {}
 
       sendNewJobDispatchNotification(
         newBooking.id,
-        selectedSubcategory?.name || "Doorstep Service",
+        chosenServiceName,
         newBooking.pricing.providerEarnings
       ).catch(() => {});
     } catch (err) {
-      console.error("Booking creation failed:", err);
+      console.error("Booking creation notice:", err);
+      setIsFormOpen(false);
+      setBookingLoading(false);
+      router.push(`/(customer)/track-booking/${newBookingId}` as any);
     } finally {
+      setIsFormOpen(false);
       setBookingLoading(false);
     }
   };

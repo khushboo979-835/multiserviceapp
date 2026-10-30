@@ -544,14 +544,19 @@ export default function CartScreen() {
         </View>
 
         {/* Extra Bottom Spacing */}
-        <View style={{ height: Math.max(insets.bottom, 16) + 90 }} />
+        <View style={{ height: (Platform.OS === "android" ? Math.max(insets.bottom, 48) : Math.max(insets.bottom, 16)) + 90 }} />
       </ScrollView>
 
-      {/* Fixed Bottom Checkout Bar */}
+      {/* Fixed Bottom Checkout Bar (Sitting safely above Android 3-button navigation) */}
       <View
         style={[
           styles.bottomCheckoutBar,
-          { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+          {
+            paddingBottom:
+              Platform.OS === "android"
+                ? Math.max(insets.bottom, 48) + 16
+                : Math.max(insets.bottom, 16) + 8,
+          },
         ]}
       >
         <View>

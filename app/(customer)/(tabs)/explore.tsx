@@ -336,13 +336,14 @@ export default function ExploreScreen() {
           {filteredProducts.map((product) => {
             const qty = getItemQuantity(product.id);
             return (
-              <View key={product.id} style={styles.productCard}>
+              <TouchableOpacity
+                key={product.id}
+                style={styles.productCard}
+                activeOpacity={0.92}
+                onPress={() => router.push(`/product/${product.id}` as any)}
+              >
                 {/* Product Image & Badges */}
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => router.push(`/product/${product.id}` as any)}
-                  style={styles.productImgContainer}
-                >
+                <View style={styles.productImgContainer}>
                   <SafeImage uri={product.imageUrl} style={styles.productImg} resizeMode="cover" />
                   {product.discountPercentage > 0 && (
                     <View style={styles.discountBadge}>
@@ -357,19 +358,14 @@ export default function ExploreScreen() {
                       {product.deliveryTimeMins}m
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </View>
 
                 {/* Product Details */}
                 <View style={styles.productDetails}>
                   <Text style={styles.productUnit}>{product.unit}</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => router.push(`/product/${product.id}` as any)}
-                  >
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {product.name}
-                    </Text>
-                  </TouchableOpacity>
+                  <Text style={styles.productName} numberOfLines={2}>
+                    {product.name}
+                  </Text>
 
                   {/* Rating */}
                   <View style={styles.ratingRow}>
@@ -379,14 +375,10 @@ export default function ExploreScreen() {
                   </View>
 
                   {/* View Details Quick Button */}
-                  <TouchableOpacity
-                    onPress={() => router.push(`/product/${product.id}` as any)}
-                    style={styles.viewSpecsBtn}
-                    activeOpacity={0.8}
-                  >
+                  <View style={styles.viewSpecsBtn}>
                     <Eye size={11} color="#475569" />
                     <Text style={styles.viewSpecsText}>View Details & Specs</Text>
-                  </TouchableOpacity>
+                  </View>
 
                   {/* The Iconic Split Price Bar (Matching Reference App) */}
                   <View style={styles.exploreSplitPriceBar}>
@@ -402,18 +394,18 @@ export default function ExploreScreen() {
 
                   {/* Action Row */}
                   <View style={styles.priceActionRow}>
-                    <TouchableOpacity
-                      onPress={() => router.push(`/product/${product.id}` as any)}
-                      style={styles.exploreSeeMoreBtn}
-                    >
+                    <View style={styles.exploreSeeMoreBtn}>
                       <Text style={styles.exploreSeeMoreText}>See more</Text>
                       <ChevronRight size={10} color="#dc2626" />
-                    </TouchableOpacity>
+                    </View>
 
                     {qty === 0 ? (
                       <TouchableOpacity
                         style={styles.addBtn}
-                        onPress={() => addItem(product)}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          addItem(product);
+                        }}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.addBtnText}>ADD</Text>
@@ -422,14 +414,20 @@ export default function ExploreScreen() {
                       <View style={styles.qtyStepper}>
                         <TouchableOpacity
                           style={styles.stepperBtn}
-                          onPress={() => updateQuantity(product.id, qty - 1)}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            updateQuantity(product.id, qty - 1);
+                          }}
                         >
                           <Minus size={12} color="#ffffff" strokeWidth={3} />
                         </TouchableOpacity>
                         <Text style={styles.stepperQtyText}>{qty}</Text>
                         <TouchableOpacity
                           style={styles.stepperBtn}
-                          onPress={() => updateQuantity(product.id, qty + 1)}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            updateQuantity(product.id, qty + 1);
+                          }}
                         >
                           <Plus size={12} color="#ffffff" strokeWidth={3} />
                         </TouchableOpacity>
@@ -437,7 +435,7 @@ export default function ExploreScreen() {
                     )}
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>

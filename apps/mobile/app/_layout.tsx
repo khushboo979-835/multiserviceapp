@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { io } from "socket.io-client";
+import * as Updates from "expo-updates";
 import AppErrorBoundary from "../src/components/common/AppErrorBoundary";
 import { catalogKeys } from "../src/api/catalog";
 import "../global.css";
@@ -71,6 +72,32 @@ export default function RootLayout() {
     // Eagerly pre-warm backend to eliminate cold-start delay for OTP and live catalog
     const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
     fetch(`${apiUrl}/health`).catch(() => {});
+
+    // Check and apply live Over-The-Air updates automatically
+    async function checkAndApplyUpdates() {
+      try {
+        if (!__DEV__ && Updates.isEnabled) {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+          }
+        }
+      } catch (err) {
+        // Silently continue if offline
+      }
+    }
+    checkAndApplyUpdates();
+
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        checkAndApplyUpdates();
+      }
+    });
+
+    return () => {
+      appStateSub.remove();
+    };
   }, []);
 
   return (
@@ -92,6 +119,9 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               <Stack.Screen name="(customer)" options={{ headerShown: false }} />
               <Stack.Screen name="(product)" options={{ headerShown: false }} />
+              <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="track-booking/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="track-order/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="(provider)" options={{ headerShown: false }} />
               <Stack.Screen name="+not-found" options={{ headerShown: false }} />
             </Stack>

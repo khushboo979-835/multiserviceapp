@@ -26,6 +26,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Eye,
+  ChevronRight,
 } from "lucide-react-native";
 import { Product, CartItem, Coupon } from "../../types";
 import { MOCK_COUPONS, MOCK_PRODUCTS } from "../../constants/mockData";
@@ -97,11 +98,18 @@ export default function ProductCatalogModal({
     onClose();
     setTimeout(() => {
       try {
-        router.push(`/(customer)/product/${productId}` as any);
-      } catch {
         router.push(`/product/${productId}` as any);
+      } catch {
+        try {
+          router.push(`/(customer)/product/${productId}` as any);
+        } catch {
+          router.push({
+            pathname: "/product/[id]",
+            params: { id: productId },
+          } as any);
+        }
       }
-    }, 100);
+    }, 80);
   };
 
   const addToCart = (product: Product) => {
@@ -367,8 +375,8 @@ export default function ProductCatalogModal({
               {
                 bottom:
                   Platform.OS === "android"
-                    ? Math.max(insets.bottom, 48) + 16
-                    : Math.max(insets.bottom, 16) + 12,
+                    ? Math.max(insets.bottom, 48) + 28
+                    : Math.max(insets.bottom, 16) + 14,
               },
             ]}
           >
@@ -399,8 +407,8 @@ export default function ProductCatalogModal({
                 {
                   paddingBottom:
                     Platform.OS === "android"
-                      ? Math.max(insets.bottom, 48) + 20
-                      : Math.max(insets.bottom, 20) + 16,
+                      ? Math.max(insets.bottom, 48) + 40
+                      : Math.max(insets.bottom, 20) + 24,
                 },
               ]}
             >
@@ -966,6 +974,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: "center",
+    marginBottom: Platform.OS === "android" ? 18 : 8,
   },
   placeOrderText: {
     color: "#ffffff",

@@ -6,16 +6,12 @@ export default function NotFoundScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    // Automatically redirect to home index immediately without showing error screen
-    const timer = setTimeout(() => {
-      try {
-        router.replace("/");
-      } catch {
-        router.replace("/(customer)/(tabs)");
-      }
-    }, 50);
-
-    return () => clearTimeout(timer);
+    // Automatically redirect to customer home immediately without showing error screen
+    try {
+      router.replace("/(customer)/(tabs)");
+    } catch {
+      router.replace("/");
+    }
   }, [router]);
 
   return (

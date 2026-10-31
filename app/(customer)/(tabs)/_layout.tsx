@@ -98,6 +98,12 @@ export default function TabsLayout() {
       />
       {/* Hidden legacy tabs for backward compatibility */}
       <Tabs.Screen
+        name="catalog"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="bookings"
         options={{
           href: null,

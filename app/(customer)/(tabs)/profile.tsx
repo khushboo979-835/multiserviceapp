@@ -190,7 +190,7 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setHelpVisible(true)} style={styles.menuRow}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setHelpVisible(true)} style={[styles.menuRow, user?.role !== "ADMIN" && { borderBottomWidth: 0 }]}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#f8fafc" }]}>
               <HelpCircle size={18} color="#475569" />
@@ -200,18 +200,21 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setAdminVisible(true)} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
-          <View style={styles.menuRowLeft}>
-            <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
-              <ShieldAlert size={18} color="#ef4444" />
+        {/* Admin Portal is strictly restricted to authenticated ADMIN users only */}
+        {user?.role === "ADMIN" && (
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setAdminVisible(true)} style={[styles.menuRow, { borderBottomWidth: 0 }]}>
+            <View style={styles.menuRowLeft}>
+              <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
+                <ShieldAlert size={18} color="#ef4444" />
+              </View>
+              <View>
+                <Text style={[styles.menuTitle, { color: "#ef4444", fontWeight: "800" }]}>Admin Management Portal</Text>
+                <Text style={styles.menuSub}>KYC, Payouts, Coupons & Analytics</Text>
+              </View>
             </View>
-            <View>
-              <Text style={[styles.menuTitle, { color: "#ef4444", fontWeight: "800" }]}>Admin Management Portal</Text>
-              <Text style={styles.menuSub}>KYC, Payouts, Coupons & Analytics</Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color="#ef4444" />
-        </TouchableOpacity>
+            <ChevronRight size={18} color="#ef4444" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Sign Out Button */}

@@ -54,7 +54,7 @@ const SOCKET_URL =
 
 export default function ProductDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const safeBottomBarPadding = Platform.OS === "android" ? Math.max(insets.bottom, 48) + 16 : Math.max(insets.bottom, 20) + 10;
+  const safeBottomBarPadding = Platform.OS === "android" ? Math.max(insets.bottom, 48) + 36 : Math.max(insets.bottom, 20) + 16;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -827,6 +827,22 @@ export default function ProductDetailsScreen() {
             similarSectionY.current = e.nativeEvent.layout.y;
           }}
         >
+          {/* Section Header with "View All >" (Matching Reference Image) */}
+          <View style={styles.similarHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.similarHeading}>Similar Products</Text>
+              <Text style={styles.similarSubheading}>Customers who viewed this also bought</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push("/(customer)/(tabs)/explore" as any)}
+              style={styles.viewAllBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.viewAllBtnText}>View All</Text>
+              <ChevronRight size={14} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+
           {/* Category Filter Pills (Matching Reference Image 3) */}
           <ScrollView
             horizontal
@@ -931,7 +947,7 @@ export default function ProductDetailsScreen() {
         </View>
 
         {/* Bottom spacer for sticky footer */}
-        <View style={{ height: safeBottomBarPadding + 85 }} />
+        <View style={{ height: safeBottomBarPadding + 95 }} />
       </ScrollView>
 
       {/* Floating Add to Cart Toast Feedback */}
@@ -1973,6 +1989,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
+  similarHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  similarHeading: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.2,
+  },
+  similarSubheading: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  viewAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  viewAllBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#DC2626",
+  },
   footerBar: {
     position: "absolute",
     bottom: 0,
@@ -1982,15 +2030,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: Platform.OS === "ios" ? 28 : 12,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
     gap: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 8,
+    elevation: 12,
   },
   addToCartBtn: {
     flex: 1,

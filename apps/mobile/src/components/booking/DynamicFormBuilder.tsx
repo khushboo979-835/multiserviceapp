@@ -310,7 +310,10 @@ export default function DynamicFormBuilder({
                     setGpsLoading(true);
                     try {
                       const loc = await LocationService.getCurrentLocation();
-                      handleInputChange(field.id, loc);
+                      handleInputChange(field.id, {
+                        ...loc,
+                        formattedAddress: LocationService.sanitizeAddress(loc.formattedAddress),
+                      });
                     } finally {
                       setGpsLoading(false);
                     }

@@ -13,6 +13,15 @@ export interface UserAddressDetails {
 }
 
 export class LocationService {
+  public static sanitizeAddress(addr: string): string {
+    if (!addr) return "";
+    return addr
+      .replace(/^[A-Z0-9]{2,8}\+[A-Z0-9]{2,6},?\s*/i, "")
+      .replace(/\b[A-Z0-9]{2,8}\+[A-Z0-9]{2,6},?\s*/gi, "")
+      .replace(/^[\s,]+|[\s,]+$/g, "")
+      .trim();
+  }
+
   /**
    * Requests device GPS permission and fetches current real-time GPS coordinates
    * with reverse geocoding into a complete formatted Indian address.
@@ -47,9 +56,17 @@ export class LocationService {
 
         if (reverseResults && reverseResults.length > 0) {
           const res = reverseResults[0];
+          const isPlusCode = (s?: string | null) =>
+            !s ||
+            /^[A-Z0-9]{2,8}\+[A-Z0-9]{2,6}$/i.test(s.trim()) ||
+            (/\+/.test(s) && /^[A-Z0-9+]+$/i.test(s.trim()));
+
+          const validName = isPlusCode(res.name) ? null : res.name;
+          const validStreet = isPlusCode(res.street) ? null : res.street;
+
           const parts = [
-            res.name,
-            res.street,
+            validName,
+            validStreet,
             res.district || res.subregion,
             res.city,
             res.region,
@@ -63,11 +80,13 @@ export class LocationService {
           district = res.district || res.subregion || "";
           region = res.region || "India";
           postalCode = res.postalCode || "";
-          landmark = res.name || res.street || "";
+          landmark = validName || validStreet || res.district || city || "";
         }
       } catch (geocodeErr) {
         console.warn("Reverse geocode failed:", geocodeErr);
       }
+
+      formattedAddress = this.sanitizeAddress(formattedAddress);
 
       return {
         formattedAddress,

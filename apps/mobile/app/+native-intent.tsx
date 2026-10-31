@@ -1,8 +1,10 @@
 export function redirectSystemPath({ path, initial }: { path: string; initial: boolean }) {
   if (!path) return "/";
 
-  // Clean custom scheme inishacityservice:// or inishacityservice:///
-  let cleaned = path.replace(/^inishacityservice:\/\//i, "");
+  // Clean custom scheme inishacityservice:// or inishacityservice:/// or https://inishacityservice.com
+  let cleaned = path
+    .replace(/^https?:\/\/(?:www\.)?inishacityservice\.com\/?/i, "")
+    .replace(/^inishacityservice:\/{0,4}/i, "");
 
   // Remove leading multiple slashes: /// -> /
   cleaned = cleaned.replace(/^\/+/, "/");

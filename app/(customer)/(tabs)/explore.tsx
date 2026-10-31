@@ -47,11 +47,13 @@ const { width } = Dimensions.get("window");
 
 const EXPLORE_TABS = [
   { id: "ALL", label: "🌟 All" },
-  { id: "GROCERY", label: "🥦 Grocery (10 Min)" },
+  { id: "FOOTWEAR", label: "🩴 Footwear" },
+  { id: "MENS_FASHION", label: "👕 Men's Fashion" },
+  { id: "WOMENS_FASHION", label: "👗 Women's Sarees" },
+  { id: "BEAUTY_PARLOUR", label: "💄 Beauty & Care" },
+  { id: "GROCERY", label: "🥦 Grocery" },
   { id: "MOBILE_PHONES", label: "📱 Mobiles" },
   { id: "MOBILE_ACCESSORIES", label: "🔌 Accessories" },
-  { id: "BEAUTY_PARLOUR", label: "💄 Beauty & Parlour" },
-  { id: "HOME_NEEDS", label: "🏠 Home Needs" },
   { id: "ELECTRONICS", label: "🎧 Electronics" },
 ];
 
@@ -386,14 +388,27 @@ export default function ExploreScreen() {
                     <Text style={styles.viewSpecsText}>View Details & Specs</Text>
                   </TouchableOpacity>
 
-                  {/* Price & Action Button */}
-                  <View style={styles.priceActionRow}>
-                    <View>
-                      <Text style={styles.productPrice}>₹{product.price}</Text>
-                      {product.originalPrice > product.price && (
-                        <Text style={styles.productMrp}>₹{product.originalPrice}</Text>
-                      )}
+                  {/* The Iconic Split Price Bar (Matching Reference App) */}
+                  <View style={styles.exploreSplitPriceBar}>
+                    <View style={styles.exploreSplitPriceLeft}>
+                      <Text style={styles.exploreSplitPriceLeftText}>₹{product.price}</Text>
                     </View>
+                    <View style={styles.exploreSplitPriceRight}>
+                      <Text style={styles.exploreSplitPriceRightText} numberOfLines={1}>
+                        MRP ₹{product.originalPrice || product.mrp || product.price}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Action Row */}
+                  <View style={styles.priceActionRow}>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/product/${product.id}` as any)}
+                      style={styles.exploreSeeMoreBtn}
+                    >
+                      <Text style={styles.exploreSeeMoreText}>See more</Text>
+                      <ChevronRight size={10} color="#dc2626" />
+                    </TouchableOpacity>
 
                     {qty === 0 ? (
                       <TouchableOpacity
@@ -402,7 +417,6 @@ export default function ExploreScreen() {
                         activeOpacity={0.8}
                       >
                         <Text style={styles.addBtnText}>ADD</Text>
-                        <Plus size={14} color="#16a34a" strokeWidth={3} />
                       </TouchableOpacity>
                     ) : (
                       <View style={styles.qtyStepper}>
@@ -410,14 +424,14 @@ export default function ExploreScreen() {
                           style={styles.stepperBtn}
                           onPress={() => updateQuantity(product.id, qty - 1)}
                         >
-                          <Minus size={14} color="#ffffff" strokeWidth={3} />
+                          <Minus size={12} color="#ffffff" strokeWidth={3} />
                         </TouchableOpacity>
                         <Text style={styles.stepperQtyText}>{qty}</Text>
                         <TouchableOpacity
                           style={styles.stepperBtn}
                           onPress={() => updateQuantity(product.id, qty + 1)}
                         >
-                          <Plus size={14} color="#ffffff" strokeWidth={3} />
+                          <Plus size={12} color="#ffffff" strokeWidth={3} />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1157,5 +1171,49 @@ const styles = StyleSheet.create({
   },
   sortOptionTextActive: {
     color: "#ef4444",
+  },
+  exploreSplitPriceBar: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginVertical: 4,
+  },
+  exploreSplitPriceLeft: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  exploreSplitPriceLeftText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  exploreSplitPriceRight: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  exploreSplitPriceRightText: {
+    color: "#64748b",
+    fontSize: 9,
+    fontWeight: "700",
+    textDecorationLine: "line-through",
+  },
+  exploreSeeMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  exploreSeeMoreText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#dc2626",
   },
 });

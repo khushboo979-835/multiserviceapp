@@ -102,6 +102,9 @@ export const fetchCatalogCategories = async (): Promise<Category[]> => {
 
 const productCategory = (value: unknown): ProductTypeCategory => {
   const category = String(value || "").toLowerCase();
+  if (category.includes("foot") || category.includes("slipper") || category.includes("sandal") || category.includes("shoe")) return "FOOTWEAR";
+  if (category.includes("saree") || category.includes("women") || category.includes("kurti") || category.includes("dress")) return "WOMENS_FASHION";
+  if (category.includes("men") || category.includes("shirt") || category.includes("sock") || category.includes("t-shirt") || category.includes("pant")) return "MENS_FASHION";
   if (category.includes("groc") || category.includes("staple") || category.includes("dairy")) return "GROCERY";
   if (category.includes("accessor")) return "MOBILE_ACCESSORIES";
   if (category.includes("phone") || category.includes("mobile")) return "MOBILE_PHONES";
@@ -159,6 +162,10 @@ export const normalizeProduct = (item: any, index = 0): Product => {
     deliveryTimeMins: numberOr(item.deliveryTimeMins, 30),
     sellerName: nonEmptyString(item.sellerName, "Inisha Verified Partner"),
     brand: typeof item.brand === "string" ? item.brand : undefined,
+    offerTitle: typeof item.offerTitle === "string" ? item.offerTitle : undefined,
+    couponCode: typeof item.couponCode === "string" ? item.couponCode : undefined,
+    offerDescription: typeof item.offerDescription === "string" ? item.offerDescription : undefined,
+    badgeText: typeof item.badgeText === "string" ? item.badgeText : undefined,
     variants,
     specifications,
   };

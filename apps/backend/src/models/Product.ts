@@ -16,7 +16,11 @@ export interface IProductSpecification {
 export interface IProduct extends Document {
   id: string;
   name: string;
-  category: "MOBILE_PHONES" | "MOBILE_ACCESSORIES" | "GROCERY" | "BEAUTY_PARLOUR" | "HOME_NEEDS" | "ELECTRONICS";
+  category: string;
+  offerTitle?: string;
+  couponCode?: string;
+  offerDescription?: string;
+  badgeText?: string;
   categoryName: string;
   description: string;
   price: number;
@@ -45,9 +49,12 @@ const ProductSchema: Schema = new Schema(
     name: { type: String, required: true },
     category: {
       type: String,
-      enum: ["MOBILE_PHONES", "MOBILE_ACCESSORIES", "GROCERY", "BEAUTY_PARLOUR", "HOME_NEEDS", "ELECTRONICS"],
       required: true,
     },
+    offerTitle: { type: String, default: "" },
+    couponCode: { type: String, default: "" },
+    offerDescription: { type: String, default: "" },
+    badgeText: { type: String, default: "" },
     categoryName: { type: String, required: true },
     description: { type: String, default: "" },
     price: { type: Number, required: true },

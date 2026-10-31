@@ -36,7 +36,9 @@ import {
   BadgePercent,
   Eye,
   Check,
+  Search,
 } from "lucide-react-native";
+import { Alert } from "react-native";
 import { fetchProductDetails, fetchCatalogProducts, catalogKeys } from "../../../src/api/catalog";
 import { Product, ProductVariant } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
@@ -67,7 +69,14 @@ export default function ProductDetailsScreen() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [pincode, setPincode] = useState("800001");
   const [showCartToast, setShowCartToast] = useState(false);
+  const [selectedSimilarTab, setSelectedSimilarTab] = useState("RECOMMENDED");
+  const mainScrollRef = useRef<ScrollView>(null);
+  const similarSectionY = useRef(0);
   const fullscreenScrollRef = useRef<ScrollView>(null);
+
+  const scrollToSimilar = () => {
+    mainScrollRef.current?.scrollTo({ y: similarSectionY.current > 0 ? similarSectionY.current - 20 : 600, animated: true });
+  };
 
   // Fetch Product Details with fallback to list if single endpoint takes time
   const { data: product, isLoading, isError, refetch } = useQuery<Product>({
@@ -307,6 +316,7 @@ export default function ProductDetailsScreen() {
       </View>
 
       <ScrollView
+        ref={mainScrollRef}
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
@@ -361,6 +371,16 @@ export default function ProductDetailsScreen() {
           >
             <Eye size={12} color="#475569" />
             <Text style={styles.zoomHintText}>Tap to Zoom</Text>
+          </TouchableOpacity>
+
+          {/* Floating 'Find Similar' Button (Matching Reference Image 2) */}
+          <TouchableOpacity
+            style={styles.findSimilarFloatingBtn}
+            onPress={scrollToSimilar}
+            activeOpacity={0.85}
+          >
+            <Search size={12} color="#0f172a" />
+            <Text style={styles.findSimilarFloatingText}>Find Similar</Text>
           </TouchableOpacity>
 
           {/* Dots / Page Counter Indicator */}
@@ -441,52 +461,85 @@ export default function ProductDetailsScreen() {
             <Text style={styles.hotSellingBadge}>🔥 Fast Selling</Text>
           </View>
 
-          {/* Pricing & Discount Card */}
+          {/* Pricing & Discount Card (Matching Reference Image 2) */}
           <View style={styles.pricingCard}>
-            <View style={styles.priceRow}>
-              <Text style={styles.sellingPrice}>₹{currentPricing.price}</Text>
-              {currentPricing.originalPrice > currentPricing.price && (
-                <Text style={styles.originalPrice}>₹{currentPricing.originalPrice}</Text>
-              )}
-              {currentPricing.discount > 0 && (
-                <View style={styles.discountTag}>
-                  <Text style={styles.discountTagText}>
-                    {currentPricing.discount}% off
+            <View style={styles.refPriceHeaderRow}>
+              <View style={styles.refPriceLeftWrap}>
+                <Text style={styles.sellingPrice}>₹{currentPricing.price}</Text>
+                {currentPricing.originalPrice > currentPricing.price && (
+                  <Text style={styles.originalPrice}>₹{currentPricing.originalPrice}</Text>
+                )}
+                {/* Green Discount Pill Badge */}
+                <View style={styles.refGreenOffBadge}>
+                  <Text style={styles.refGreenOffText}>
+                    {product.badgeText || (currentPricing.originalPrice > currentPricing.price
+                      ? `₹${currentPricing.originalPrice - currentPricing.price} OFF`
+                      : (currentPricing.discount > 0 ? `${currentPricing.discount}% OFF` : "BEST PRICE"))}
                   </Text>
                 </View>
-              )}
+              </View>
+
+              {/* Share & Wishlist Heart Icons */}
+              <View style={styles.refHeaderActionsRow}>
+                <TouchableOpacity onPress={handleShare} style={styles.refActionIconCircle} activeOpacity={0.7}>
+                  <Share2 size={16} color="#475569" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsWishlisted(!isWishlisted)} style={styles.refActionIconCircle} activeOpacity={0.7}>
+                  <Heart size={16} color={isWishlisted ? "#dc2626" : "#475569"} fill={isWishlisted ? "#dc2626" : "none"} />
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.taxInclusiveText}>Inclusive of all taxes & free doorstep delivery</Text>
+            <Text style={styles.taxInclusiveText}>Inclusive of all taxes • Free 20-min express delivery</Text>
           </View>
         </View>
 
-        {/* Flipkart-Style Bank Offers & Coupons Card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.offersHeaderRow}>
-            <BadgePercent size={18} color="#16A34A" />
-            <Text style={styles.sectionHeadingNoMargin}>Available Offers & Discounts</Text>
+        {/* Mint Green Special Offer & Coupon Card (Exact Reference Image 2 Design) */}
+        <View style={styles.mintCouponCard}>
+          <View style={styles.mintCouponTopRow}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={styles.mintOfferTitleRow}>
+                <Tag size={15} color="#059669" />
+                <Text style={styles.mintOfferTitleText}>
+                  {product.offerTitle || "% Off up to ₹150"}
+                </Text>
+              </View>
+              <Text style={styles.mintOfferSubtitleText}>
+                {product.offerDescription || "Valid on all prepaid orders • Tap for details"}
+              </Text>
+            </View>
+
+            {/* Dashed Border Coupon Box */}
+            <View style={styles.dashedCouponContainer}>
+              <View style={styles.dashedCouponBorder}>
+                <Text style={styles.dashedCouponCodeText}>
+                  {product.couponCode || "PREPAID_12"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert("Coupon Copied! 🎉", `Coupon code "${product.couponCode || "PREPAID_12"}" copied to clipboard.`);
+                }}
+                activeOpacity={0.7}
+                style={styles.copyCodeBtn}
+              >
+                <Text style={styles.copyCodeBtnText}>Copy Code</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.offerItem}>
-            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
-            <Text style={styles.offerText}>
-              <Text style={styles.offerHighlight}>Bank Offer:</Text> 5% Unlimited Cashback on Inisha UPI / Card Payments.
-            </Text>
-          </View>
-
-          <View style={styles.offerItem}>
-            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
-            <Text style={styles.offerText}>
-              <Text style={styles.offerHighlight}>Special Price:</Text> Extra ₹100 Off on orders above ₹999.
-            </Text>
-          </View>
-
-          <View style={styles.offerItem}>
-            <Tag size={14} color="#16A34A" style={styles.offerTagIcon} />
-            <Text style={styles.offerText}>
-              <Text style={styles.offerHighlight}>No Cost EMI:</Text> Avail EMI options on orders above ₹2,000.
-            </Text>
-          </View>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                "Active Offers & Promo Codes",
+                `1. ${product.couponCode || "PREPAID_12"} - ${product.offerTitle || "Get up to ₹150 discount on prepaid checkout"}\n2. INISHA50 - Flat ₹50 off on orders above ₹499\n3. FREEDEL - Free 20-min express delivery`
+              )
+            }
+            style={styles.viewAllOffersLink}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.viewAllOffersLinkText}>View All Available Offers</Text>
+            <ChevronRight size={13} color="#059669" />
+          </TouchableOpacity>
         </View>
 
         {/* Variant & Color Selectors */}
@@ -767,98 +820,115 @@ export default function ProductDetailsScreen() {
           </View>
         </View>
 
-        {/* Similar Products / You May Also Like Section (Flipkart-Style) */}
-        {similarProducts.length > 0 && (
-          <View style={styles.similarSectionCard}>
-            <View style={styles.similarHeaderRow}>
-              <View>
-                <Text style={styles.similarTitle}>Similar Products</Text>
-                <Text style={styles.similarSubtitle}>
-                  Customers who viewed this also bought
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => router.push("/(customer)/(tabs)/catalog" as any)}
-                style={styles.viewAllBtn}
-              >
-                <Text style={styles.viewAllBtnText}>View All</Text>
-                <ChevronRight size={14} color="#DC2626" />
-              </TouchableOpacity>
-            </View>
+        {/* Similar & Recommended Products Section (Matching Reference Image 3) */}
+        <View
+          style={styles.refSimilarSectionWrapper}
+          onLayout={(e) => {
+            similarSectionY.current = e.nativeEvent.layout.y;
+          }}
+        >
+          {/* Category Filter Pills (Matching Reference Image 3) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.refCategoryPillsScroll}
+          >
+            {[
+              { id: "RECOMMENDED", label: "Recommended" },
+              { id: "SIMILAR", label: "Similar Products" },
+              { id: "FOOTWEAR", label: "Footwear & Slippers" },
+              { id: "MENS_FASHION", label: "Men's Fashion" },
+              { id: "WOMENS_FASHION", label: "Women's Sarees" },
+              { id: "BEAUTY", label: "Personal Care" },
+              { id: "ACCESSORIES", label: "Accessories" },
+            ].map((tab) => {
+              const isActive = selectedSimilarTab === tab.id;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  onPress={() => setSelectedSimilarTab(tab.id)}
+                  style={[styles.refTabPill, isActive && styles.refTabPillActive]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.refTabPillText, isActive && styles.refTabPillTextActive]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.similarScrollContainer}
-            >
-              {similarProducts.map((item) => {
-                const itemImg = item.images?.[0] || item.imageUrl || "";
-                const itemMrp = item.originalPrice || item.mrp || item.price;
-                const itemDisc =
-                  itemMrp > item.price
-                    ? Math.round(((itemMrp - item.price) / itemMrp) * 100)
-                    : item.discountPercentage || 0;
+          {/* 2-Column Product Grid (Matching Reference Image 3) */}
+          <View style={styles.refProductsGrid}>
+            {(similarProducts.length > 0 ? similarProducts : (catalogProducts as Product[]).slice(0, 8)).map((item) => {
+              const itemImg = item.images?.[0] || item.imageUrl || "";
+              const itemMrp = item.originalPrice || item.mrp || item.price;
+              const itemDiff = itemMrp - item.price;
+              const itemDiscountLabel = item.badgeText || (itemDiff > 0 ? `₹${itemDiff} OFF` : (item.discountPercentage ? `${item.discountPercentage}% OFF` : ""));
+              const itemInCart = getItemQuantity(item.id) || 0;
 
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.similarProductCard}
-                    activeOpacity={0.9}
-                    onPress={() => {
-                      router.push(`/(customer)/product/${item.id}` as any);
-                    }}
-                  >
-                    <View style={styles.similarImageWrapper}>
-                      <Image
-                        source={{ uri: itemImg }}
-                        style={styles.similarProductImage}
-                        resizeMode="contain"
-                      />
-                      {itemDisc > 0 && (
-                        <View style={styles.similarDiscBadge}>
-                          <Text style={styles.similarDiscText}>{itemDisc}% OFF</Text>
-                        </View>
-                      )}
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.refProductGridCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/(customer)/product/${item.id}` as any)}
+                >
+                  {/* Product Image */}
+                  <View style={styles.refGridImageWrapper}>
+                    <Image source={{ uri: itemImg }} style={styles.refGridImage} resizeMode="contain" />
+                    {itemDiscountLabel ? (
+                      <View style={styles.refGridGreenBadge}>
+                        <Text style={styles.refGridGreenBadgeText}>{itemDiscountLabel}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* The Iconic Split Price Bar (Matching Reference Image 3) */}
+                  <View style={styles.refSplitPriceBar}>
+                    <View style={styles.refSplitPriceLeft}>
+                      <Text style={styles.refSplitPriceLeftText}>₹{item.price}</Text>
+                    </View>
+                    <View style={styles.refSplitPriceRight}>
+                      <Text style={styles.refSplitPriceRightText} numberOfLines={1}>
+                        MRP ₹{itemMrp}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Unit & Title */}
+                  <Text style={styles.refGridUnitText}>{item.unit || "1 Pcs"}</Text>
+                  <Text style={styles.refGridTitleText} numberOfLines={2}>{item.name}</Text>
+
+                  {/* Action Row: 'See more like this' + '+' Add Button */}
+                  <View style={styles.refGridActionRow}>
+                    <View style={styles.refSeeMoreRow}>
+                      <Text style={styles.refSeeMoreText}>See more like this</Text>
+                      <ChevronRight size={10} color="#dc2626" />
                     </View>
 
-                    <View style={styles.similarInfo}>
-                      <Text style={styles.similarName} numberOfLines={2}>
-                        {item.name}
-                      </Text>
-
-                      <View style={styles.similarRatingRow}>
-                        <View style={styles.similarRatingPill}>
-                          <Text style={styles.similarRatingText}>
-                            {(item.rating || 4.5).toFixed(1)}
-                          </Text>
-                          <Star size={9} color="#FFFFFF" fill="#FFFFFF" />
-                        </View>
-                        <Text style={styles.similarUnit}>{item.unit || "1 Pc"}</Text>
-                      </View>
-
-                      <View style={styles.similarPriceRow}>
-                        <Text style={styles.similarPrice}>₹{item.price}</Text>
-                        {itemMrp > item.price && (
-                          <Text style={styles.similarMrp}>₹{itemMrp}</Text>
-                        )}
-                      </View>
-
+                    {itemInCart === 0 ? (
                       <TouchableOpacity
-                        style={styles.similarAddBtn}
                         onPress={(e) => {
                           e.stopPropagation?.();
                           addItem(item);
                         }}
+                        style={styles.refGridAddPlusBtn}
+                        activeOpacity={0.85}
                       >
-                        <Text style={styles.similarAddBtnText}>Add to Cart</Text>
+                        <Plus size={14} color="#dc2626" strokeWidth={3} />
                       </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                    ) : (
+                      <View style={styles.refGridQtyBadge}>
+                        <Text style={styles.refGridQtyBadgeText}>{itemInCart}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
+        </View>
 
         {/* Bottom spacer for sticky footer */}
         <View style={{ height: safeBottomBarPadding + 85 }} />
@@ -2043,5 +2113,302 @@ const styles = StyleSheet.create({
   fullscreenThumbActive: {
     borderColor: "#DC2626",
     borderWidth: 2,
+  },
+  findSimilarFloatingBtn: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  findSimilarFloatingText: {
+    color: "#0f172a",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  refPriceHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  refPriceLeftWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  refGreenOffBadge: {
+    backgroundColor: "#16a34a",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  refGreenOffText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  refHeaderActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  refActionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mintCouponCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: "#ecfdf5",
+    borderWidth: 1.5,
+    borderColor: "#a7f3d0",
+    borderRadius: 16,
+    padding: 14,
+  },
+  mintCouponTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  mintOfferTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  mintOfferTitleText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#065f46",
+  },
+  mintOfferSubtitleText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#047857",
+    marginTop: 3,
+  },
+  dashedCouponContainer: {
+    alignItems: "center",
+  },
+  dashedCouponBorder: {
+    borderWidth: 1.5,
+    borderColor: "#059669",
+    borderStyle: "dashed",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dashedCouponCodeText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#065f46",
+    letterSpacing: 0.5,
+  },
+  copyCodeBtn: {
+    marginTop: 3,
+  },
+  copyCodeBtnText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#059669",
+    textDecorationLine: "underline",
+  },
+  viewAllOffersLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#d1fae5",
+    gap: 4,
+  },
+  viewAllOffersLinkText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#059669",
+  },
+  refSimilarSectionWrapper: {
+    marginTop: 16,
+    paddingBottom: 16,
+  },
+  refCategoryPillsScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 12,
+  },
+  refTabPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  refTabPillActive: {
+    backgroundColor: "#0f172a",
+    borderColor: "#0f172a",
+  },
+  refTabPillText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  refTabPillTextActive: {
+    color: "#ffffff",
+    fontWeight: "900",
+  },
+  refProductsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  refProductGridCard: {
+    width: (SCREEN_WIDTH - 44) / 2,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  refGridImageWrapper: {
+    width: "100%",
+    height: 115,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  refGridImage: {
+    width: "100%",
+    height: "100%",
+  },
+  refGridGreenBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#16a34a",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  refGridGreenBadgeText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  refSplitPriceBar: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  refSplitPriceLeft: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  refSplitPriceLeftText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  refSplitPriceRight: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  refSplitPriceRightText: {
+    color: "#64748b",
+    fontSize: 9,
+    fontWeight: "700",
+    textDecorationLine: "line-through",
+  },
+  refGridUnitText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#64748b",
+  },
+  refGridTitleText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#0f172a",
+    height: 32,
+    marginTop: 2,
+  },
+  refGridActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  refSeeMoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  refSeeMoreText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#dc2626",
+  },
+  refGridAddPlusBtn: {
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refGridQtyBadge: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  refGridQtyBadgeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
   },
 });

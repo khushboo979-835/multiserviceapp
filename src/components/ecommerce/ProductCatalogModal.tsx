@@ -41,11 +41,15 @@ interface ProductCatalogModalProps {
 
 const CATEGORIES_FILTER = [
   { key: "ALL", label: "🔥 All" },
-  { key: "MOBILE_PHONES", label: "📱 Mobiles" },
+  { key: "FOOTWEAR", label: "🩴 Footwear" },
+  { key: "MENS_FASHION", label: "👕 Men's Wear" },
+  { key: "WOMENS_FASHION", label: "👗 Sarees & Ethnic" },
+  { key: "BEAUTY_PARLOUR", label: "💄 Beauty & Care" },
   { key: "MOBILE_ACCESSORIES", label: "🔌 Accessories" },
+  { key: "MOBILE_PHONES", label: "📱 Mobiles" },
+  { key: "ELECTRONICS", label: "🎧 Electronics" },
   { key: "GROCERY", label: "🛒 Grocery" },
   { key: "HOME_NEEDS", label: "🏠 Home Needs" },
-  { key: "ELECTRONICS", label: "🎧 Electronics" },
 ];
 
 export default function ProductCatalogModal({
@@ -71,11 +75,21 @@ export default function ProductCatalogModal({
   const [couponInput, setCouponInput] = useState("");
 
   const filteredProducts = products.filter((prod) => {
-    const matchesCat = selectedCategory === "ALL" || prod.category === selectedCategory;
+    const catUpper = selectedCategory.toUpperCase();
+    const prodCat = (prod.category || "").toUpperCase();
+    const prodCatName = (prod.categoryName || "").toUpperCase();
+    const matchesCat =
+      selectedCategory === "ALL" ||
+      prodCat === catUpper ||
+      prodCatName.includes(catUpper) ||
+      (catUpper === "FOOTWEAR" && (prodCatName.includes("FOOT") || prodCatName.includes("SLIPPER") || prodCatName.includes("SANDAL") || prod.name.toLowerCase().includes("slipper") || prod.name.toLowerCase().includes("sandal"))) ||
+      (catUpper === "MENS_FASHION" && (prodCatName.includes("MEN") || prod.name.toLowerCase().includes("men") || prod.name.toLowerCase().includes("shirt") || prod.name.toLowerCase().includes("socks"))) ||
+      (catUpper === "WOMENS_FASHION" && (prodCatName.includes("WOMEN") || prodCatName.includes("SAREE") || prod.name.toLowerCase().includes("saree") || prod.name.toLowerCase().includes("women")));
     const matchesSearch =
       !searchQuery ||
       prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prod.description.toLowerCase().includes(searchQuery.toLowerCase());
+      prod.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (prod.brand && prod.brand.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCat && matchesSearch;
   });
 
@@ -240,81 +254,106 @@ export default function ProductCatalogModal({
           >
             {filteredProducts.map((product) => {
               const qty = cart[product.id] || 0;
-              return (
-                <View key={product.id} style={styles.productCard}>
-                  {/* Clickable Image to View Details */}
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    onPress={() => handleOpenProduct(product.id)}
-                    style={styles.imageTouchable}
-                  >
-                    <SafeImage uri={product.imageUrl} style={styles.productImg} />
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountText}>{product.discountPercentage}% OFF</Text>
-                    </View>
+              const originalMrp = product.originalPrice || product.mrp || product.price;
+              const discountDiff = originalMrp - product.price;
+              const discountLabel = product.badgeText || (discountDiff > 0 ? `₹${discountDiff} OFF` : (product.discountPercentage ? `${product.discountPercentage}% OFF` : ""));
 
-                    {/* View Details Eye Pill */}
+              return (
+                <TouchableOpacity
+                  key={product.id}
+                  style={styles.productCard}
+                  activeOpacity={0.92}
+                  onPress={() => handleOpenProduct(product.id)}
+                >
+                  {/* Product Image Box */}
+                  <View style={styles.imageTouchable}>
+                    <SafeImage uri={product.imageUrl} style={styles.productImg} />
+                    
+                    {/* Green Discount Badge (Matching Image 1) */}
+                    {discountLabel ? (
+                      <View style={styles.greenDiscountBadge}>
+                        <Text style={styles.greenDiscountBadgeText}>{discountLabel}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* View Details floating pill */}
                     <View style={styles.viewDetailsBadge}>
-                      <Eye size={11} color="#ffffff" />
+                      <Eye size={10} color="#ffffff" />
                       <Text style={styles.viewDetailsBadgeText}>View</Text>
                     </View>
-                  </TouchableOpacity>
+                  </View>
 
                   <View style={styles.productInfo}>
-                    {/* Clickable Title to View Details */}
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      onPress={() => handleOpenProduct(product.id)}
-                    >
-                      <Text style={styles.productName} numberOfLines={2}>
-                        {product.name}
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={styles.productUnit}>{product.unit}</Text>
-
-                    <View style={styles.deliveryRow}>
-                      <Clock size={12} color="#16a34a" />
-                      <Text style={styles.deliveryTime}>{product.deliveryTimeMins} mins delivery</Text>
+                    {/* The Iconic Split Price Bar (Matching Client Reference Image 1) */}
+                    <View style={styles.splitPriceBar}>
+                      <View style={styles.splitPriceLeft}>
+                        <Text style={styles.splitPriceLeftText}>₹{product.price}</Text>
+                      </View>
+                      <View style={styles.splitPriceRight}>
+                        <Text style={styles.splitPriceRightText} numberOfLines={1}>
+                          MRP ₹{originalMrp}
+                        </Text>
+                      </View>
                     </View>
 
-                    {/* Dedicated View Details Button Row */}
-                    <TouchableOpacity
-                      onPress={() => handleOpenProduct(product.id)}
-                      style={styles.viewProductRowBtn}
-                      activeOpacity={0.8}
-                    >
-                      <Eye size={12} color="#475569" />
-                      <Text style={styles.viewProductRowText}>View Details & Specs</Text>
-                    </TouchableOpacity>
+                    {/* Unit / Pack Size */}
+                    <Text style={styles.productUnit}>{product.unit || "1 Pcs"}</Text>
 
-                    <View style={styles.priceRow}>
-                      <View>
-                        <Text style={styles.priceText}>₹{product.price}</Text>
-                        <Text style={styles.originalPriceText}>₹{product.originalPrice}</Text>
+                    {/* Product Title */}
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {product.name}
+                    </Text>
+
+                    {/* Delivery & Seller Tag */}
+                    <View style={styles.deliveryRow}>
+                      <Clock size={11} color="#16a34a" />
+                      <Text style={styles.deliveryTime}>{product.deliveryTimeMins || 20} mins delivery</Text>
+                    </View>
+
+                    {/* Action Row: 'See more like this' + Outlined ADD / Stepper */}
+                    <View style={styles.cardActionRow}>
+                      <View style={styles.seeMoreBtn}>
+                        <Text style={styles.seeMoreBtnText}>See more like this</Text>
+                        <ChevronRight size={11} color="#dc2626" />
                       </View>
 
                       {qty === 0 ? (
                         <TouchableOpacity
-                          onPress={() => addToCart(product)}
-                          style={styles.addBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            addToCart(product);
+                          }}
+                          style={styles.refAddBtn}
                           activeOpacity={0.85}
                         >
-                          <Text style={styles.addBtnText}>ADD</Text>
+                          <Text style={styles.refAddBtnText}>ADD</Text>
                         </TouchableOpacity>
                       ) : (
-                        <View style={styles.qtyControl}>
-                          <TouchableOpacity onPress={() => removeFromCart(product.id)} style={styles.qtyBtn}>
-                            <Minus size={14} color="#ffffff" />
+                        <View style={styles.refQtyControl}>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              removeFromCart(product.id);
+                            }}
+                            style={styles.refQtyBtn}
+                          >
+                            <Minus size={12} color="#ffffff" strokeWidth={3} />
                           </TouchableOpacity>
-                          <Text style={styles.qtyText}>{qty}</Text>
-                          <TouchableOpacity onPress={() => addToCart(product)} style={styles.qtyBtn}>
-                            <Plus size={14} color="#ffffff" />
+                          <Text style={styles.refQtyText}>{qty}</Text>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              addToCart(product);
+                            }}
+                            style={styles.refQtyBtn}
+                          >
+                            <Plus size={12} color="#ffffff" strokeWidth={3} />
                           </TouchableOpacity>
                         </View>
                       )}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -548,19 +587,114 @@ const styles = StyleSheet.create({
     height: 120,
     backgroundColor: "#f1f5f9",
   },
-  discountBadge: {
+  greenDiscountBadge: {
     position: "absolute",
     top: 8,
     left: 8,
-    backgroundColor: "#ef4444",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: "#16a34a",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  discountText: {
+  greenDiscountBadgeText: {
     color: "#ffffff",
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  splitPriceBar: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    borderRadius: 8,
+    overflow: "hidden",
+    marginVertical: 4,
+    backgroundColor: "#ffffff",
+  },
+  splitPriceLeft: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  splitPriceLeftText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  splitPriceRight: {
+    flex: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+  },
+  splitPriceRightText: {
+    color: "#64748b",
+    fontSize: 10,
+    fontWeight: "700",
+    textDecorationLine: "line-through",
+  },
+  cardActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  seeMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 4,
+  },
+  seeMoreBtnText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#dc2626",
+  },
+  refAddBtn: {
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refAddBtnText: {
+    color: "#dc2626",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  refQtyControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  refQtyBtn: {
+    padding: 3,
+  },
+  refQtyText: {
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 11,
+    marginHorizontal: 5,
   },
   viewDetailsBadge: {
     position: "absolute",

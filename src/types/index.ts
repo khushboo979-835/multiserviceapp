@@ -270,7 +270,10 @@ export type ProductTypeCategory =
   | "HOME_NEEDS"
   | "ELECTRONICS"
   | "FRESH_VEGGIES_FRUITS"
-  | "SNACKS_BEVERAGES";
+  | "SNACKS_BEVERAGES"
+  | "FOOTWEAR"
+  | "MENS_FASHION"
+  | "WOMENS_FASHION";
 
 export interface MobileBrand {
   id: string;
@@ -313,6 +316,10 @@ export interface Product {
   deliveryTimeMins: number;
   sellerName?: string;
   brand?: string;
+  offerTitle?: string;
+  couponCode?: string;
+  offerDescription?: string;
+  badgeText?: string;
   variants?: ProductVariant[];
   specifications?: ProductSpecification[];
 }

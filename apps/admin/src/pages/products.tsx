@@ -57,17 +57,24 @@ interface ProductItem {
   deliveryTimeMins: number;
   sellerName?: string;
   brand?: string;
+  offerTitle?: string;
+  couponCode?: string;
+  offerDescription?: string;
+  badgeText?: string;
   variants?: ProductVariant[];
   specifications?: ProductSpecification[];
   createdAt?: string;
 }
 
 const CATEGORY_OPTIONS = [
-  { label: "Mobile Accessories", value: "MOBILE_ACCESSORIES" },
+  { label: "Footwear & Slippers", value: "FOOTWEAR" },
+  { label: "Men's Fashion & Clothing", value: "MENS_FASHION" },
+  { label: "Women's Sarees & Ethnic", value: "WOMENS_FASHION" },
+  { label: "Beauty & Personal Care", value: "BEAUTY_PARLOUR" },
+  { label: "Mobile Accessories & Wallets", value: "MOBILE_ACCESSORIES" },
   { label: "Mobile Phones & Devices", value: "MOBILE_PHONES" },
-  { label: "Grocery & Kitchen Staples", value: "GROCERY" },
-  { label: "Beauty & Personal Parlour", value: "BEAUTY_PARLOUR" },
   { label: "Electronics & Appliances", value: "ELECTRONICS" },
+  { label: "Grocery & Daily Essentials", value: "GROCERY" },
   { label: "Home Needs & Spares", value: "HOME_NEEDS" },
 ];
 
@@ -97,6 +104,10 @@ export default function ProductsPage() {
     inStock: true,
     deliveryTimeMins: 30,
     description: "",
+    offerTitle: "% Off up to ₹150",
+    couponCode: "PREPAID_12",
+    offerDescription: "Valid on prepaid orders • Tap for details",
+    badgeText: "",
     images: [] as string[],
     variants: [] as ProductVariant[],
     specifications: [] as ProductSpecification[],
@@ -154,6 +165,10 @@ export default function ProductsPage() {
       inStock: true,
       deliveryTimeMins: 30,
       description: "",
+      offerTitle: "% Off up to ₹150",
+      couponCode: "PREPAID_12",
+      offerDescription: "Valid on prepaid orders • Tap for details",
+      badgeText: "",
       images: [],
       variants: [],
       specifications: [
@@ -184,6 +199,10 @@ export default function ProductsPage() {
       inStock: p.inStock !== false,
       deliveryTimeMins: p.deliveryTimeMins || 30,
       description: p.description || "",
+      offerTitle: p.offerTitle || "% Off up to ₹150",
+      couponCode: p.couponCode || "PREPAID_12",
+      offerDescription: p.offerDescription || "Valid on prepaid orders • Tap for details",
+      badgeText: p.badgeText || (p.mrp && p.price && p.mrp > p.price ? `₹${p.mrp - p.price} OFF` : ""),
       images: existingImages,
       variants: Array.isArray(p.variants) ? p.variants : [],
       specifications: Array.isArray(p.specifications) && p.specifications.length > 0
@@ -873,6 +892,108 @@ export default function ProductsPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Offers, Badges & Customer App Preview */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag size={14} className="text-rose-600" /> Offers, Badges & App Card Preview
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                      Offer Title (e.g. % Off up to ₹150)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="% Off up to ₹150"
+                      value={formData.offerTitle}
+                      onChange={(e) => setFormData({ ...formData, offerTitle: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                      Coupon Code (e.g. PREPAID_12)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="PREPAID_12"
+                      value={formData.couponCode}
+                      onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold uppercase focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                      Offer Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Valid on prepaid orders • Tap for details"
+                      value={formData.offerDescription}
+                      onChange={(e) => setFormData({ ...formData, offerDescription: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider block mb-1">
+                      Custom Discount Badge Text (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={formData.mrp > formData.price ? `₹${formData.mrp - formData.price} OFF` : "₹303 OFF"}
+                      value={formData.badgeText}
+                      onChange={(e) => setFormData({ ...formData, badgeText: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Card Preview Box Matching Client Reference Image */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-2">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Eye size={12} className="text-red-600" /> Customer App Card Live Preview (Exact App Design)
+                  </div>
+                  <div className="max-w-[200px] bg-white border border-slate-200 rounded-2xl p-2.5 shadow-sm space-y-2">
+                    <div className="relative w-full h-28 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+                      {formData.images.length > 0 ? (
+                        <img src={formData.images[0]} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={28} className="text-slate-300" />
+                      )}
+                      <div className="absolute top-1.5 right-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                        {formData.badgeText || (formData.mrp > formData.price ? `₹${formData.mrp - formData.price} OFF` : "SALE")}
+                      </div>
+                    </div>
+
+                    {/* Iconic Split Price Bar */}
+                    <div className="flex items-stretch rounded-lg border border-red-600 overflow-hidden shadow-xs">
+                      <div className="bg-red-600 text-white font-black text-xs px-2 py-0.5 flex items-center justify-center">
+                        ₹{formData.price || 0}
+                      </div>
+                      <div className="bg-white text-slate-500 text-[10px] font-bold px-2 py-0.5 flex items-center justify-center line-through flex-1">
+                        MRP ₹{formData.mrp || formData.price || 0}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-bold">{formData.unit || "1 Pcs"}</div>
+                    <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-tight">
+                      {formData.name || "Product Name"}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[9px] text-emerald-600 font-bold">⚡ 20 mins</span>
+                      <div className="border border-red-600 text-red-600 font-black text-[10px] px-2.5 py-0.5 rounded-md">
+                        ADD
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Dynamic Specifications */}

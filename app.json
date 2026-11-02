@@ -25,7 +25,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.inishacity.service",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -40,7 +40,7 @@
       "url": "https://u.expo.dev/37f13d43-b36d-44d2-80d1-21b8bfe0d9ea",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 5000
     },
     "runtimeVersion": {
       "policy": "appVersion"

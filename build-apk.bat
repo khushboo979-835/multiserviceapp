@@ -4,8 +4,8 @@ echo ========================================================
 echo   Starting Standalone Android APK Build for Inisha City
 echo ========================================================
 echo.
-cd /d "C:\Users\ECS\Desktop\multi-service-app\apps\mobile"
-echo [1/2] Navigated to mobile project directory: %CD%
+cd /d "C:\Users\ECS\Desktop\mobile app\multi-service-app"
+echo [1/2] Navigated to project root directory: %CD%
 echo [2/2] Triggering EAS Cloud APK Builder...
 echo.
 set EAS_NO_VCS=

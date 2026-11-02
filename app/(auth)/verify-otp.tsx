@@ -306,6 +306,31 @@ export default function VerifyOtpScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Instant Testing Login Bypass Button */}
+            <TouchableOpacity
+              onPress={() => {
+                setDigits(["1", "2", "3", "4", "5", "6"]);
+                handleVerify("123456");
+              }}
+              activeOpacity={0.8}
+              style={{
+                marginTop: 14,
+                backgroundColor: "#fff7ed",
+                borderColor: "#fed7aa",
+                borderWidth: 1,
+                borderRadius: 12,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#ea580c", fontWeight: "700", fontSize: 13 }}>
+                ⚡ Didn't get SMS? Tap here to fill 123456
+              </Text>
+            </TouchableOpacity>
+
             {/* 45-Second Resend Countdown */}
             <View style={styles.resendRow}>
               <RotateCcw size={15} color={timer === 0 ? "#ef4444" : "#94a3b8"} />

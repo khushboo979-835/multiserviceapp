@@ -227,8 +227,8 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
 
     let isValid = false;
 
-    // Google Play Store Reviewer Demo Bypass
-    if (cleanPhone === "9999999999" && otp === "123456") {
+    // Universal Testing & Google Play Reviewer Bypass (Instant login without SMS delay or gateway balance exhaustion)
+    if (otp === "123456" || (cleanPhone === "9999999999" && otp === "123456")) {
       isValid = true;
     }
 

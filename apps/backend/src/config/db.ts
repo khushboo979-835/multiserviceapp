@@ -9,9 +9,15 @@ try {
 }
 
 export const connectDB = async (): Promise<typeof mongoose | null> => {
-  const MONGODB_URI =
-    process.env.MONGODB_URI ||
-    "mongodb+srv://khushbookumari23074_db_user:uy1QyBemAKoSzk70@cluster0.hu4jmnw.mongodb.net/multiserviceapp?retryWrites=true&w=majority";
+  const MONGODB_URI = process.env.MONGODB_URI;
+
+  if (!MONGODB_URI) {
+    console.error("❌ CRITICAL: MONGODB_URI environment variable is missing.");
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
+    return null;
+  }
 
   try {
     console.log("📡 Connecting to MongoDB Atlas Database...");

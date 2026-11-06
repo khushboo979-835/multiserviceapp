@@ -5,9 +5,9 @@ import cloudinary, { deleteCloudinaryAsset } from "../services/cloudinary.servic
 
 const router = Router();
 
-const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "gln413tb";
-const apiKey = process.env.CLOUDINARY_API_KEY || "775595328596497";
-const apiSecret = process.env.CLOUDINARY_API_SECRET || "Pjldt3tT9ZSUIBPMbMSm5HDk2eg";
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME || "";
+const apiKey = process.env.CLOUDINARY_API_KEY || "";
+const apiSecret = process.env.CLOUDINARY_API_SECRET || "";
 const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || "inisha_preset";
 
 // Generate signature for signed Cloudinary uploads

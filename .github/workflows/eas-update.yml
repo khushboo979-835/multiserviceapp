@@ -56,13 +56,28 @@ jobs:
           npx expo-doctor
           npx expo export --platform android
 
+      - name: Verify EAS Authentication Secret
+        id: check-auth
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || secrets.EAS_TOKEN }}
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+            echo "✅ Expo EAS token is configured in repository secrets."
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::notice title=EAS Token Secret Notice::Repository secret EXPO_TOKEN or EAS_TOKEN is not configured in GitHub Secrets. Live OTA publish step skipped safely. Add EXPO_TOKEN to Settings -> Secrets and variables -> Actions to enable live EAS OTA deployments."
+          fi
+
       - name: Setup EAS CLI
+        if: steps.check-auth.outputs.has_token == 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN || secrets.EAS_TOKEN }}
 
       - name: Publish Update to Target Channel
+        if: steps.check-auth.outputs.has_token == 'true'
         run: |
           TARGET_CHANNEL="${{ inputs.channel || 'preview' }}"
           UPDATE_MSG="${{ inputs.message || github.event.head_commit.message || 'Live OTA code update' }}"

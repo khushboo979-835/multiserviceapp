@@ -417,7 +417,7 @@ export default function DynamicFormBuilder({
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: Platform.OS === "android" ? 72 : 36,
+    paddingBottom: Platform.OS === "android" ? 120 : 50,
   },
   fieldContainer: {
     marginBottom: 16,
@@ -677,6 +677,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
     marginTop: 10,
+    marginBottom: Platform.OS === "android" ? 28 : 14,
   },
   submitButtonDisabled: {
     opacity: 0.5,

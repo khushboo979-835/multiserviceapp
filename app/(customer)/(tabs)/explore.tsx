@@ -539,8 +539,8 @@ export default function ExploreScreen() {
                   const bName = selectedBrandModal.name;
                   setSelectedBrandModal(null);
                   router.push({
-                    pathname: "/(customer)/booking/[id]",
-                    params: { id: "cat_mobile", brand: bName },
+                    pathname: "/(customer)/(tabs)",
+                    params: { id: "cat_mobile", brand: bName, action: "book" },
                   });
                 }}
               >

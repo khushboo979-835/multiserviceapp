@@ -380,7 +380,7 @@ export default function OrdersScreen() {
 
                   <TouchableOpacity
                     style={styles.liveTrackBtn}
-                    onPress={() => router.push("/(customer)/booking/tracking")}
+                    onPress={() => router.push(`/(customer)/track-booking/${activeBooking.id}` as any)}
                   >
                     <MapPin size={16} color="#ffffff" />
                     <Text style={styles.liveTrackBtnText}>Track Service Partner Live</Text>

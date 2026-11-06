@@ -832,6 +832,9 @@ export default function CustomerHomeScreen() {
         <View style={styles.topDealsSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Top Deals</Text>
+            <TouchableOpacity onPress={() => router.push("/(customer)/(tabs)/explore" as any)}>
+              <Text style={styles.viewAllLink}>View All</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>

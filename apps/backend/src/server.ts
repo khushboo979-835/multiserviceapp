@@ -65,7 +65,7 @@ const handleApkDownload = (req: express.Request, res: express.Response) => {
   if (fs.existsSync(apkPath)) {
     res.download(apkPath, "inisha-city-service.apk");
   } else {
-    res.redirect("https://expo.dev/artifacts/eas/BjY8NeANKOl5HWWMIny1GuG2r_Hx1jqSQ8jAdwZhf0Q.apk");
+    res.redirect("https://expo.dev/artifacts/eas/YVLP2WqQHGRtV7dub8kHnZwzwU5uuvajGSjUbqXIV4s.apk");
   }
 };
 

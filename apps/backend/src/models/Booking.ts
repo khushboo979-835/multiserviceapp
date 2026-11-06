@@ -20,6 +20,7 @@ export interface IBooking extends Document {
   status:
     | "DRAFT"
     | "PENDING_PROVIDER"
+    | "ASSIGNED"
     | "ACCEPTED"
     | "EN_ROUTE"
     | "ARRIVED"
@@ -110,6 +111,7 @@ const BookingSchema = new Schema<IBooking>(
       enum: [
         "DRAFT",
         "PENDING_PROVIDER",
+        "ASSIGNED",
         "ACCEPTED",
         "EN_ROUTE",
         "ARRIVED",

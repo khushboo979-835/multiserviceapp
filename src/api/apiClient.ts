@@ -6,7 +6,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw
 
 export const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 45000, // 45s timeout for Render cold-start resilience
   headers: {
     "Content-Type": "application/json",
   },
@@ -26,14 +26,33 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle global errors (e.g. 401 unauthorized token clear)
+// Response interceptor to handle global errors (e.g. 401 unauthorized token clear) & auto-retry on cold start
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const config = error.config;
+
     if (error.response && error.response.status === 401) {
       console.warn("Unauthorized API request - clearing auth session");
       useAuthStore.getState().logout();
+      return Promise.reject(error);
     }
+
+    // Auto-retry once on Render cold-start timeout or 502/503/504
+    if (
+      config &&
+      !config._retry &&
+      (error.code === "ECONNABORTED" || !error.response || (error.response && error.response.status >= 500))
+    ) {
+      config._retry = true;
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return await apiClient(config);
+      } catch (retryError) {
+        return Promise.reject(retryError);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

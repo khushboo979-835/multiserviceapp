@@ -50,6 +50,7 @@ import AllServicesModal from "../../../src/components/booking/AllServicesModal";
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import CallSimulationModal from "../../../src/components/common/CallSimulationModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
+import { apiClient } from "../../../src/api/apiClient";
 import {
   Smartphone,
   Scissors,
@@ -120,6 +121,13 @@ export default function CustomerHomeScreen() {
   const categories = (categoriesQuery.data && categoriesQuery.data.length > 0) ? categoriesQuery.data : MOCK_CATEGORIES;
   const banners = bannersQuery.data ?? [];
   const topDeals = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
+  const shopsQuery = useQuery({ queryKey: ["nearbyShops"], queryFn: async () => { try { const res = await apiClient.get("/shops"); return res.data?.shops || []; } catch { return []; } }, staleTime: 60000 });
+  const localShops = (shopsQuery.data && shopsQuery.data.length > 0) ? shopsQuery.data : [
+    { shopId: "shop_bihar_sweets_101", name: "Patna Special Sweets & Chaat", category: "SWEETS_BAKERY", logoUrl: "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400&q=80", rating: 4.9, ratingsCount: 240, deliverySettings: { estimatedPrepMins: 15, baseDeliveryFee: 25 }, address: { street: "Kidwaipuri", city: "Patna" } },
+    { shopId: "shop_royal_biryani_102", name: "Royal Darbar Restaurant & Biryani", category: "RESTAURANT", logoUrl: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=400&q=80", rating: 4.8, ratingsCount: 412, deliverySettings: { estimatedPrepMins: 25, baseDeliveryFee: 30 }, address: { street: "Kankarbagh", city: "Patna" } },
+    { shopId: "shop_apna_grocery_103", name: "Apna Super Mart & Fresh Grocery", category: "GROCERY", logoUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80", rating: 4.8, ratingsCount: 180, deliverySettings: { estimatedPrepMins: 15, baseDeliveryFee: 20 }, address: { street: "Bailey Road", city: "Danapur" } },
+    { shopId: "shop_chhotu_mobile_104", name: "Chhotu Mobile & Electronics Hub", category: "MOBILE_ELECTRONICS", logoUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80", rating: 5.0, ratingsCount: 520, deliverySettings: { estimatedPrepMins: 20, baseDeliveryFee: 30 }, address: { street: "Suruchi Complex", city: "Sultanganj" } }
+  ];
 
   // Focus refetch for instant live sync
   useFocusEffect(
@@ -870,6 +878,52 @@ export default function CustomerHomeScreen() {
                     >
                       <Text style={styles.dealAddBtnText}>View</Text>
                     </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 6.5 Local Neighborhood Shops & Food Express Delivery */}
+        <View style={styles.topDealsSection}>
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Local Shops & Restaurants</Text>
+              <Text style={styles.sectionSubtitle}>Doorstep delivery from neighborhood shops</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push("/(customer)/(tabs)/explore" as any)}>
+              <Text style={styles.viewAllLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            {localShops.map((shop: any) => (
+              <TouchableOpacity
+                key={shop.shopId}
+                style={styles.localShopCard}
+                activeOpacity={0.88}
+                onPress={() => router.push(`/(customer)/shop/${shop.shopId}` as any)}
+              >
+                <SafeImage uri={shop.logoUrl} style={styles.shopLogoThumbnail} resizeMode="cover" />
+                <View style={styles.shopCardContent}>
+                  <View style={styles.shopCategoryPill}>
+                    <Text style={styles.shopCategoryPillText}>{String(shop.category || "STORE").replace("_", " ")}</Text>
+                  </View>
+                  <Text style={styles.shopCardName} numberOfLines={1}>{shop.name}</Text>
+                  <View style={styles.shopCardMetaRow}>
+                    <View style={styles.shopRatingBox}>
+                      <Star size={11} color="#f59e0b" fill="#f59e0b" />
+                      <Text style={styles.shopRatingText}>{shop.rating || 4.8}</Text>
+                    </View>
+                    <Text style={styles.shopMetaDot}>•</Text>
+                    <Text style={styles.shopPrepTime}>{shop.deliverySettings?.estimatedPrepMins || 20}m</Text>
+                    <Text style={styles.shopMetaDot}>•</Text>
+                    <Text style={styles.shopCityText}>{shop.address?.city || "Patna"}</Text>
+                  </View>
+                  <View style={styles.shopCardActionBtn}>
+                    <Text style={styles.shopCardActionBtnText}>Order Now</Text>
+                    <ArrowRight size={12} color="#dc2626" />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1936,6 +1990,96 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#64748b",
     lineHeight: 15,
+  },
+  sectionSubtitle: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 1,
+  },
+  localShopCard: {
+    width: 200,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    overflow: "hidden",
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  shopLogoThumbnail: {
+    width: "100%",
+    height: 100,
+    backgroundColor: "#f1f5f9",
+  },
+  shopCardContent: {
+    padding: 10,
+  },
+  shopCategoryPill: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+    marginBottom: 4,
+  },
+  shopCategoryPillText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#dc2626",
+    textTransform: "uppercase",
+  },
+  shopCardName: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 4,
+  },
+  shopCardMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 8,
+  },
+  shopRatingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  shopRatingText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  shopMetaDot: {
+    fontSize: 10,
+    color: "#94a3b8",
+  },
+  shopPrepTime: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  shopCityText: {
+    fontSize: 10,
+    color: "#94a3b8",
+  },
+  shopCardActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "#fef2f2",
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  shopCardActionBtnText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#dc2626",
   },
   notifTime: {
     fontSize: 10,

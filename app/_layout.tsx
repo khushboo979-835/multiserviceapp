@@ -120,6 +120,8 @@ export default function RootLayout() {
               <Stack.Screen name="(customer)" options={{ headerShown: false }} />
               <Stack.Screen name="(product)" options={{ headerShown: false }} />
               <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="shop/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="explore" options={{ headerShown: false }} />
               <Stack.Screen name="track-booking/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="track-order/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="(provider)" options={{ headerShown: false }} />

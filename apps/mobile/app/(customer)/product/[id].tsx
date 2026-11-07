@@ -1989,14 +1989,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
-  similarHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
   similarHeading: {
     fontSize: 16,
     fontWeight: "900",
@@ -2008,18 +2000,6 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
     fontWeight: "500",
-  },
-  viewAllBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  viewAllBtnText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#DC2626",
   },
   footerBar: {
     position: "absolute",

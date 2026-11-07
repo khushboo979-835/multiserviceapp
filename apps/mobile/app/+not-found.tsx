@@ -28,7 +28,7 @@ export default function NotFoundScreen() {
 
   return (
     <View style={styles.container}>
-      <BrandLogo size="medium" showText={true} />
+      <BrandLogo size="md" showText={true} />
       <ActivityIndicator size="large" color="#ef4444" style={{ marginTop: 28 }} />
       <TouchableOpacity onPress={handleNavigateHome} style={styles.homeBtn} activeOpacity={0.85}>
         <Text style={styles.homeBtnText}>Return to Home</Text>

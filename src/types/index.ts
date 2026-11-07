@@ -157,6 +157,9 @@ export interface Booking {
   providerId?: string | null;
   providerName?: string | null;
   providerPhone?: string | null;
+  providerVehicle?: string | null;
+  serviceTitle?: string;
+  serviceName?: string;
   categoryId: string;
   subcategoryId: string;
   formValues: Record<string, any>;

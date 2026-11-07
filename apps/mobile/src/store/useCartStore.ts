@@ -2,8 +2,16 @@ import { create } from "zustand";
 import { Product, CartItem, Coupon, StoreOrder, StoreOrderStatus } from "../types";
 import { MOCK_COUPONS } from "../constants/mockData";
 
+export interface AddItemResult {
+  success: boolean;
+  conflict: boolean;
+  existingShopName?: string;
+}
+
 interface CartStore {
   items: CartItem[];
+  currentShopId: string | null;
+  currentShopName: string | null;
   isGift: boolean;
   giftRecipientName: string;
   giftMessage: string;
@@ -11,14 +19,15 @@ interface CartStore {
   orders: StoreOrder[];
 
   // Actions
-  addItem: (product: Product) => void;
+  addItem: (product: Product, shopId?: string, shopName?: string) => AddItemResult;
+  forceAddItem: (product: Product, shopId?: string, shopName?: string) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   setGiftOptions: (isGift: boolean, recipientName?: string, message?: string) => void;
   applyCoupon: (coupon: Coupon) => void;
   removeCoupon: () => void;
-  placeOrder: (deliveryAddress: string, paymentMethod: string) => StoreOrder;
+  placeOrder: (deliveryAddress: string, paymentMethod: string, backendOrder?: any) => StoreOrder;
   updateOrderStatus: (orderId: string, status: StoreOrderStatus) => void;
 
   // Computed / Helpers
@@ -54,83 +63,95 @@ const INITIAL_ORDERS: StoreOrder[] = [
         },
         quantity: 1,
       },
-      {
-        product: {
-          id: "prod_groc_1",
-          name: "Fortune Premium Kachi Ghani Mustard Oil (1L)",
-          category: "GROCERY",
-          categoryName: "Grocery & Staples",
-          description: "Cold pressed rich aroma authentic mustard oil.",
-          price: 145,
-          originalPrice: 175,
-          discountPercentage: 17,
-          unit: "1 Litre Pouch",
-          imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=500&q=80",
-          inStock: true,
-          rating: 4.9,
-          deliveryTimeMins: 15,
-        },
-        quantity: 2,
-      },
     ],
-    itemTotal: 989,
+    itemTotal: 699,
     deliveryFee: 0,
-    discountAmount: 100,
-    giftWrapFee: 30,
-    totalAmount: 919,
-    status: "OUT_FOR_DELIVERY",
+    discountAmount: 0,
+    giftWrapFee: 0,
+    totalAmount: 699,
+    status: "DELIVERED",
     otp: "7482",
-    isGift: true,
-    giftRecipientName: "Rohan Sharma",
-    giftMessage: "Congratulations on your new phone! Enjoy the fast charger.",
-    deliveryAddress: "Flat 402, Shivam Residency, Boring Road, Patna, Bihar - 800001",
+    isGift: false,
+    deliveryAddress: "Kidwaipuri, Boring Road, Patna, Bihar - 800001",
     paymentMethod: "UPI Online (Paid)",
     paymentStatus: "PAID",
-    deliveryPartner: {
-      name: "Ramesh Singh",
-      phone: "+91 98765 43210",
-      vehicleNumber: "BR 01 EA 4592 (Hero Electric)",
-      photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80",
-      rating: 4.9,
-    },
-    placedAt: "Today, 1:15 PM",
-    estimatedDeliveryTime: "12 mins",
+    placedAt: "Yesterday",
+    estimatedDeliveryTime: "Delivered",
   },
 ];
 
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
+  currentShopId: null,
+  currentShopName: null,
   isGift: false,
   giftRecipientName: "",
   giftMessage: "",
   appliedCoupon: null,
   orders: INITIAL_ORDERS,
 
-  addItem: (product: Product) => {
-    set((state) => {
-      const existingIndex = state.items.findIndex(
-        (item) => item.product.id === product.id
-      );
+  addItem: (product: Product, shopId?: string, shopName?: string): AddItemResult => {
+    const state = get();
+    const targetShopId = shopId || product.shopId || "inisha_official";
+    const targetShopName = shopName || product.shopName || product.sellerName || "Inisha Store";
+
+    // Single-Shop Cart Enforcement Check
+    if (state.items.length > 0 && state.currentShopId && state.currentShopId !== targetShopId) {
+      return {
+        success: false,
+        conflict: true,
+        existingShopName: state.currentShopName || "Another Store",
+      };
+    }
+
+    set((s) => {
+      const existingIndex = s.items.findIndex((item) => item.product.id === product.id);
       if (existingIndex > -1) {
-        const updated = [...state.items];
+        const updated = [...s.items];
         updated[existingIndex].quantity += 1;
-        return { items: updated };
+        return { items: updated, currentShopId: targetShopId, currentShopName: targetShopName };
       }
-      return { items: [...state.items, { product, quantity: 1 }] };
+      return {
+        items: [...s.items, { product, quantity: 1 }],
+        currentShopId: targetShopId,
+        currentShopName: targetShopName,
+      };
+    });
+
+    return { success: true, conflict: false };
+  },
+
+  forceAddItem: (product: Product, shopId?: string, shopName?: string) => {
+    const targetShopId = shopId || product.shopId || "inisha_official";
+    const targetShopName = shopName || product.shopName || product.sellerName || "Inisha Store";
+
+    set({
+      items: [{ product, quantity: 1 }],
+      currentShopId: targetShopId,
+      currentShopName: targetShopName,
+      appliedCoupon: null,
     });
   },
 
   removeItem: (productId: string) => {
-    set((state) => ({
-      items: state.items.filter((item) => item.product.id !== productId),
-    }));
+    set((state) => {
+      const remaining = state.items.filter((item) => item.product.id !== productId);
+      return {
+        items: remaining,
+        currentShopId: remaining.length === 0 ? null : state.currentShopId,
+        currentShopName: remaining.length === 0 ? null : state.currentShopName,
+      };
+    });
   },
 
   updateQuantity: (productId: string, quantity: number) => {
     set((state) => {
       if (quantity <= 0) {
+        const remaining = state.items.filter((item) => item.product.id !== productId);
         return {
-          items: state.items.filter((item) => item.product.id !== productId),
+          items: remaining,
+          currentShopId: remaining.length === 0 ? null : state.currentShopId,
+          currentShopName: remaining.length === 0 ? null : state.currentShopName,
         };
       }
       return {
@@ -144,6 +165,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
   clearCart: () => {
     set({
       items: [],
+      currentShopId: null,
+      currentShopName: null,
       appliedCoupon: null,
       isGift: false,
       giftRecipientName: "",
@@ -201,7 +224,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   getDeliveryFee: () => {
     const subtotal = get().getSubtotal();
     if (subtotal === 0) return 0;
-    return subtotal >= 199 ? 0 : 25;
+    return subtotal >= 299 ? 0 : 25;
   },
 
   getFinalTotal: () => {
@@ -212,10 +235,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return Math.max(0, subtotal - discount + giftFee + delivery);
   },
 
-  placeOrder: (deliveryAddress: string, paymentMethod: string) => {
+  placeOrder: (deliveryAddress: string, paymentMethod: string, backendOrder?: any) => {
     const state = get();
     const randomOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    const orderNum = `IN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderNum = backendOrder?.orderNumber || `IN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const subtotal = state.getSubtotal();
     const discount = state.getDiscount();
     const giftWrap = state.getGiftWrapFee();
@@ -223,8 +246,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
     const total = state.getFinalTotal();
 
     const newOrder: StoreOrder = {
-      id: `ord_${Date.now()}`,
+      id: backendOrder?.orderId || `ord_${Date.now()}`,
       orderNumber: orderNum,
+      shopId: state.currentShopId || "inisha_official",
+      shopName: state.currentShopName || "Inisha Store",
       items: [...state.items],
       itemTotal: subtotal,
       deliveryFee: delivery,
@@ -232,11 +257,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
       giftWrapFee: giftWrap,
       totalAmount: total,
       status: "PLACED",
-      otp: randomOtp,
+      otp: backendOrder?.deliveryInfo?.deliveryOtp || randomOtp,
+      pickupOtp: backendOrder?.deliveryInfo?.pickupOtp,
+      deliveryOtp: backendOrder?.deliveryInfo?.deliveryOtp || randomOtp,
       isGift: state.isGift,
       giftRecipientName: state.isGift ? state.giftRecipientName : undefined,
       giftMessage: state.isGift ? state.giftMessage : undefined,
-      deliveryAddress: deliveryAddress || "Home - Main Road, Boring Road, Patna",
+      deliveryAddress: deliveryAddress || "Home - Kidwaipuri, Boring Road, Patna",
       paymentMethod,
       paymentStatus: paymentMethod.includes("COD") ? "PENDING_COD" : "PAID",
       deliveryPartner: {
@@ -253,6 +280,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set((s) => ({
       orders: [newOrder, ...s.orders],
       items: [],
+      currentShopId: null,
+      currentShopName: null,
       appliedCoupon: null,
       isGift: false,
       giftRecipientName: "",

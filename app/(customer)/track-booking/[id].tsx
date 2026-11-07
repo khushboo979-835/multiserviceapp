@@ -6,7 +6,7 @@ import { useBookingStore } from "../../../src/store/useBookingStore";
 import LiveTrackingMap from "../../../src/components/booking/LiveTrackingMap";
 import ChatModal from "../../../src/components/chat/ChatModal";
 import { io, Socket } from "socket.io-client";
-import { BookingStatus, GeoLocation } from "../../../src/types";
+import { Booking, BookingStatus, GeoLocation } from "../../../src/types";
 import { ArrowLeft, Phone, MessageSquare, ShieldCheck, Star, CheckCircle2, Bike, CreditCard, Sparkles, QrCode } from "lucide-react-native";
 import { LocationService } from "../../../src/services/location.service";
 import PaymentModal from "../../../src/components/payment/PaymentModal";
@@ -88,7 +88,8 @@ export default function TrackBookingScreen() {
           if (d.status) {
             updateActiveBookingStatus(d.status as BookingStatus, d.timeline || []);
           }
-          setActiveBooking((prev) => ({
+          const prev = useBookingStore.getState().activeBooking;
+          setActiveBooking({
             ...(prev || ({} as any)),
             ...d,
             id: id,
@@ -99,7 +100,7 @@ export default function TrackBookingScreen() {
             serviceName: d.serviceName || d.serviceTitle || prev?.serviceName || "Doorstep Complete Service",
             status: (d.status as BookingStatus) || prev?.status || "ACCEPTED",
             otp: d.otp || prev?.otp || "4821",
-          }));
+          } as Booking);
         }
       });
     } catch {}

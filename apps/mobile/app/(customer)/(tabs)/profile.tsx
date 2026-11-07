@@ -28,6 +28,7 @@ import {
   Share2,
   X,
   Check,
+  Store,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,6 +42,7 @@ import {
 } from "../../../src/components/profile/ProfileModals";
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
+import MerchantHubModal from "../../../src/components/merchant/MerchantHubModal";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -55,6 +57,7 @@ export default function ProfileScreen() {
   const [referVisible, setReferVisible] = useState(false);
   const [langCityVisible, setLangCityVisible] = useState(false);
   const [adminVisible, setAdminVisible] = useState(false);
+  const [merchantVisible, setMerchantVisible] = useState(false);
 
   const [selectedCity, setSelectedCity] = useState("Patna");
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
@@ -79,12 +82,12 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      "Confirm Sign Out",
-      "Are you sure you want to sign out of Inisha City Service?",
+      "Confirm Logout",
+      "Are you sure you want to log out of Inisha City Service?",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Sign Out",
+          text: "Logout",
           style: "destructive",
           onPress: () => {
             logout();
@@ -95,32 +98,47 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSwitchToPartner = () => {
-    router.push("/(auth)/select-role");
-  };
-
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: insets.top + 10 }]}
-      contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 60 }}
+      style={styles.container}
+      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + 10 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* User Header Profile Card */}
-      <View style={styles.profileCard}>
-        <BrandLogo size="md" showText={false} />
-        <View style={styles.nameRow}>
-          <Text style={styles.userName}>{displayName}</Text>
-          <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.editIconBtn}>
-            <Edit3 size={16} color="#ef4444" />
-          </TouchableOpacity>
+      {/* Brand Header */}
+      <View style={styles.brandHeader}>
+        <BrandLogo size="md" showTagline={true} />
+      </View>
+
+      {/* User Card */}
+      <View style={styles.userCard}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarInitial}>
+            {displayName.charAt(0).toUpperCase()}
+          </Text>
         </View>
-        <View style={styles.phonePill}>
-          <Phone size={13} color="#64748b" />
-          <Text style={styles.userPhone}>{user?.phoneNumber || "+91 78570 23438"}</Text>
+
+        <View style={styles.userInfoCol}>
+          <View style={styles.nameRow}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.editIconBtn}>
+              <Edit3 size={15} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.phoneRow}>
+            <Phone size={13} color="#64748b" />
+            <Text style={styles.userPhone}>{user?.phoneNumber || "+91 95078 60048"}</Text>
+          </View>
         </View>
         <View style={styles.customerBadge}>
           <Sparkles size={13} color="#ef4444" />
-          <Text style={styles.customerBadgeText}>VERIFIED CUSTOMER • {selectedCity.toUpperCase()}</Text>
+          <Text style={styles.customerBadgeText}>
+            {user?.role === "SHOP_OWNER"
+              ? "STORE MERCHANT"
+              : user?.role === "ADMIN"
+              ? "SUPER ADMIN"
+              : "VERIFIED CUSTOMER"}{" "}
+            • {selectedCity.toUpperCase()}
+          </Text>
         </View>
       </View>
 
@@ -144,6 +162,22 @@ export default function ProfileScreen() {
 
       {/* Menu Settings Card */}
       <View style={styles.menuCard}>
+        {/* Merchant Store Dashboard for Shop Owners & Local Merchants */}
+        {(user?.role === "SHOP_OWNER" || user?.role === "ADMIN" || Boolean(user?.shopId)) && (
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setMerchantVisible(true)} style={styles.menuRow}>
+            <View style={styles.menuRowLeft}>
+              <View style={[styles.menuIconCircle, { backgroundColor: "#fff7ed" }]}>
+                <Store size={18} color="#ea580c" />
+              </View>
+              <View>
+                <Text style={[styles.menuTitle, { color: "#ea580c", fontWeight: "800" }]}>Merchant Store Dashboard</Text>
+                <Text style={styles.menuSub}>Accept orders, manage menu & store status</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color="#ea580c" />
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity activeOpacity={0.7} onPress={() => setLangCityVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
@@ -283,6 +317,11 @@ export default function ProfileScreen() {
         visible={adminVisible}
         onClose={() => setAdminVisible(false)}
       />
+
+      <MerchantHubModal
+        visible={merchantVisible}
+        onClose={() => setMerchantVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -293,167 +332,157 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     paddingHorizontal: 20,
   },
-  profileCard: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 28,
-    padding: 22,
+  contentContainer: {
+    paddingBottom: 40,
+  },
+  brandHeader: {
     alignItems: "center",
-    marginBottom: 14,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 4 },
+    marginBottom: 20,
+  },
+  userCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
+    position: "relative",
+    overflow: "hidden",
+  },
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  avatarInitial: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  userInfoCol: {
+    flex: 1,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    gap: 8,
   },
   userName: {
-    fontSize: 20,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "800",
     color: "#0f172a",
   },
   editIconBtn: {
-    marginLeft: 8,
-    padding: 6,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
+    padding: 4,
   },
-  phonePill: {
+  phoneRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 2,
   },
   userPhone: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
     color: "#64748b",
-    marginLeft: 6,
+    fontWeight: "500",
   },
   customerBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#fef2f2",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderTopLeftRadius: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef2f2",
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginTop: 10,
+    gap: 4,
   },
   customerBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
     color: "#ef4444",
-    marginLeft: 4,
+    fontSize: 9,
+    fontWeight: "900",
     letterSpacing: 0.5,
   },
   referralBanner: {
+    backgroundColor: "#fff1f2",
+    borderRadius: 18,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff7ed",
-    borderWidth: 1.5,
-    borderColor: "#ffedd5",
-    borderRadius: 20,
-    padding: 14,
-    marginBottom: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ffe4e6",
   },
   referralLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
   giftIconBox: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f97316",
+    borderRadius: 12,
+    backgroundColor: "#ef4444",
     alignItems: "center",
     justifyContent: "center",
   },
   referralTitle: {
     fontSize: 13,
-    fontWeight: "900",
-    color: "#9a3412",
+    fontWeight: "800",
+    color: "#9f1239",
   },
   referralSub: {
     fontSize: 11,
-    color: "#c2410c",
-    marginTop: 2,
-  },
-  switchRoleCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#fef2f2",
-    borderWidth: 1.5,
-    borderColor: "#fecaca",
-    borderRadius: 20,
-    padding: 14,
-    marginBottom: 14,
-  },
-  switchRoleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  switchRoleIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#ef4444",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  switchRoleTextContainer: {
-    marginLeft: 12,
-  },
-  switchRoleTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0f172a",
-  },
-  switchRoleSubtitle: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#64748b",
-    marginTop: 2,
+    color: "#be123c",
+    marginTop: 1,
   },
   menuCard: {
     backgroundColor: "#ffffff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 24,
+    borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 16,
+    paddingVertical: 6,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    borderBottomColor: "#f8fafc",
   },
   menuRowLeft: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    flex: 1,
   },
   menuIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
   menuTitle: {
     fontSize: 13,
@@ -461,30 +490,30 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
   menuSub: {
-    fontSize: 10,
-    color: "#64748b",
+    fontSize: 11,
+    color: "#94a3b8",
     marginTop: 1,
   },
   signOutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
     backgroundColor: "#ffffff",
     borderWidth: 1.5,
     borderColor: "#fee2e2",
-    borderRadius: 18,
+    borderRadius: 16,
     paddingVertical: 14,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   signOutText: {
     fontSize: 14,
     fontWeight: "800",
     color: "#ef4444",
-    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "flex-end",
   },
   referModalContainer: {
@@ -495,9 +524,9 @@ const styles = StyleSheet.create({
   },
   referModalHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
   referModalTitle: {
     fontSize: 17,
@@ -505,12 +534,9 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    padding: 6,
+    borderRadius: 20,
     backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
   },
   referCardCenter: {
     alignItems: "center",
@@ -520,22 +546,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748b",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 19,
     marginVertical: 14,
   },
   codeBox: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "100%",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#fef2f2",
     borderWidth: 1.5,
+    borderColor: "#fecaca",
     borderStyle: "dashed",
-    borderColor: "#ef4444",
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    borderRadius: 14,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    marginBottom: 16,
+    width: "100%",
+    marginBottom: 20,
   },
   codeText: {
     fontSize: 16,

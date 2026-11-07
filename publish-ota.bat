@@ -4,7 +4,7 @@ echo ========================================================
 echo   Publishing Live OTA Updates to Preview and Production
 echo ========================================================
 echo.
-cd /d "C:\Users\ECS\Desktop\mobile app\multi-service-app"
+cd /d "%~dp0"
 echo [1/3] Navigated to project root directory: %CD%
 echo [2/3] Publishing to preview channel...
 call npx.cmd eas-cli update --channel preview --platform android -m "fix: booking spinner, Page Not Found routes, View All and Android navigation bar insets" --non-interactive

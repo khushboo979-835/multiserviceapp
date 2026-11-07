@@ -40,6 +40,7 @@ import { MOCK_COUPONS } from "../../../src/constants/mockData";
 import { Coupon } from "../../../src/types";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import SafeImage from "../../../src/components/common/SafeImage";
+import { apiClient } from "../../../src/api/apiClient";
 
 const { width } = Dimensions.get("window");
 
@@ -129,6 +130,28 @@ export default function CartScreen() {
 
     // 1. Instantly navigate to Blinkit-style Live Order Tracking screen
     router.push(`/(customer)/track-order/${order.id}` as any);
+
+    // 1.5 Atomic Marketplace Multi-Vendor Checkout Dispatch
+    try {
+      apiClient.post("/orders/checkout", {
+        shopId: useCartStore.getState().currentShopId || "shop_bihar_sweets_101",
+        items: order.items.map((i) => ({
+          productId: i.product.id,
+          name: i.product.name,
+          price: i.product.price,
+          quantity: i.quantity,
+          imageUrl: i.product.imageUrl,
+          foodType: i.product.foodAttributes?.isVeg !== undefined ? (i.product.foodAttributes.isVeg ? "VEG" : "NON_VEG") : undefined,
+        })),
+        deliveryAddress: {
+          street: deliveryAddress,
+          city: "Patna",
+          pincode: "800001",
+          phone: user?.phoneNumber || "+91 95078 60048",
+        },
+        paymentMethod: paymentMethod === "COD" ? "COD" : paymentMethod === "WALLET" ? "WALLET" : "ONLINE",
+      }).catch((err) => console.warn("Marketplace order sync notice:", err.message));
+    } catch {}
 
     // 2. Dispatch to backend MongoDB Atlas for Admin Order Management
     const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://multiserviceapp-4pdw.onrender.com/api";
@@ -238,9 +261,16 @@ export default function CartScreen() {
         <View style={styles.headerBar}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <ShoppingBag size={20} color="#ef4444" />
-            <Text style={styles.cartHeading}>
-              My Cart ({items.reduce((s, i) => s + i.quantity, 0)} items)
-            </Text>
+            <View>
+              <Text style={styles.cartHeading}>
+                My Cart ({items.reduce((s, i) => s + i.quantity, 0)} items)
+              </Text>
+              {useCartStore.getState().currentShopName && (
+                <Text style={{ fontSize: 11, color: "#ea580c", fontWeight: "700" }}>
+                  Store: {useCartStore.getState().currentShopName}
+                </Text>
+              )}
+            </View>
           </View>
           <TouchableOpacity onPress={clearCart}>
             <Text style={styles.clearText}>Clear All</Text>

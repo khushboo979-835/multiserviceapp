@@ -13,6 +13,9 @@ import categoryRouter from "./routes/category.routes";
 import ecommerceRouter from "./routes/ecommerce.routes";
 import bannerRouter from "./routes/banner.routes";
 import mediaRouter from "./routes/media.routes";
+import shopRouter from "./routes/shop.routes";
+import orderRouter from "./routes/order.routes";
+import deliveryRouter from "./routes/delivery.routes";
 
 // Load environment variables
 dotenv.config();
@@ -33,7 +36,6 @@ app.options("*", cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-
 // Mount API routes
 app.use("/api/auth", authRouter);
 app.use("/api/payment", paymentRouter);
@@ -44,7 +46,9 @@ app.use("/api/ecommerce", ecommerceRouter);
 app.use("/api/products", ecommerceRouter);
 app.use("/api/banners", bannerRouter);
 app.use("/api/media", mediaRouter);
-
+app.use("/api/shops", shopRouter);
+app.use("/api/orders", orderRouter);
+app.use("/api/delivery", deliveryRouter);
 
 // Initialize MongoDB Atlas connection
 connectDB();
@@ -279,6 +283,9 @@ const apiStatusHandler = (req: express.Request, res: express.Response) => {
       categories: "/api/categories",
       payment: "/api/payment",
       ecommerce: "/api/ecommerce",
+      shops: "/api/shops",
+      orders: "/api/orders",
+      delivery: "/api/delivery",
     },
   });
 };

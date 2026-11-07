@@ -13,8 +13,33 @@ export interface IProductSpecification {
   value: string;
 }
 
+export type ProductType = "RETAIL" | "FOOD" | "GROCERY" | "ELECTRONICS";
+
+export interface IFoodAttributes {
+  isVeg: boolean;
+  prepTimeMins?: number;
+  spicyLevel?: "MILD" | "MEDIUM" | "SPICY";
+  calories?: number;
+}
+
+export interface IGroceryAttributes {
+  shelfLifeDays?: number;
+  isPerishable?: boolean;
+  originCountry?: string;
+}
+
+export interface IElectronicsAttributes {
+  warrantyMonths?: number;
+  brand?: string;
+  modelNumber?: string;
+  inTheBox?: string[];
+}
+
 export interface IProduct extends Document {
   id: string;
+  shopId: string;
+  shopName: string;
+  productType: ProductType;
   name: string;
   category: string;
   offerTitle?: string;
@@ -37,6 +62,9 @@ export interface IProduct extends Document {
   deliveryTimeMins: number;
   sellerName?: string;
   brand?: string;
+  foodAttributes?: IFoodAttributes;
+  groceryAttributes?: IGroceryAttributes;
+  electronicsAttributes?: IElectronicsAttributes;
   variants?: IProductVariant[];
   specifications?: IProductSpecification[];
   createdAt: Date;
@@ -46,10 +74,19 @@ export interface IProduct extends Document {
 const ProductSchema: Schema = new Schema(
   {
     id: { type: String, required: true, unique: true },
+    shopId: { type: String, default: "inisha_official", index: true },
+    shopName: { type: String, default: "Inisha Central Store" },
+    productType: {
+      type: String,
+      enum: ["RETAIL", "FOOD", "GROCERY", "ELECTRONICS"],
+      default: "RETAIL",
+      index: true,
+    },
     name: { type: String, required: true },
     category: {
       type: String,
       required: true,
+      index: true,
     },
     offerTitle: { type: String, default: "" },
     couponCode: { type: String, default: "" },
@@ -71,6 +108,23 @@ const ProductSchema: Schema = new Schema(
     deliveryTimeMins: { type: Number, default: 30 },
     sellerName: { type: String, default: "Inisha Retail Partner" },
     brand: { type: String, default: "" },
+    foodAttributes: {
+      isVeg: { type: Boolean, default: true },
+      prepTimeMins: { type: Number, default: 20 },
+      spicyLevel: { type: String, enum: ["MILD", "MEDIUM", "SPICY"], default: "MILD" },
+      calories: { type: Number },
+    },
+    groceryAttributes: {
+      shelfLifeDays: { type: Number, default: 180 },
+      isPerishable: { type: Boolean, default: false },
+      originCountry: { type: String, default: "India" },
+    },
+    electronicsAttributes: {
+      warrantyMonths: { type: Number, default: 12 },
+      brand: { type: String, default: "" },
+      modelNumber: { type: String, default: "" },
+      inTheBox: { type: [String], default: [] },
+    },
     variants: [
       {
         name: { type: String, required: true },
@@ -90,5 +144,6 @@ const ProductSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model<IProduct>("Product", ProductSchema);
+ProductSchema.index({ shopId: 1, category: 1 });
 
+export default mongoose.model<IProduct>("Product", ProductSchema);

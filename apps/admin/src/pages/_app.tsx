@@ -28,6 +28,9 @@ import {
   DownloadCloud,
   QrCode,
   ExternalLink,
+  Store,
+  ShoppingBag,
+  Bike,
 } from "lucide-react";
 import Logo from "../components/Logo";
 
@@ -70,6 +73,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Local Shops & Vendors", href: "/shops", icon: Store },
+    { name: "Marketplace Orders", href: "/orders", icon: ShoppingBag },
+    { name: "Delivery Fleet", href: "/fleet", icon: Bike },
     { name: "Products & Inventory", href: "/products", icon: Package },
     { name: "Categories & Services", href: "/categories", icon: Layers },
     { name: "User Management", href: "/users", icon: Users },

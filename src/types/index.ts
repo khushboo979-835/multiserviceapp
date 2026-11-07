@@ -1,4 +1,11 @@
-export type UserRole = "CUSTOMER" | "PROVIDER" | "ADMIN";
+export type UserRole =
+  | "CUSTOMER"
+  | "PROVIDER"
+  | "ADMIN"
+  | "SHOP_OWNER"
+  | "SHOP_DELIVERY"
+  | "INISHA_DELIVERY"
+  | "TECHNICIAN";
 
 export type KycStatus = "PENDING" | "APPROVED" | "REJECTED" | "NOT_SUBMITTED";
 
@@ -21,6 +28,9 @@ export interface User {
   avatarUrl?: string;
   walletBalance?: number;
   kycStatus?: KycStatus;
+  shopId?: string;
+  assignedPartnerId?: string;
+  isOnline?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,7 +48,7 @@ export interface ProviderProfile {
   id: string;
   userId: string;
   businessName?: string;
-  servicesOffered: string[]; // Category IDs or Subcategory IDs
+  servicesOffered: string[];
   kycStatus: KycStatus;
   documents: KycDocument[];
   isAvailable: boolean;
@@ -85,7 +95,7 @@ export type FormFieldType =
 export interface FormFieldOption {
   label: string;
   value: string;
-  priceModifier?: number; // Adjusts base price (e.g. tablet repair is +$10)
+  priceModifier?: number;
 }
 
 export interface FormValidationRules {
@@ -102,7 +112,7 @@ export interface FormField {
   placeholder?: string;
   options?: FormFieldOption[];
   validation: FormValidationRules;
-  priceModifierField?: boolean; // If selections in this field adjust the total price
+  priceModifierField?: boolean;
 }
 
 export interface BookingFormConfig {
@@ -157,7 +167,7 @@ export interface Booking {
     longitude: number;
   };
   status: BookingStatus;
-  otp?: string; // OTP to verify service completion or arrival
+  otp?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   utrNumber?: string;
@@ -172,8 +182,8 @@ export interface Booking {
 
 export interface Slot {
   id: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string;
+  time: string;
   isAvailable: boolean;
 }
 
@@ -191,7 +201,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   status: "PENDING" | "SUCCESS" | "FAILED";
-  referenceId?: string; // Booking ID or Withdrawal request ID
+  referenceId?: string;
   description: string;
   createdAt: string;
 }
@@ -211,35 +221,29 @@ export interface Review {
   reviewerId: string;
   reviewerName: string;
   reviewerAvatarUrl?: string;
-  targetId: string; // Provider ID or Customer ID
-  rating: number; // 1 to 5
+  targetId: string;
+  rating: number;
   comment: string;
   createdAt: string;
 }
 
-// Socket Events Payload types
 export interface SocketEventPayloads {
-  // Provider Update Location
   "provider:update-location": {
     providerId: string;
     location: GeoLocation;
   };
-  // Location updated broadcast to customer
   "provider:location-changed": {
     providerId: string;
     location: GeoLocation;
   };
-  // Join booking tracking room
   "booking:join-room": {
     bookingId: string;
   };
-  // Status change event
   "booking:status-changed": {
     bookingId: string;
     status: BookingStatus;
     timeline: BookingTimelineEvent[];
   };
-  // Provider accepts booking request
   "booking:accepted": {
     bookingId: string;
     providerId: string;
@@ -247,7 +251,6 @@ export interface SocketEventPayloads {
     providerPhone: string;
     providerLocation: GeoLocation;
   };
-  // Real-time Chat
   "chat:send-message": {
     bookingId: string;
     senderId: string;
@@ -298,6 +301,9 @@ export interface ProductSpecification {
 
 export interface Product {
   id: string;
+  shopId?: string;
+  shopName?: string;
+  productType?: "RETAIL" | "FOOD" | "GROCERY" | "ELECTRONICS";
   name: string;
   category: ProductTypeCategory;
   categoryName: string;
@@ -320,14 +326,86 @@ export interface Product {
   couponCode?: string;
   offerDescription?: string;
   badgeText?: string;
+  foodAttributes?: {
+    isVeg: boolean;
+    prepTimeMins?: number;
+    spicyLevel?: string;
+    calories?: number;
+  };
+  groceryAttributes?: {
+    shelfLifeDays?: number;
+    isPerishable?: boolean;
+    originCountry?: string;
+  };
+  electronicsAttributes?: {
+    warrantyMonths?: number;
+    brand?: string;
+    modelNumber?: string;
+    inTheBox?: string[];
+  };
   variants?: ProductVariant[];
   specifications?: ProductSpecification[];
 }
 
+export type ShopCategory =
+  | "RESTAURANT"
+  | "GROCERY"
+  | "MOBILE_ELECTRONICS"
+  | "SWEETS_BAKERY"
+  | "BEAUTY_WELLNESS"
+  | "GENERAL";
+
+export interface Shop {
+  _id?: string;
+  shopId: string;
+  ownerId?: string;
+  name: string;
+  legalName?: string;
+  category: ShopCategory;
+  subCategories: string[];
+  description: string;
+  logoUrl: string;
+  coverImageUrl: string;
+  phone: string;
+  email?: string;
+  address: {
+    street: string;
+    landmark?: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  location: {
+    type: string;
+    coordinates: [number, number];
+  };
+  openingHours: {
+    openTime: string;
+    closeTime: string;
+    isOpen: boolean;
+  };
+  deliverySettings: {
+    deliveryModel: "SHOP_DELIVERY" | "INISHA_DELIVERY" | "HYBRID";
+    radiusKm: number;
+    minOrderAmount: number;
+    baseDeliveryFee: number;
+    freeDeliveryThreshold: number;
+    estimatedPrepMins: number;
+  };
+  commissionRate: number;
+  rating: number;
+  ratingsCount: number;
+  isActive: boolean;
+  featured: boolean;
+}
+
 export type StoreOrderStatus =
+  | "PENDING"
   | "PLACED"
   | "ACCEPTED"
   | "PACKED"
+  | "PREPARING"
+  | "READY_FOR_PICKUP"
   | "OUT_FOR_DELIVERY"
   | "DELIVERED"
   | "CANCELLED";
@@ -335,6 +413,8 @@ export type StoreOrderStatus =
 export interface StoreOrder {
   id: string;
   orderNumber: string;
+  shopId?: string;
+  shopName?: string;
   items: CartItem[];
   itemTotal: number;
   deliveryFee: number;
@@ -343,6 +423,8 @@ export interface StoreOrder {
   totalAmount: number;
   status: StoreOrderStatus;
   otp: string;
+  pickupOtp?: string;
+  deliveryOtp?: string;
   isGift: boolean;
   giftRecipientName?: string;
   giftMessage?: string;
@@ -398,8 +480,8 @@ export interface GSTInvoice {
   serviceName: string;
   hsnSacCode: string;
   basePrice: number;
-  cgstAmount: number; // 9%
-  sgstAmount: number; // 9%
+  cgstAmount: number;
+  sgstAmount: number;
   convenienceFee: number;
   discountAmount: number;
   totalAmount: number;
@@ -456,4 +538,3 @@ export interface AttendanceRecord {
   totalHours: number;
   status: "PRESENT" | "HALF_DAY" | "ABSENT";
 }
-

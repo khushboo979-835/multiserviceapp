@@ -29,6 +29,7 @@ import {
   X,
   Check,
   Store,
+  Plus,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,6 +44,7 @@ import {
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
 import MerchantHubModal from "../../../src/components/merchant/MerchantHubModal";
+import ShopRegistrationModal from "../../../src/components/shop/ShopRegistrationModal";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -58,6 +60,7 @@ export default function ProfileScreen() {
   const [langCityVisible, setLangCityVisible] = useState(false);
   const [adminVisible, setAdminVisible] = useState(false);
   const [merchantVisible, setMerchantVisible] = useState(false);
+  const [shopRegisterVisible, setShopRegisterVisible] = useState(false);
 
   const [selectedCity, setSelectedCity] = useState("Patna");
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
@@ -163,20 +166,32 @@ export default function ProfileScreen() {
       {/* Menu Settings Card */}
       <View style={styles.menuCard}>
         {/* Merchant Store Dashboard for Shop Owners & Local Merchants */}
-        {(user?.role === "SHOP_OWNER" || user?.role === "ADMIN" || Boolean(user?.shopId)) && (
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setMerchantVisible(true)} style={styles.menuRow}>
-            <View style={styles.menuRowLeft}>
-              <View style={[styles.menuIconCircle, { backgroundColor: "#fff7ed" }]}>
-                <Store size={18} color="#ea580c" />
-              </View>
-              <View>
-                <Text style={[styles.menuTitle, { color: "#ea580c", fontWeight: "800" }]}>Merchant Store Dashboard</Text>
-                <Text style={styles.menuSub}>Accept orders, manage menu & store status</Text>
-              </View>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setMerchantVisible(true)} style={styles.menuRow}>
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIconCircle, { backgroundColor: "#fff7ed" }]}>
+              <Store size={18} color="#ea580c" />
             </View>
-            <ChevronRight size={18} color="#ea580c" />
-          </TouchableOpacity>
-        )}
+            <View>
+              <Text style={[styles.menuTitle, { color: "#ea580c", fontWeight: "800" }]}>Merchant Store Dashboard</Text>
+              <Text style={styles.menuSub}>Accept orders, manage menu & store status</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color="#ea580c" />
+        </TouchableOpacity>
+
+        {/* Register / Add New Shop Onboarding */}
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setShopRegisterVisible(true)} style={styles.menuRow}>
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
+              <Plus size={18} color="#dc2626" />
+            </View>
+            <View>
+              <Text style={[styles.menuTitle, { color: "#dc2626", fontWeight: "800" }]}>Register / Add Your Shop 🏪</Text>
+              <Text style={styles.menuSub}>List your store & start getting doorstep orders</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color="#dc2626" />
+        </TouchableOpacity>
 
         <TouchableOpacity activeOpacity={0.7} onPress={() => setLangCityVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
@@ -321,6 +336,14 @@ export default function ProfileScreen() {
       <MerchantHubModal
         visible={merchantVisible}
         onClose={() => setMerchantVisible(false)}
+      />
+
+      <ShopRegistrationModal
+        visible={shopRegisterVisible}
+        onClose={() => setShopRegisterVisible(false)}
+        onShopCreated={() => {
+          setMerchantVisible(true);
+        }}
       />
     </ScrollView>
   );

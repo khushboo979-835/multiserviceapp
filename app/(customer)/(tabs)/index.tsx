@@ -50,8 +50,12 @@ import AllServicesModal from "../../../src/components/booking/AllServicesModal";
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import CallSimulationModal from "../../../src/components/common/CallSimulationModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
+import ShopRegistrationModal from "../../../src/components/shop/ShopRegistrationModal";
+import MerchantHubModal from "../../../src/components/merchant/MerchantHubModal";
 import { apiClient } from "../../../src/api/apiClient";
 import {
+  Store,
+  Utensils,
   Smartphone,
   Scissors,
   Wrench,
@@ -183,6 +187,9 @@ export default function CustomerHomeScreen() {
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [isLangCityOpen, setIsLangCityOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isShopRegisterOpen, setIsShopRegisterOpen] = useState(false);
+  const [isMerchantHubOpen, setIsMerchantHubOpen] = useState(false);
+  const [selectedShopFilter, setSelectedShopFilter] = useState("ALL");
   const [isCallOpen, setIsCallOpen] = useState(false);
   const [callType, setCallType] = useState<"AUDIO" | "VIDEO">("AUDIO");
 
@@ -672,44 +679,85 @@ export default function CustomerHomeScreen() {
           </View>
 
           <View style={styles.circularCategoriesGrid}>
-            {/* 1. Mobile Repair / First Live Category */}
-            {categories.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  const mobCat = categories.find((c) => c.id === "cat_mobile" || c.slug?.includes("mobile")) || categories[0];
-                  setIsBrandModalOpen(true);
-                }}
-                style={styles.circularCatItem}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.circularIconBox, { backgroundColor: "#dbeafe" }]}>
-                  <Smartphone size={24} color="#2563eb" />
-                </View>
-                <Text style={styles.circularCatLabel} numberOfLines={1}>
-                  {(categories.find((c) => c.id === "cat_mobile" || c.slug?.includes("mobile")) || categories[0]).name}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* 2. Grocery & Needs */}
+            {/* 1. All Local Shops */}
             <TouchableOpacity
-              onPress={() => router.push("/(customer)/(tabs)/explore")}
+              onPress={() => setSelectedShopFilter("ALL")}
+              style={styles.circularCatItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.circularIconBox, { backgroundColor: "#fee2e2" }]}>
+                <Store size={22} color="#dc2626" />
+              </View>
+              <Text style={styles.circularCatLabel} numberOfLines={1}>All Shops</Text>
+            </TouchableOpacity>
+
+            {/* 2. Food & Restaurants */}
+            <TouchableOpacity
+              onPress={() => {
+                const foodShop = localShops.find((s: any) => s.category === "RESTAURANT" || s.category === "SWEETS_BAKERY");
+                if (foodShop) router.push(`/(customer)/shop/${foodShop.shopId}` as any);
+                else setSelectedShopFilter("RESTAURANT");
+              }}
               style={styles.circularCatItem}
               activeOpacity={0.8}
             >
               <View style={[styles.circularIconBox, { backgroundColor: "#ffedd5" }]}>
-                <ShoppingCart size={24} color="#ea580c" />
+                <Utensils size={22} color="#ea580c" />
+              </View>
+              <Text style={styles.circularCatLabel} numberOfLines={1}>Food</Text>
+            </TouchableOpacity>
+
+            {/* 3. Grocery 15m Express */}
+            <TouchableOpacity
+              onPress={() => {
+                const grocShop = localShops.find((s: any) => s.category === "GROCERY");
+                if (grocShop) router.push(`/(customer)/shop/${grocShop.shopId}` as any);
+                else setSelectedShopFilter("GROCERY");
+              }}
+              style={styles.circularCatItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.circularIconBox, { backgroundColor: "#dcfce7" }]}>
+                <ShoppingCart size={22} color="#16a34a" />
               </View>
               <Text style={styles.circularCatLabel} numberOfLines={1}>Grocery</Text>
             </TouchableOpacity>
 
-            {/* 3 to 7: Dynamic Live Categories from Backend MongoDB (e.g. Parlour, Electrician, Plumber, AC, etc.) */}
+            {/* 4. Mobile & Tech Hub */}
+            <TouchableOpacity
+              onPress={() => {
+                const mobShop = localShops.find((s: any) => s.category === "MOBILE_ELECTRONICS");
+                if (mobShop) router.push(`/(customer)/shop/${mobShop.shopId}` as any);
+                else setIsBrandModalOpen(true);
+              }}
+              style={styles.circularCatItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.circularIconBox, { backgroundColor: "#dbeafe" }]}>
+                <Smartphone size={22} color="#2563eb" />
+              </View>
+              <Text style={styles.circularCatLabel} numberOfLines={1}>Mobiles</Text>
+            </TouchableOpacity>
+
+            {/* 5. ADD YOUR SHOP (Prominent Partner Onboarding Icon!) */}
+            <TouchableOpacity
+              onPress={() => setIsShopRegisterOpen(true)}
+              style={styles.circularCatItem}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.circularIconBox, { backgroundColor: "#fef3c7", borderWidth: 1.5, borderColor: "#f59e0b" }]}>
+                <Plus size={22} color="#b45309" />
+              </View>
+              <Text style={[styles.circularCatLabel, { color: "#b45309", fontWeight: "800" }]} numberOfLines={1}>+ Add Shop</Text>
+            </TouchableOpacity>
+
+            {/* 6. Dynamic Live Services from MongoDB (e.g. AC, Electrician, Plumber, Salon) */}
             {categories
               .filter((c) => c.id !== "cat_mobile" && !c.slug?.includes("mobile"))
-              .slice(0, 5)
+              .slice(0, 6)
               .map((cat, idx) => {
-                const bgColors = ["#fce7f3", "#fef3c7", "#ede9fe", "#cffafe", "#fef9c3", "#e0f2fe", "#d1fae5"];
-                const iconColors = ["#db2777", "#d97706", "#7c3aed", "#0891b2", "#ca8a04", "#0284c7", "#059669"];
+                const bgColors = ["#fce7f3", "#ede9fe", "#cffafe", "#fef9c3", "#e0f2fe", "#d1fae5"];
+                const iconColors = ["#db2777", "#7c3aed", "#0891b2", "#ca8a04", "#0284c7", "#059669"];
                 const bgColor = bgColors[idx % bgColors.length];
                 const iconColor = iconColors[idx % iconColors.length];
                 const norm = (cat.imageUrl || (cat as any).iconName || cat.slug || cat.name || "").toLowerCase();
@@ -734,10 +782,6 @@ export default function CustomerHomeScreen() {
                         <Snowflake size={24} color={iconColor} />
                       ) : norm.includes("clean") ? (
                         <Sparkles size={24} color={iconColor} />
-                      ) : norm.includes("car") || norm.includes("motor") || norm.includes("vehicle") ? (
-                        <Truck size={24} color={iconColor} />
-                      ) : norm.includes("paint") ? (
-                        <Paintbrush size={24} color={iconColor} />
                       ) : norm.includes("carpenter") || norm.includes("hammer") ? (
                         <Hammer size={24} color={iconColor} />
                       ) : (
@@ -749,7 +793,7 @@ export default function CustomerHomeScreen() {
                 );
               })}
 
-            {/* 8. More / View All */}
+            {/* 12. More / View All */}
             <TouchableOpacity
               onPress={() => setIsAllServicesOpen(true)}
               style={styles.circularCatItem}
@@ -761,6 +805,105 @@ export default function CustomerHomeScreen() {
               <Text style={styles.circularCatLabel}>More</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* 4.5 Register / Add Shop Partner Banner */}
+        <TouchableOpacity
+          style={styles.merchantPartnerBanner}
+          activeOpacity={0.9}
+          onPress={() => setIsShopRegisterOpen(true)}
+        >
+          <View style={styles.merchantBannerLeft}>
+            <View style={styles.merchantBannerIconBox}>
+              <Store size={22} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={styles.merchantTagRow}>
+                <Text style={styles.merchantTagText}>ZERO ONBOARDING FEE</Text>
+              </View>
+              <Text style={styles.merchantBannerTitle}>Add Your Shop on Inisha 🏪</Text>
+              <Text style={styles.merchantBannerSub}>
+                List your Restaurant, Grocery, Mobile or Retail Store & get doorstep delivery across your city
+              </Text>
+            </View>
+          </View>
+          <View style={styles.merchantBannerArrowBox}>
+            <Text style={styles.merchantBannerActionText}>+ Add</Text>
+            <ArrowRight size={12} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
+
+        {/* 4.8 Local Neighborhood Shops & Food Express Delivery (Prominently Placed at the Top!) */}
+        <View style={styles.topDealsSection}>
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Local Shops & Restaurants 🏪</Text>
+              <Text style={styles.sectionSubtitle}>Doorstep delivery from neighborhood shops</Text>
+            </View>
+            <TouchableOpacity onPress={() => setIsShopRegisterOpen(true)}>
+              <Text style={[styles.viewAllLink, { color: "#dc2626", fontWeight: "800" }]}>+ Add Shop</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Shop Category Filter Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopFilterScroll}>
+            {[
+              { id: "ALL", label: "🌟 All Stores" },
+              { id: "RESTAURANT", label: "🍔 Food & Dining" },
+              { id: "GROCERY", label: "🛒 Grocery Marts" },
+              { id: "MOBILE_ELECTRONICS", label: "📱 Mobile & Tech" },
+              { id: "SWEETS_BAKERY", label: "🥐 Sweets & Bakery" },
+            ].map((f) => {
+              const active = selectedShopFilter === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[styles.shopFilterChip, active && styles.shopFilterChipActive]}
+                  onPress={() => setSelectedShopFilter(f.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.shopFilterChipText, active && styles.shopFilterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            {localShops
+              .filter((shop: any) => selectedShopFilter === "ALL" || shop.category === selectedShopFilter)
+              .map((shop: any) => (
+                <TouchableOpacity
+                  key={shop.shopId}
+                  style={styles.localShopCard}
+                  activeOpacity={0.88}
+                  onPress={() => router.push(`/(customer)/shop/${shop.shopId}` as any)}
+                >
+                  <SafeImage uri={shop.logoUrl} style={styles.shopLogoThumbnail} resizeMode="cover" />
+                  <View style={styles.shopCardContent}>
+                    <View style={styles.shopCategoryPill}>
+                      <Text style={styles.shopCategoryPillText}>{String(shop.category || "STORE").replace("_", " ")}</Text>
+                    </View>
+                    <Text style={styles.shopCardName} numberOfLines={1}>{shop.name}</Text>
+                    <View style={styles.shopCardMetaRow}>
+                      <View style={styles.shopRatingBox}>
+                        <Star size={11} color="#f59e0b" fill="#f59e0b" />
+                        <Text style={styles.shopRatingText}>{shop.rating || 4.8}</Text>
+                      </View>
+                      <Text style={styles.shopMetaDot}>•</Text>
+                      <Text style={styles.shopPrepTime}>{shop.deliverySettings?.estimatedPrepMins || 20}m</Text>
+                      <Text style={styles.shopMetaDot}>•</Text>
+                      <Text style={styles.shopCityText}>{shop.address?.city || "Patna"}</Text>
+                    </View>
+                    <View style={styles.shopCardActionBtn}>
+                      <Text style={styles.shopCardActionBtnText}>Order Now</Text>
+                      <ArrowRight size={12} color="#dc2626" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+          </ScrollView>
         </View>
 
         {/* 5. Popular Services (Horizontal Cards with Real Photos & Book Now button - Dynamic Live Data) */}
@@ -878,52 +1021,6 @@ export default function CustomerHomeScreen() {
                     >
                       <Text style={styles.dealAddBtnText}>View</Text>
                     </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* 6.5 Local Neighborhood Shops & Food Express Delivery */}
-        <View style={styles.topDealsSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Local Shops & Restaurants</Text>
-              <Text style={styles.sectionSubtitle}>Doorstep delivery from neighborhood shops</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push("/(customer)/(tabs)/explore" as any)}>
-              <Text style={styles.viewAllLink}>View All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {localShops.map((shop: any) => (
-              <TouchableOpacity
-                key={shop.shopId}
-                style={styles.localShopCard}
-                activeOpacity={0.88}
-                onPress={() => router.push(`/(customer)/shop/${shop.shopId}` as any)}
-              >
-                <SafeImage uri={shop.logoUrl} style={styles.shopLogoThumbnail} resizeMode="cover" />
-                <View style={styles.shopCardContent}>
-                  <View style={styles.shopCategoryPill}>
-                    <Text style={styles.shopCategoryPillText}>{String(shop.category || "STORE").replace("_", " ")}</Text>
-                  </View>
-                  <Text style={styles.shopCardName} numberOfLines={1}>{shop.name}</Text>
-                  <View style={styles.shopCardMetaRow}>
-                    <View style={styles.shopRatingBox}>
-                      <Star size={11} color="#f59e0b" fill="#f59e0b" />
-                      <Text style={styles.shopRatingText}>{shop.rating || 4.8}</Text>
-                    </View>
-                    <Text style={styles.shopMetaDot}>•</Text>
-                    <Text style={styles.shopPrepTime}>{shop.deliverySettings?.estimatedPrepMins || 20}m</Text>
-                    <Text style={styles.shopMetaDot}>•</Text>
-                    <Text style={styles.shopCityText}>{shop.address?.city || "Patna"}</Text>
-                  </View>
-                  <View style={styles.shopCardActionBtn}>
-                    <Text style={styles.shopCardActionBtnText}>Order Now</Text>
-                    <ArrowRight size={12} color="#dc2626" />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1216,6 +1313,19 @@ export default function CustomerHomeScreen() {
           setCurrentPrice(sub.basePrice);
           setIsFormOpen(true);
         }}
+      />
+          <ShopRegistrationModal
+        visible={isShopRegisterOpen}
+        onClose={() => setIsShopRegisterOpen(false)}
+        onShopCreated={() => {
+          void shopsQuery.refetch();
+          setIsMerchantHubOpen(true);
+        }}
+      />
+
+      <MerchantHubModal
+        visible={isMerchantHubOpen}
+        onClose={() => setIsMerchantHubOpen(false)}
       />
     </View>
   );
@@ -2086,5 +2196,99 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#94a3b8",
     marginTop: 4,
+  },
+  merchantPartnerBanner: {
+    marginHorizontal: 18,
+    marginTop: 14,
+    marginBottom: 6,
+    backgroundColor: "#991b1b",
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#991b1b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  merchantBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 10,
+  },
+  merchantBannerIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  merchantTagRow: {
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: "flex-start",
+    marginBottom: 3,
+  },
+  merchantTagText: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#b45309",
+    letterSpacing: 0.5,
+  },
+  merchantBannerTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#ffffff",
+    marginBottom: 2,
+  },
+  merchantBannerSub: {
+    fontSize: 10,
+    color: "#fecaca",
+    lineHeight: 14,
+  },
+  merchantBannerArrowBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  merchantBannerActionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#ffffff",
+  },
+  shopFilterScroll: {
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  shopFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginRight: 8,
+  },
+  shopFilterChipActive: {
+    backgroundColor: "#dc2626",
+    borderColor: "#dc2626",
+  },
+  shopFilterChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  shopFilterChipTextActive: {
+    color: "#ffffff",
   },
 });

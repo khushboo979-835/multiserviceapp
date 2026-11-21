@@ -45,6 +45,11 @@ const INITIAL_SHOPS = [
     commissionRate: 8,
     rating: 4.9,
     ratingsCount: 240,
+    ownerName: "Khushboo Kumari",
+    fssaiLicenseNumber: "10423001000842",
+    gstNumber: "10AAECP9824Q1ZP",
+    isApproved: true,
+    kycStatus: "APPROVED",
     isVerified: true,
     isActive: true,
     featured: true,
@@ -88,6 +93,11 @@ const INITIAL_SHOPS = [
     commissionRate: 10,
     rating: 4.8,
     ratingsCount: 412,
+    ownerName: "Md. Farhan Akhtar",
+    fssaiLicenseNumber: "10422003001190",
+    gstNumber: "10AABCR7712M1Z5",
+    isApproved: true,
+    kycStatus: "APPROVED",
     isVerified: true,
     isActive: true,
     featured: true,
@@ -131,6 +141,11 @@ const INITIAL_SHOPS = [
     commissionRate: 6,
     rating: 4.8,
     ratingsCount: 180,
+    ownerName: "Anil Kumar Gupta",
+    fssaiLicenseNumber: "10424002000543",
+    gstNumber: "10AAQCA4419E1ZN",
+    isApproved: true,
+    kycStatus: "APPROVED",
     isVerified: true,
     isActive: true,
     featured: true,
@@ -174,6 +189,10 @@ const INITIAL_SHOPS = [
     commissionRate: 5,
     rating: 5.0,
     ratingsCount: 520,
+    ownerName: "Md. Chhotu",
+    gstNumber: "10BZXPM9910D1ZZ",
+    isApproved: true,
+    kycStatus: "APPROVED",
     isVerified: true,
     isActive: true,
     featured: true,
@@ -203,11 +222,18 @@ export const getShops = async (req: Request, res: Response) => {
   try {
     await ensureShopsSeeded();
 
-    const { category, search, activeOnly = "true" } = req.query;
+    const { category, search, activeOnly = "true", kycStatus } = req.query;
     const filter: any = {};
 
     if (activeOnly === "true") {
       filter.isActive = true;
+      // In customer view, only approved/active shops appear
+      filter.isApproved = { $ne: false };
+      filter.kycStatus = { $ne: "REJECTED" };
+    }
+
+    if (kycStatus && kycStatus !== "ALL") {
+      filter.kycStatus = String(kycStatus).toUpperCase();
     }
 
     if (category && category !== "ALL") {
@@ -216,7 +242,15 @@ export const getShops = async (req: Request, res: Response) => {
 
     if (search) {
       const regex = new RegExp(String(search), "i");
-      filter.$or = [{ name: regex }, { description: regex }, { subCategories: regex }, { "address.city": regex }];
+      filter.$or = [
+        { name: regex },
+        { description: regex },
+        { subCategories: regex },
+        { "address.city": regex },
+        { ownerName: regex },
+        { fssaiLicenseNumber: regex },
+        { gstNumber: regex },
+      ];
     }
 
     const shops = await Shop.find(filter).sort({ featured: -1, rating: -1, createdAt: -1 });
@@ -510,5 +544,242 @@ export const addShopItem = async (req: AuthenticatedRequest, res: Response) => {
       message: "Failed to add item to shop",
       error: error?.message,
     });
+  }
+};
+
+/**
+ * GET /api/shops/:id/products
+ * Get all active products / menu items for this shop
+ */
+export const getShopProducts = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const shop = await Shop.findOne({
+      $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }],
+    });
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop not found",
+      });
+    }
+
+    const products = await Product.find({
+      $or: [{ shopId: shop.shopId }, { sellerName: shop.name }],
+      inStock: true,
+    }).sort({ rating: -1, createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      shop: {
+        shopId: shop.shopId,
+        name: shop.name,
+        category: shop.category,
+        rating: shop.rating,
+        ratingsCount: shop.ratingsCount,
+        openingHours: shop.openingHours,
+        deliverySettings: shop.deliverySettings,
+        address: shop.address,
+        logoUrl: shop.logoUrl || shop.shopLogo,
+        coverImageUrl: shop.coverImageUrl || shop.shopBanner,
+      },
+      count: products.length,
+      products,
+    });
+  } catch (error: any) {
+    console.error("getShopProducts error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch shop products",
+      error: error?.message,
+    });
+  }
+};
+
+/**
+ * POST /api/shops/register
+ * Partner / merchant onboard application with full KYC
+ */
+export const registerPartnerShop = async (req: Request, res: Response) => {
+  try {
+    const body = req.body;
+    const shopName = body.name || body.shopName;
+    if (!shopName || !body.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Shop name and phone number are required.",
+      });
+    }
+
+    const category = (body.category || "GENERAL").toUpperCase();
+    if (
+      ["RESTAURANT", "GROCERY", "SWEETS_BAKERY"].includes(category) &&
+      !body.fssaiLicenseNumber &&
+      !body.fssaiNumber
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "FSSAI License number is mandatory for Food, Grocery & Sweets partners.",
+      });
+    }
+
+    const generatedId =
+      body.shopId || `shop_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+
+    const newShop = await Shop.create({
+      shopId: generatedId,
+      name: shopName,
+      shopName: shopName,
+      ownerName: body.ownerName || "",
+      legalName: body.legalName || shopName,
+      category,
+      subCategories: body.subCategories || [category.replace("_", " ")],
+      description: body.description || "",
+      logoUrl:
+        body.logoUrl ||
+        body.shopLogo ||
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
+      shopLogo:
+        body.shopLogo ||
+        body.logoUrl ||
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
+      coverImageUrl:
+        body.coverImageUrl ||
+        body.shopBanner ||
+        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1000&q=80",
+      shopBanner:
+        body.shopBanner ||
+        body.coverImageUrl ||
+        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1000&q=80",
+      phone: body.phone,
+      email: body.email || "",
+      address: {
+        street: body.address?.street || body.street || body.fullAddress || "Main Market",
+        landmark: body.address?.landmark || body.landmark || "",
+        city: body.address?.city || body.city || "Patna",
+        state: body.address?.state || body.state || "Bihar",
+        pincode: body.address?.pincode || body.pincode || "800001",
+      },
+      location: body.location?.coordinates
+        ? { type: "Point", coordinates: body.location.coordinates }
+        : { type: "Point", coordinates: [body.longitude || 85.1376, body.latitude || 25.5941] },
+      openingHours: body.openingHours || {
+        openTime: "08:00 AM",
+        closeTime: "10:00 PM",
+        isOpen: true,
+        daysOpen: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      },
+      deliverySettings: body.deliverySettings || {
+        deliveryModel: body.deliveryModel || "INISHA_DELIVERY",
+        radiusKm: 10,
+        minOrderAmount: 99,
+        baseDeliveryFee: 25,
+        freeDeliveryThreshold: 499,
+        estimatedPrepMins: parseInt(body.prepTime, 10) || 20,
+      },
+      gstNumber: body.gstNumber || body.gstin || "",
+      gstin: body.gstNumber || body.gstin || "",
+      fssaiLicenseNumber: body.fssaiLicenseNumber || body.fssaiNumber || "",
+      fssaiNumber: body.fssaiLicenseNumber || body.fssaiNumber || "",
+      panNumber: body.panNumber || "",
+      aadhaarNumber: body.aadhaarNumber || "",
+      bankAccountNumber: body.bankAccountNumber || "",
+      ifscCode: body.ifscCode || "",
+      licenseDocumentUrl: body.licenseDocumentUrl || "",
+      isApproved: false, // Under admin review
+      kycStatus: "PENDING",
+      isVerified: false,
+      isActive: true,
+      rating: 4.8,
+      ratingsCount: 0,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Shop registration submitted successfully. Your KYC is under review by Inisha Admin.",
+      shop: newShop,
+    });
+  } catch (error: any) {
+    console.error("registerPartnerShop error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit shop registration",
+      error: error?.message,
+    });
+  }
+};
+
+/**
+ * PUT /api/shops/:id/approve
+ * Admin approves a shop and activates its listing
+ */
+export const approveShop = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const shop = await Shop.findOneAndUpdate(
+      { $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] },
+      {
+        $set: {
+          isApproved: true,
+          kycStatus: "APPROVED",
+          isActive: true,
+          isVerified: true,
+          rejectionReason: "",
+          approvedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!shop) {
+      return res.status(404).json({ success: false, message: "Shop not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop "${shop.name}" has been approved and KYC verified!`,
+      shop,
+    });
+  } catch (error: any) {
+    console.error("approveShop error:", error);
+    return res.status(500).json({ success: false, message: error?.message });
+  }
+};
+
+/**
+ * PUT /api/shops/:id/reject
+ * Admin rejects shop application with reason
+ */
+export const rejectShop = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason = "KYC documents could not be verified" } = req.body;
+
+    const shop = await Shop.findOneAndUpdate(
+      { $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] },
+      {
+        $set: {
+          isApproved: false,
+          kycStatus: "REJECTED",
+          isActive: false,
+          rejectionReason: reason,
+        },
+      },
+      { new: true }
+    );
+
+    if (!shop) {
+      return res.status(404).json({ success: false, message: "Shop not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop "${shop.name}" application rejected.`,
+      shop,
+    });
+  } catch (error: any) {
+    console.error("rejectShop error:", error);
+    return res.status(500).json({ success: false, message: error?.message });
   }
 };

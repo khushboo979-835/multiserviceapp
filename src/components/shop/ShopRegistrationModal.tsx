@@ -58,9 +58,11 @@ export default function ShopRegistrationModal({
   const { user, updateUser } = useAuthStore();
 
   const [name, setName] = useState("");
+  const [ownerName, setOwnerName] = useState(user?.name || "");
   const [legalName, setLegalName] = useState("");
   const [category, setCategory] = useState("RESTAURANT");
   const [phone, setPhone] = useState(user?.phoneNumber || "+91 ");
+  const [email, setEmail] = useState(user?.email || "");
   const [street, setStreet] = useState("");
   const [landmark, setLandmark] = useState("");
   const [city, setCity] = useState("Patna");
@@ -69,6 +71,15 @@ export default function ShopRegistrationModal({
   const [deliveryModel, setDeliveryModel] = useState<"HYBRID" | "INISHA_DELIVERY" | "SHOP_DELIVERY">("HYBRID");
   const [prepTime, setPrepTime] = useState("20");
   const [coordinates, setCoordinates] = useState<[number, number]>([85.1376, 25.5941]); // [lng, lat]
+
+  // Business KYC & Licensing Fields
+  const [fssaiLicenseNumber, setFssaiLicenseNumber] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("");
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+  const [licenseDocumentUrl, setLicenseDocumentUrl] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -105,10 +116,22 @@ export default function ShopRegistrationModal({
       return;
     }
 
+    if (
+      ["RESTAURANT", "GROCERY", "SWEETS_BAKERY"].includes(category) &&
+      !fssaiLicenseNumber.trim()
+    ) {
+      Alert.alert(
+        "FSSAI License Required",
+        "FSSAI 14-digit registration number is mandatory for Food and Grocery business partners under Food Safety regulations."
+      );
+      return;
+    }
+
     try {
       setLoading(true);
       const shopPayload = {
         name: name.trim(),
+        ownerName: ownerName.trim() || user?.name || "",
         legalName: legalName.trim() || `${name.trim()} Online Services`,
         category,
         subCategories: [category.replace("_", " ")],
@@ -123,6 +146,7 @@ export default function ShopRegistrationModal({
             : "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400&q=80",
         coverImageUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1000&q=80",
         phone: phone.trim(),
+        email: email.trim(),
         address: {
           street: street.trim(),
           landmark: landmark.trim(),
@@ -148,11 +172,17 @@ export default function ShopRegistrationModal({
           freeDeliveryThreshold: 499,
           estimatedPrepMins: parseInt(prepTime, 10) || 20,
         },
-        isActive: true,
-        isVerified: true,
+        // KYC & Licensing
+        fssaiLicenseNumber: fssaiLicenseNumber.trim(),
+        gstNumber: gstNumber.trim(),
+        panNumber: panNumber.trim(),
+        aadhaarNumber: aadhaarNumber.trim(),
+        bankAccountNumber: bankAccountNumber.trim(),
+        ifscCode: ifscCode.trim(),
+        licenseDocumentUrl: licenseDocumentUrl.trim(),
       };
 
-      const res = await apiClient.post("/shops", shopPayload);
+      const res = await apiClient.post("/shops/register", shopPayload);
 
       if (res.data?.success && res.data.shop) {
         const created = res.data.shop;
@@ -164,11 +194,11 @@ export default function ShopRegistrationModal({
         }
 
         Alert.alert(
-          "Shop Registered Successfully! 🎉",
-          `Congratulations! "${created.name}" is now registered and active on Inisha Store & Quick Delivery. You can now manage menu items, toggle orders, and dispatch deliveries.`,
+          "KYC Application Submitted! 📝",
+          `Thank you for applying! "${created.name}" has been registered and is now under verification by the Inisha Admin team. You will be notified as soon as your store goes live.`,
           [
             {
-              text: "Open Merchant Dashboard",
+              text: "Done",
               onPress: () => {
                 onClose();
                 if (onShopCreated) onShopCreated(created);
@@ -262,6 +292,15 @@ export default function ShopRegistrationModal({
             placeholderTextColor="#94a3b8"
           />
 
+          <Text style={styles.inputLabel}>Owner / Proprietor Full Name *</Text>
+          <TextInput
+            style={styles.textInput}
+            value={ownerName}
+            onChangeText={setOwnerName}
+            placeholder="e.g. Md. Chhotu, Rajesh Kumar"
+            placeholderTextColor="#94a3b8"
+          />
+
           <Text style={styles.inputLabel}>Legal / Registered Firm Name (Optional)</Text>
           <TextInput
             style={styles.textInput}
@@ -271,15 +310,31 @@ export default function ShopRegistrationModal({
             placeholderTextColor="#94a3b8"
           />
 
-          <Text style={styles.inputLabel}>Contact Phone / Helpline *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="+91 95078 60048"
-            keyboardType="phone-pad"
-            placeholderTextColor="#94a3b8"
-          />
+          <View style={styles.twoColRow}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.inputLabel}>Contact Phone *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+91 95078 60048"
+                keyboardType="phone-pad"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.inputLabel}>Business Email</Text>
+              <TextInput
+                style={styles.textInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="store@inisha.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
 
           <Text style={styles.inputLabel}>Description / Specialties</Text>
           <TextInput
@@ -342,7 +397,92 @@ export default function ShopRegistrationModal({
             </View>
           </View>
 
-          {/* 4. Delivery Model */}
+          {/* 4. Business KYC & Licensing Verification */}
+          <Text style={styles.fieldSectionLabel}>BUSINESS KYC & COMPLIANCE VERIFICATION *</Text>
+
+          <Text style={styles.inputLabel}>
+            FSSAI License Number {["RESTAURANT", "GROCERY", "SWEETS_BAKERY"].includes(category) ? "(Mandatory *)" : "(Optional)"}
+          </Text>
+          <TextInput
+            style={styles.textInput}
+            value={fssaiLicenseNumber}
+            onChangeText={setFssaiLicenseNumber}
+            placeholder="e.g. 10423001000842 (14 digits)"
+            keyboardType="number-pad"
+            placeholderTextColor="#94a3b8"
+          />
+
+          <View style={styles.twoColRow}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.inputLabel}>GSTIN (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={gstNumber}
+                onChangeText={setGstNumber}
+                placeholder="10AAECP9824Q1ZP"
+                autoCapitalize="characters"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.inputLabel}>PAN Card Number</Text>
+              <TextInput
+                style={styles.textInput}
+                value={panNumber}
+                onChangeText={setPanNumber}
+                placeholder="ABCDE1234F"
+                autoCapitalize="characters"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
+
+          <Text style={styles.inputLabel}>Aadhaar Number (Proprietor / Partner)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={aadhaarNumber}
+            onChangeText={setAadhaarNumber}
+            placeholder="XXXX-XXXX-XXXX (12 digits)"
+            keyboardType="number-pad"
+            placeholderTextColor="#94a3b8"
+          />
+
+          <View style={styles.twoColRow}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.inputLabel}>Bank Account No.</Text>
+              <TextInput
+                style={styles.textInput}
+                value={bankAccountNumber}
+                onChangeText={setBankAccountNumber}
+                placeholder="Account number for payouts"
+                keyboardType="number-pad"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.inputLabel}>Bank IFSC Code</Text>
+              <TextInput
+                style={styles.textInput}
+                value={ifscCode}
+                onChangeText={setIfscCode}
+                placeholder="SBIN0001234"
+                autoCapitalize="characters"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
+
+          <Text style={styles.inputLabel}>License / KYC Document Link (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={licenseDocumentUrl}
+            onChangeText={setLicenseDocumentUrl}
+            placeholder="https://cloudinary.com/document.pdf"
+            autoCapitalize="none"
+            placeholderTextColor="#94a3b8"
+          />
+
+          {/* 5. Delivery Model */}
           <Text style={styles.fieldSectionLabel}>DELIVERY DISPATCH MODEL *</Text>
           {DELIVERY_MODELS.map((m) => {
             const isSelected = deliveryModel === m.id;

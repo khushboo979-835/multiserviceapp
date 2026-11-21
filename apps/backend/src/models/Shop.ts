@@ -9,6 +9,7 @@ export type ShopCategoryType =
   | "GENERAL";
 
 export type DeliveryModelType = "SHOP_DELIVERY" | "INISHA_DELIVERY" | "HYBRID";
+export type ShopKycStatusType = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface IShopAddress {
   street: string;
@@ -37,13 +38,17 @@ export interface IShopDeliverySettings {
 export interface IShop extends Document {
   shopId: string;
   ownerId?: string;
+  ownerName?: string;
   name: string;
+  shopName?: string;
   legalName?: string;
   category: ShopCategoryType;
   subCategories: string[];
   description: string;
   logoUrl: string;
+  shopLogo?: string;
   coverImageUrl: string;
+  shopBanner?: string;
   phone: string;
   email?: string;
   address: IShopAddress;
@@ -56,8 +61,21 @@ export interface IShop extends Document {
   commissionRate: number;
   rating: number;
   ratingsCount: number;
-  fssaiNumber?: string;
+  // KYC & Licensing
+  gstNumber?: string;
   gstin?: string;
+  fssaiLicenseNumber?: string;
+  fssaiNumber?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
+  licenseDocumentUrl?: string;
+  isApproved: boolean;
+  kycStatus: ShopKycStatusType;
+  rejectionReason?: string;
+  approvedAt?: Date;
+  approvedBy?: string;
   isVerified: boolean;
   isActive: boolean;
   featured: boolean;
@@ -69,7 +87,9 @@ const ShopSchema: Schema = new Schema(
   {
     shopId: { type: String, required: true, unique: true, index: true },
     ownerId: { type: String, default: "", index: true },
+    ownerName: { type: String, default: "" },
     name: { type: String, required: true },
+    shopName: { type: String, default: "" },
     legalName: { type: String, default: "" },
     category: {
       type: String,
@@ -87,7 +107,9 @@ const ShopSchema: Schema = new Schema(
     subCategories: { type: [String], default: [] },
     description: { type: String, default: "" },
     logoUrl: { type: String, default: "" },
+    shopLogo: { type: String, default: "" },
     coverImageUrl: { type: String, default: "" },
+    shopBanner: { type: String, default: "" },
     phone: { type: String, required: true },
     email: { type: String, default: "" },
     address: {
@@ -133,8 +155,26 @@ const ShopSchema: Schema = new Schema(
     commissionRate: { type: Number, default: 8 },
     rating: { type: Number, default: 4.8 },
     ratingsCount: { type: Number, default: 1 },
-    fssaiNumber: { type: String, default: "" },
+    // KYC & Business Licensing
+    gstNumber: { type: String, default: "" },
     gstin: { type: String, default: "" },
+    fssaiLicenseNumber: { type: String, default: "" },
+    fssaiNumber: { type: String, default: "" },
+    panNumber: { type: String, default: "" },
+    aadhaarNumber: { type: String, default: "" },
+    bankAccountNumber: { type: String, default: "" },
+    ifscCode: { type: String, default: "" },
+    licenseDocumentUrl: { type: String, default: "" },
+    isApproved: { type: Boolean, default: true, index: true },
+    kycStatus: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "APPROVED",
+      index: true,
+    },
+    rejectionReason: { type: String, default: "" },
+    approvedAt: { type: Date },
+    approvedBy: { type: String, default: "" },
     isVerified: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true, index: true },
     featured: { type: Boolean, default: false },
@@ -144,5 +184,6 @@ const ShopSchema: Schema = new Schema(
 
 ShopSchema.index({ location: "2dsphere" });
 ShopSchema.index({ category: 1, isActive: 1 });
+ShopSchema.index({ kycStatus: 1, isApproved: 1 });
 
 export default mongoose.model<IShop>("Shop", ShopSchema);

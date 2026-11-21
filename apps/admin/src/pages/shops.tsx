@@ -63,6 +63,17 @@ interface ShopItem {
   commissionRate: number;
   rating: number;
   ratingsCount: number;
+  ownerName?: string;
+  gstNumber?: string;
+  fssaiLicenseNumber?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
+  licenseDocumentUrl?: string;
+  isApproved?: boolean;
+  kycStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string;
   isActive: boolean;
   featured: boolean;
 }
@@ -83,6 +94,7 @@ export default function ShopsManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [kycFilter, setKycFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -257,11 +269,79 @@ export default function ShopsManagementPage() {
     }
   };
 
+  const handleApproveKyc = async (shop: ShopItem) => {
+    try {
+      await apiClient.put(`/admin/shops/${shop.shopId}/approve`);
+      setSuccessToast(`Shop "${shop.name}" approved and KYC verified!`);
+      setShops((prev) =>
+        prev.map((s) =>
+          s.shopId === shop.shopId
+            ? { ...s, isApproved: true, kycStatus: "APPROVED", isActive: true }
+            : s
+        )
+      );
+    } catch (err: any) {
+      try {
+        await apiClient.put(`/shops/${shop.shopId}/approve`);
+        setSuccessToast(`Shop "${shop.name}" approved and KYC verified!`);
+        setShops((prev) =>
+          prev.map((s) =>
+            s.shopId === shop.shopId
+              ? { ...s, isApproved: true, kycStatus: "APPROVED", isActive: true }
+              : s
+          )
+        );
+      } catch (e: any) {
+        alert("Failed to approve shop: " + (e.message || "Unknown error"));
+      }
+    }
+  };
+
+  const handleRejectKyc = async (shop: ShopItem) => {
+    const reason = window.prompt(
+      "Enter rejection reason for this vendor:",
+      "KYC documents could not be verified"
+    );
+    if (!reason) return;
+    try {
+      await apiClient.put(`/admin/shops/${shop.shopId}/reject`, { reason });
+      setSuccessToast(`Shop "${shop.name}" KYC application rejected.`);
+      setShops((prev) =>
+        prev.map((s) =>
+          s.shopId === shop.shopId
+            ? { ...s, isApproved: false, kycStatus: "REJECTED", rejectionReason: reason, isActive: false }
+            : s
+        )
+      );
+    } catch (err: any) {
+      try {
+        await apiClient.put(`/shops/${shop.shopId}/reject`, { reason });
+        setSuccessToast(`Shop "${shop.name}" KYC application rejected.`);
+        setShops((prev) =>
+          prev.map((s) =>
+            s.shopId === shop.shopId
+              ? { ...s, isApproved: false, kycStatus: "REJECTED", rejectionReason: reason, isActive: false }
+              : s
+          )
+        );
+      } catch (e: any) {
+        alert("Failed to reject shop: " + (e.message || "Unknown error"));
+      }
+    }
+  };
+
+  const pendingKycCount = useMemo(() => {
+    return shops.filter((s) => s.kycStatus === "PENDING").length;
+  }, [shops]);
+
   const filteredShops = useMemo(() => {
     return shops.filter((s) => {
       const matchesSearch =
         searchQuery === "" ||
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.ownerName && s.ownerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.fssaiLicenseNumber && s.fssaiLicenseNumber.includes(searchQuery)) ||
+        (s.gstNumber && s.gstNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
         s.phone.includes(searchQuery) ||
         s.address.city.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -273,9 +353,15 @@ export default function ShopsManagementPage() {
         (statusFilter === "ACTIVE" && s.isActive) ||
         (statusFilter === "INACTIVE" && !s.isActive);
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      const matchesKyc =
+        kycFilter === "ALL" ||
+        (kycFilter === "PENDING" && s.kycStatus === "PENDING") ||
+        (kycFilter === "APPROVED" && (s.kycStatus === "APPROVED" || s.isApproved === true)) ||
+        (kycFilter === "REJECTED" && s.kycStatus === "REJECTED");
+
+      return matchesSearch && matchesCategory && matchesStatus && matchesKyc;
     });
-  }, [shops, searchQuery, selectedCategory, statusFilter]);
+  }, [shops, searchQuery, selectedCategory, statusFilter, kycFilter]);
 
   return (
     <>
@@ -329,6 +415,58 @@ export default function ShopsManagementPage() {
           </div>
         )}
 
+        {/* KYC Status Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+          <button
+            onClick={() => setKycFilter("ALL")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              kycFilter === "ALL"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            All Stores ({shops.length})
+          </button>
+
+          <button
+            onClick={() => setKycFilter("PENDING")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              kycFilter === "PENDING"
+                ? "bg-amber-500 text-white shadow-sm"
+                : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
+            }`}
+          >
+            Pending KYC Verification
+            {pendingKycCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white">
+                {pendingKycCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setKycFilter("APPROVED")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              kycFilter === "APPROVED"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
+            }`}
+          >
+            ✓ Approved & Active ({shops.filter((s) => s.kycStatus === "APPROVED" || s.isApproved === true).length})
+          </button>
+
+          <button
+            onClick={() => setKycFilter("REJECTED")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              kycFilter === "REJECTED"
+                ? "bg-rose-600 text-white shadow-sm"
+                : "bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200"
+            }`}
+          >
+            ✕ Rejected ({shops.filter((s) => s.kycStatus === "REJECTED").length})
+          </button>
+        </div>
+
         {/* Filters Bar */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative md:col-span-2">
@@ -378,6 +516,7 @@ export default function ShopsManagementPage() {
                   <th className="py-4 px-6">Shop Details</th>
                   <th className="py-4 px-6">Category</th>
                   <th className="py-4 px-6">Contact & Location</th>
+                  <th className="py-4 px-6">KYC & Compliance</th>
                   <th className="py-4 px-6">Delivery Model</th>
                   <th className="py-4 px-6">Commission</th>
                   <th className="py-4 px-6">Live Status</th>
@@ -387,14 +526,14 @@ export default function ShopsManagementPage() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-500" />
                       Loading verified shops...
                     </td>
                   </tr>
                 ) : filteredShops.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-500">
+                    <td colSpan={8} className="text-center py-12 text-slate-500">
                       No shops found matching filters.
                     </td>
                   </tr>
@@ -441,6 +580,77 @@ export default function ShopsManagementPage() {
                         <div className="flex items-center gap-1 text-slate-500 mt-1">
                           <MapPin className="w-3.5 h-3.5 text-slate-400" />
                           {shop.address.street}, {shop.address.city}
+                        </div>
+                      </td>
+
+                      {/* KYC & Compliance Column */}
+                      <td className="py-4 px-6 text-xs">
+                        <div className="space-y-1.5 min-w-[150px]">
+                          {/* KYC Pill */}
+                          {shop.kycStatus === "PENDING" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              ⏳ Pending Review
+                            </span>
+                          ) : shop.kycStatus === "REJECTED" ? (
+                            <span
+                              title={shop.rejectionReason || "Documents rejected"}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300"
+                            >
+                              ✕ Rejected
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              ✓ KYC Verified
+                            </span>
+                          )}
+
+                          {/* FSSAI info */}
+                          {shop.fssaiLicenseNumber ? (
+                            <div className="font-mono text-[10px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded w-fit">
+                              FSSAI: {shop.fssaiLicenseNumber}
+                            </div>
+                          ) : ["RESTAURANT", "GROCERY", "SWEETS_BAKERY"].includes(shop.category) ? (
+                            <div className="text-[10px] text-amber-600 font-semibold">
+                              ⚠️ FSSAI Missing
+                            </div>
+                          ) : null}
+
+                          {/* Owner & GST */}
+                          {shop.ownerName && (
+                            <div className="text-[11px] text-slate-500">
+                              Owner: <span className="font-semibold text-slate-700">{shop.ownerName}</span>
+                            </div>
+                          )}
+
+                          {/* License Document Link */}
+                          {shop.licenseDocumentUrl && (
+                            <a
+                              href={shop.licenseDocumentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline"
+                            >
+                              <Eye className="w-3 h-3" /> View Doc
+                            </a>
+                          )}
+
+                          {/* Quick KYC Action Buttons */}
+                          {shop.kycStatus === "PENDING" && (
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <button
+                                onClick={() => handleApproveKyc(shop)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-sm transition"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectKyc(shop)}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-sm transition"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -550,6 +760,19 @@ export default function ShopsManagementPage() {
                       value={formData.name || ""}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g. Royal Sweets & Snacks"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Owner / Proprietor Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.ownerName || ""}
+                      onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                      placeholder="e.g. Md. Chhotu"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
@@ -766,6 +989,127 @@ export default function ShopsManagementPage() {
                     placeholder="Brief description of the store specialty..."
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
                   />
+                </div>
+
+                {/* KYC & Licensing Compliance Form Block */}
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                    KYC & Business Verification
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        FSSAI License Number (Food/Grocery)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.fssaiLicenseNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, fssaiLicenseNumber: e.target.value })}
+                        placeholder="14-digit FSSAI No."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        GSTIN Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.gstNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+                        placeholder="10AAECP9824Q1ZP"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        PAN Card Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.panNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, panNumber: e.target.value.toUpperCase() })}
+                        placeholder="ABCDE1234F"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Aadhaar Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.aadhaarNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })}
+                        placeholder="12-digit Aadhaar No."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Bank Account Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.bankAccountNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, bankAccountNumber: e.target.value })}
+                        placeholder="Payout Account Number"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Bank IFSC Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.ifscCode || ""}
+                        onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                        placeholder="SBIN0001234"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      License / KYC Document Link (PDF or Image URL)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.licenseDocumentUrl || ""}
+                      onChange={(e) => setFormData({ ...formData, licenseDocumentUrl: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      KYC Status Approval
+                    </label>
+                    <select
+                      value={formData.kycStatus || "APPROVED"}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          kycStatus: e.target.value as any,
+                          isApproved: e.target.value === "APPROVED",
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold"
+                    >
+                      <option value="APPROVED">✓ APPROVED (Verified Vendor)</option>
+                      <option value="PENDING">⏳ PENDING (Under Review)</option>
+                      <option value="REJECTED">✕ REJECTED</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-6 pt-2">

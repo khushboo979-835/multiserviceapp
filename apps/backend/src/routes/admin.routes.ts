@@ -6,6 +6,7 @@ import { Booking } from "../models/Booking";
 import { Service } from "../models/Service";
 import { AdminSettings } from "../models/AdminSettings";
 import { MobileRepair, DEFAULT_MOBILE_REPAIRS, ensureDefaultMobileRepairs } from "../models/MobileRepair";
+import Shop from "../models/Shop";
 import { constantTimeStringEqual, createAdminToken, requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
@@ -832,6 +833,142 @@ router.delete("/mobile-repairs/:id", async (req: Request, res: Response) => {
       success: true,
       message: "Mobile repair brand deleted successfully",
     });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * -------------------------------------------------------------
+ * SHOP & PARTNER KYC MANAGEMENT ENDPOINTS
+ * -------------------------------------------------------------
+ */
+
+/**
+ * GET /api/admin/shops
+ * List all shops with optional filter for kycStatus, category, and search
+ */
+router.get("/shops", async (req: Request, res: Response) => {
+  try {
+    const { kycStatus, category, search } = req.query;
+    const filter: any = {};
+
+    if (kycStatus && kycStatus !== "ALL") {
+      filter.kycStatus = String(kycStatus).toUpperCase();
+    }
+
+    if (category && category !== "ALL") {
+      filter.category = String(category).toUpperCase();
+    }
+
+    if (search) {
+      const regex = new RegExp(String(search), "i");
+      filter.$or = [
+        { name: regex },
+        { ownerName: regex },
+        { phone: regex },
+        { "address.city": regex },
+        { gstNumber: regex },
+        { fssaiLicenseNumber: regex },
+      ];
+    }
+
+    const shops = await Shop.find(filter).sort({ createdAt: -1 });
+    const pendingKycCount = await Shop.countDocuments({ kycStatus: "PENDING" });
+
+    return res.status(200).json({
+      success: true,
+      count: shops.length,
+      pendingKycCount,
+      shops,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/shops/:id/approve
+ * Approve shop application and activate verified status
+ */
+router.put("/shops/:id/approve", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const shop = await Shop.findOneAndUpdate(
+      { $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] },
+      {
+        $set: {
+          isApproved: true,
+          kycStatus: "APPROVED",
+          isActive: true,
+          isVerified: true,
+          rejectionReason: "",
+          approvedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!shop) {
+      return res.status(404).json({ success: false, message: "Shop not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop "${shop.name}" has been approved and KYC verified!`,
+      shop,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/shops/:id/reject
+ * Reject shop application with reason
+ */
+router.put("/shops/:id/reject", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason = "KYC documents could not be verified" } = req.body;
+
+    const shop = await Shop.findOneAndUpdate(
+      { $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] },
+      {
+        $set: {
+          isApproved: false,
+          kycStatus: "REJECTED",
+          isActive: false,
+          rejectionReason: reason,
+        },
+      },
+      { new: true }
+    );
+
+    if (!shop) {
+      return res.status(404).json({ success: false, message: "Shop not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop "${shop.name}" application rejected.`,
+      shop,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/shops/:id
+ */
+router.delete("/shops/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Shop.deleteOne({
+      $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }],
+    });
+    return res.status(200).json({ success: true, message: "Shop deleted successfully" });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

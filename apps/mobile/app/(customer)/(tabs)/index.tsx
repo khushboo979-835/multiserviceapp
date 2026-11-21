@@ -630,16 +630,10 @@ export default function CustomerHomeScreen() {
           {/* 1. Inisha Food Hub */}
           <TouchableOpacity
             onPress={() => {
-              setSelectedShopFilter('RESTAURANT');
-              const foodShop = localShops.find((s: any) => s.category === 'RESTAURANT' || s.category === 'SWEETS_BAKERY');
-              if (foodShop) {
-                router.push(`/(customer)/shop/${foodShop.shopId}` as any);
-              } else {
-                router.push({
-                  pathname: '/(customer)/(tabs)/explore',
-                  params: { tab: 'FOOD' },
-                } as any);
-              }
+              router.push({
+                pathname: "/(customer)/shops",
+                params: { category: "RESTAURANT" },
+              } as any);
             }}
             style={styles.hubCardFood}
             activeOpacity={0.88}
@@ -665,16 +659,10 @@ export default function CustomerHomeScreen() {
           {/* 2. Inisha Grocery Hub */}
           <TouchableOpacity
             onPress={() => {
-              setSelectedShopFilter('GROCERY');
-              const grocShop = localShops.find((s: any) => s.category === 'GROCERY');
-              if (grocShop) {
-                router.push(`/(customer)/shop/${grocShop.shopId}` as any);
-              } else {
-                router.push({
-                  pathname: '/(customer)/(tabs)/explore',
-                  params: { tab: 'GROCERY' },
-                } as any);
-              }
+              router.push({
+                pathname: "/(customer)/shops",
+                params: { category: "GROCERY" },
+              } as any);
             }}
             style={styles.hubCardGrocery}
             activeOpacity={0.88}
@@ -776,7 +764,12 @@ export default function CustomerHomeScreen() {
           <View style={styles.circularCategoriesGrid}>
             {/* 1. All Local Shops */}
             <TouchableOpacity
-              onPress={() => setSelectedShopFilter("ALL")}
+              onPress={() => {
+                router.push({
+                  pathname: "/(customer)/shops",
+                  params: { category: "ALL" },
+                } as any);
+              }}
               style={styles.circularCatItem}
               activeOpacity={0.8}
             >
@@ -789,9 +782,10 @@ export default function CustomerHomeScreen() {
             {/* 2. Food & Restaurants */}
             <TouchableOpacity
               onPress={() => {
-                const foodShop = localShops.find((s: any) => s.category === "RESTAURANT" || s.category === "SWEETS_BAKERY");
-                if (foodShop) router.push(`/(customer)/shop/${foodShop.shopId}` as any);
-                else setSelectedShopFilter("RESTAURANT");
+                router.push({
+                  pathname: "/(customer)/shops",
+                  params: { category: "RESTAURANT" },
+                } as any);
               }}
               style={styles.circularCatItem}
               activeOpacity={0.8}
@@ -805,9 +799,10 @@ export default function CustomerHomeScreen() {
             {/* 3. Grocery 15m Express */}
             <TouchableOpacity
               onPress={() => {
-                const grocShop = localShops.find((s: any) => s.category === "GROCERY");
-                if (grocShop) router.push(`/(customer)/shop/${grocShop.shopId}` as any);
-                else setSelectedShopFilter("GROCERY");
+                router.push({
+                  pathname: "/(customer)/shops",
+                  params: { category: "GROCERY" },
+                } as any);
               }}
               style={styles.circularCatItem}
               activeOpacity={0.8}
@@ -821,9 +816,10 @@ export default function CustomerHomeScreen() {
             {/* 4. Mobile & Tech Hub */}
             <TouchableOpacity
               onPress={() => {
-                const mobShop = localShops.find((s: any) => s.category === "MOBILE_ELECTRONICS");
-                if (mobShop) router.push(`/(customer)/shop/${mobShop.shopId}` as any);
-                else setIsBrandModalOpen(true);
+                router.push({
+                  pathname: "/(customer)/shops",
+                  params: { category: "MOBILE_ELECTRONICS" },
+                } as any);
               }}
               style={styles.circularCatItem}
               activeOpacity={0.8}
@@ -935,9 +931,14 @@ export default function CustomerHomeScreen() {
               <Text style={styles.sectionTitle}>Local Shops & Restaurants 🏪</Text>
               <Text style={styles.sectionSubtitle}>Doorstep delivery from neighborhood shops</Text>
             </View>
-            <TouchableOpacity onPress={() => setIsShopRegisterOpen(true)}>
-              <Text style={[styles.viewAllLink, { color: "#dc2626", fontWeight: "800" }]}>+ Add Shop</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <TouchableOpacity onPress={() => router.push({ pathname: "/(customer)/shops", params: { category: selectedShopFilter } } as any)}>
+                <Text style={[styles.viewAllLink, { color: "#dc2626", fontWeight: "700" }]}>View All →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setIsShopRegisterOpen(true)}>
+                <Text style={[styles.viewAllLink, { color: "#0284c7", fontWeight: "800" }]}>+ Add Shop</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Shop Category Filter Chips */}

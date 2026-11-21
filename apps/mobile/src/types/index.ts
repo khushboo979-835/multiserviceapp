@@ -399,6 +399,19 @@ export interface Shop {
   commissionRate: number;
   rating: number;
   ratingsCount: number;
+  ownerName?: string;
+  shopLogo?: string;
+  shopBanner?: string;
+  gstNumber?: string;
+  fssaiLicenseNumber?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
+  licenseDocumentUrl?: string;
+  isApproved?: boolean;
+  kycStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string;
   isActive: boolean;
   featured: boolean;
 }

@@ -19,7 +19,10 @@ export class SmsService {
     console.log(`[SmsService] Dispatching OTP ${otp} to +91 ${cleanPhone}`);
 
     // 1. Fast2SMS Indian Telecom Gateway (Most reliable & instant for Indian numbers)
-    const fast2smsApiKey = process.env.FAST2SMS_API_KEY || process.env.FAST2SMS_KEY;
+    const fast2smsApiKey =
+      process.env.FAST2SMS_API_KEY ||
+      process.env.FAST2SMS_KEY ||
+      "Y1IjUeAw2ZP6CuvEqhxlVB5iFWg7Xz83mtpSs40oGNMcLnyDOJ5TChNi8gkMrOEXjZGmqJQvoVnWU1zR";
 
     if (fast2smsApiKey && fast2smsApiKey !== "YOUR_FAST2SMS_API_KEY") {
       // 1A. Try Fast2SMS Quick Route (q) - 100% verified instant delivery without DLT/website verification
@@ -39,7 +42,7 @@ export class SmsService {
               "Content-Type": "application/json",
               "User-Agent": "InishaMobile/1.0",
             },
-            timeout: 3500,
+            timeout: 6000,
           }
         );
 
@@ -71,7 +74,7 @@ export class SmsService {
               "Content-Type": "application/json",
               "User-Agent": "InishaMobile/1.0",
             },
-            timeout: 3500,
+            timeout: 6000,
           }
         );
 

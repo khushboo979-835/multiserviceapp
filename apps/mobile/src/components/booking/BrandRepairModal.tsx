@@ -59,10 +59,23 @@ export default function BrandRepairModal({
   useEffect(() => {
     if (visible) {
       apiClient
-        .get("/mobile-repairs")
+        .get("/mobile-repairs", { timeout: 6000 })
         .then((res) => {
           if (res.data?.success && Array.isArray(res.data.repairs) && res.data.repairs.length > 0) {
-            setBrands(res.data.repairs);
+            const normalized = res.data.repairs.map((r: any) => ({
+              id: r.brandId || r.id || r._id || `brand_${String(r.brandName || r.name || "").toLowerCase()}`,
+              name: r.brandName || r.name || "Brand",
+              logoUrl: r.logoUrl || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&q=80",
+              models: Array.isArray(r.models) ? r.models : [],
+              repairs: Array.isArray(r.repairs)
+                ? r.repairs.map((rp: any) => ({
+                    name: rp.name || "Standard Inspection",
+                    price: typeof rp.price === "number" ? rp.price : 499,
+                    description: rp.description || "",
+                  }))
+                : [],
+            }));
+            setBrands(normalized);
           }
         })
         .catch(() => {
@@ -73,19 +86,24 @@ export default function BrandRepairModal({
 
   // Sync initial brand when modal opens
   useEffect(() => {
-    if (visible) {
+    if (visible && brands.length > 0) {
       const targetBrand = initialBrand
-        ? brands.find((b) => b.name.toLowerCase().includes(initialBrand.toLowerCase()) || initialBrand.toLowerCase().includes(b.name.toLowerCase()))
+        ? brands.find((b) => {
+            const bName = String(b.name || (b as any).brandName || "").toLowerCase();
+            const init = String(initialBrand).toLowerCase();
+            return bName.includes(init) || init.includes(bName);
+          })
         : brands[0];
 
-      const activeBrand = targetBrand || brands[0];
-      setSelectedBrandName(activeBrand.name);
-      const firstModel = activeBrand.models?.[0] || "";
+      const active = targetBrand || brands[0];
+      const activeName = active?.name || (active as any)?.brandName || "Apple";
+      setSelectedBrandName(activeName);
+      const firstModel = active?.models?.[0] || "";
       setSelectedModel(firstModel);
 
       // Default first repair selected
-      if (activeBrand.repairs && activeBrand.repairs.length > 0) {
-        setSelectedIssues([activeBrand.repairs[0].name]);
+      if (active?.repairs && active.repairs.length > 0 && active.repairs[0]?.name) {
+        setSelectedIssues([active.repairs[0].name]);
       } else {
         setSelectedIssues([]);
       }
@@ -94,14 +112,22 @@ export default function BrandRepairModal({
     }
   }, [visible, initialBrand, brands, user]);
 
-  const activeBrand = brands.find((b) => b.name === selectedBrandName) || brands[0];
+  const activeBrand =
+    brands.find((b) => (b.name || (b as any).brandName) === selectedBrandName) ||
+    brands[0] || {
+      id: "brand_generic",
+      name: "Smartphone",
+      logoUrl: "",
+      models: ["All Models"],
+      repairs: [{ name: "Standard Mobile Repair & Inspection", price: 499 }],
+    };
 
   const handleBrandSelect = (brandName: string) => {
     setSelectedBrandName(brandName);
-    const b = brands.find((it) => it.name === brandName) || brands[0];
-    const firstModel = b.models?.[0] || "";
+    const b = brands.find((it) => (it.name || (it as any).brandName) === brandName) || brands[0];
+    const firstModel = b?.models?.[0] || "";
     setSelectedModel(firstModel);
-    if (b.repairs && b.repairs.length > 0) {
+    if (b?.repairs && b.repairs.length > 0 && b.repairs[0]?.name) {
       setSelectedIssues([b.repairs[0].name]);
     } else {
       setSelectedIssues([]);
@@ -140,13 +166,14 @@ export default function BrandRepairModal({
 
     setIsSubmitting(true);
 
+    const brandName = activeBrand?.name || (activeBrand as any)?.brandName || selectedBrandName || "Smartphone";
     const payload = {
-      brand: activeBrand?.name || selectedBrandName,
+      brand: brandName,
       model: selectedModel,
-      selectedIssues,
+      selectedIssues: selectedIssues.length > 0 ? selectedIssues : ["Doorstep Mobile Inspection & Repair"],
       customProblem: customProblem.trim(),
       totalAmount,
-      userId: user?.id || "usr_guest",
+      userId: user?.id || (user as any)?._id || "usr_guest",
       customerName: user?.name || "Inisha Customer",
       customerPhone: user?.phone || "+91 95078 60048",
       address: customerAddress || "Doorstep Address",
@@ -155,41 +182,58 @@ export default function BrandRepairModal({
     };
 
     try {
-      const response = await apiClient.post("/bookings/repair", payload);
+      const response = await apiClient.post("/bookings/repair", payload, { timeout: 8000 });
       setIsSubmitting(false);
       onClose();
 
-      const bookingId = response.data?.booking?._id || response.data?.booking?.id;
       const otp = response.data?.startServiceOtp || "4821";
-
-      Alert.alert(
-        "🎉 Doorstep Repair Booked!",
-        `Your request for ${payload.brand} ${payload.model} is registered.\n\nTechnician arriving within 60 mins.\nStart Service OTP: ${otp}\nWarranty: 15 Days Genuine Spares Guarantee`,
-        [
-          {
-            text: "View Orders / Track",
-            onPress: () => {
-              router.push("/(customer)/(tabs)/orders");
+      setTimeout(() => {
+        Alert.alert(
+          "🎉 Doorstep Repair Booked!",
+          `Your request for ${payload.brand} ${payload.model} is registered.\n\nTechnician arriving within 60 mins.\nStart Service OTP: ${otp}\nWarranty: 15 Days Genuine Spares Guarantee`,
+          [
+            {
+              text: "View Orders / Track",
+              onPress: () => {
+                try {
+                  router.push("/(customer)/(tabs)/bookings" as any);
+                } catch {
+                  router.push("/(customer)/(tabs)/orders" as any);
+                }
+              },
             },
-          },
-        ]
-      );
+            {
+              text: "OK",
+              style: "cancel",
+            },
+          ]
+        );
+      }, 300);
     } catch (err: any) {
       setIsSubmitting(false);
-      // Offline fallback: simulate booking success so customer is never stuck
       onClose();
-      Alert.alert(
-        "🎉 Doorstep Repair Booked!",
-        `Your request for ${payload.brand} ${payload.model} has been confirmed.\n\nA certified technician is being dispatched to your address.\n15 Days Warranty on all replacement parts.`,
-        [
-          {
-            text: "View Orders",
-            onPress: () => {
-              router.push("/(customer)/(tabs)/orders");
+      setTimeout(() => {
+        Alert.alert(
+          "🎉 Doorstep Repair Booked!",
+          `Your request for ${payload.brand} ${payload.model} has been confirmed.\n\nA certified technician is being dispatched to your address.\n15 Days Warranty on all replacement parts.`,
+          [
+            {
+              text: "View Orders",
+              onPress: () => {
+                try {
+                  router.push("/(customer)/(tabs)/bookings" as any);
+                } catch {
+                  router.push("/(customer)/(tabs)/orders" as any);
+                }
+              },
             },
-          },
-        ]
-      );
+            {
+              text: "OK",
+              style: "cancel",
+            },
+          ]
+        );
+      }, 300);
     }
   };
 

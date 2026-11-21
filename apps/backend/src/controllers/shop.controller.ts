@@ -467,6 +467,46 @@ export const updateShop = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 /**
+ * DELETE /api/shops/:id
+ * Delete a shop and clean up its items (Admin Only)
+ */
+export const deleteShop = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ shopId: id }, { _id: id }] } : { shopId: id };
+
+    const shop = await Shop.findOneAndDelete(filter);
+
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop not found",
+      });
+    }
+
+    try {
+      await Product.deleteMany({ shopId: shop.shopId });
+    } catch (prodErr: any) {
+      console.warn("Notice: product cleanup on shop deletion:", prodErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Shop "${shop.name}" deleted successfully.`,
+      shopId: shop.shopId,
+    });
+  } catch (error: any) {
+    console.error("deleteShop error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete shop",
+      error: error?.message,
+    });
+  }
+};
+
+/**
  * GET /api/shops/:id/dashboard
  * Merchant dashboard analytics: today revenue, active orders count, total catalog items
  */

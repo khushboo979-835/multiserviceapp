@@ -7,6 +7,7 @@ import {
   createShop,
   registerPartnerShop,
   updateShop,
+  deleteShop,
   approveShop,
   rejectShop,
   getShopDashboardStats,
@@ -36,6 +37,7 @@ router.get("/:id/dashboard", requireAuth, getShopDashboardStats);
 // Shop Creation & Management (Admin Only from Web Admin Panel)
 router.post("/", requireAdmin, createShop);
 router.put("/:id", requireAdmin, updateShop);
+router.delete("/:id", requireAdmin, deleteShop);
 
 // Shop Item / Product CRUD
 router.post("/:id/items", requireAdmin, addShopItem);

@@ -165,34 +165,6 @@ export default function ProfileScreen() {
 
       {/* Menu Settings Card */}
       <View style={styles.menuCard}>
-        {/* Merchant Store Dashboard for Shop Owners & Local Merchants */}
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setMerchantVisible(true)} style={styles.menuRow}>
-          <View style={styles.menuRowLeft}>
-            <View style={[styles.menuIconCircle, { backgroundColor: "#fff7ed" }]}>
-              <Store size={18} color="#ea580c" />
-            </View>
-            <View>
-              <Text style={[styles.menuTitle, { color: "#ea580c", fontWeight: "800" }]}>Merchant Store Dashboard</Text>
-              <Text style={styles.menuSub}>Accept orders, manage menu & store status</Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color="#ea580c" />
-        </TouchableOpacity>
-
-        {/* Register / Add New Shop Onboarding */}
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setShopRegisterVisible(true)} style={styles.menuRow}>
-          <View style={styles.menuRowLeft}>
-            <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
-              <Plus size={18} color="#dc2626" />
-            </View>
-            <View>
-              <Text style={[styles.menuTitle, { color: "#dc2626", fontWeight: "800" }]}>Register / Add Your Shop 🏪</Text>
-              <Text style={styles.menuSub}>List your store & start getting doorstep orders</Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color="#dc2626" />
-        </TouchableOpacity>
-
         <TouchableOpacity activeOpacity={0.7} onPress={() => setLangCityVisible(true)} style={styles.menuRow}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIconCircle, { backgroundColor: "#fef2f2" }]}>
@@ -331,19 +303,6 @@ export default function ProfileScreen() {
       <InAppAdminPortalModal
         visible={adminVisible}
         onClose={() => setAdminVisible(false)}
-      />
-
-      <MerchantHubModal
-        visible={merchantVisible}
-        onClose={() => setMerchantVisible(false)}
-      />
-
-      <ShopRegistrationModal
-        visible={shopRegisterVisible}
-        onClose={() => setShopRegisterVisible(false)}
-        onShopCreated={() => {
-          setMerchantVisible(true);
-        }}
       />
     </ScrollView>
   );

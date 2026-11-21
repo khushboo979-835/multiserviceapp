@@ -223,7 +223,8 @@ export default function ShopsManagementPage() {
 
     try {
       if (editingShop) {
-        await apiClient.put(`/shops/${editingShop.shopId}`, formData);
+        const targetId = editingShop.shopId || (editingShop as any)._id;
+        await apiClient.put(`/shops/${targetId}`, formData);
         setSuccessToast(`Shop "${formData.name}" updated successfully!`);
       } else {
         await apiClient.post("/shops", formData);
@@ -237,6 +238,28 @@ export default function ShopsManagementPage() {
       setErrorMessage(err.response?.data?.message || err.message || "Failed to save shop");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteShop = async (shop: ShopItem) => {
+    const shopName = shop.name || "this shop";
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${shopName}"?\n\nThis will remove the store from customer mobile apps and delete all its catalog items.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const targetId = shop.shopId || (shop as any)._id;
+      try {
+        await apiClient.delete(`/admin/shops/${targetId}`);
+      } catch {
+        await apiClient.delete(`/shops/${targetId}`);
+      }
+      setSuccessToast(`Shop "${shopName}" deleted successfully.`);
+      setShops((prev) => prev.filter((s) => s.shopId !== shop.shopId && (s as any)._id !== (shop as any)._id));
+      setTimeout(() => setSuccessToast(""), 4000);
+    } catch (err: any) {
+      alert("Failed to delete shop: " + (err.response?.data?.message || err.message || "Server error"));
     }
   };
 
@@ -510,7 +533,7 @@ export default function ShopsManagementPage() {
         {/* Shops Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[1100px] text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-4 px-6">Shop Details</th>
@@ -520,7 +543,7 @@ export default function ShopsManagementPage() {
                   <th className="py-4 px-6">Delivery Model</th>
                   <th className="py-4 px-6">Commission</th>
                   <th className="py-4 px-6">Live Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                  <th className="py-4 px-6 text-center w-[130px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -705,14 +728,23 @@ export default function ShopsManagementPage() {
                         </div>
                       </td>
 
-                      <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => handleOpenEditModal(shop)}
-                          className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Edit Shop"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                      <td className="py-4 px-6 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditModal(shop)}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition border border-transparent hover:border-blue-200"
+                            title="Edit Shop"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteShop(shop)}
+                            className="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition border border-transparent hover:border-rose-200"
+                            title="Delete Shop"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -150,10 +150,20 @@ export default function ShopsDirectoryScreen() {
   const [filterTopRated, setFilterTopRated] = useState(false);
   const [filterOpenOnly, setFilterOpenOnly] = useState(false);
 
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [shops, setShops] = useState<Shop[]>(() => {
+    if (params.category && String(params.category).toUpperCase() !== "ALL") {
+      const cat = String(params.category).toUpperCase();
+      const filtered = DEFAULT_VERIFIED_SHOPS.filter(
+        (s) =>
+          s.category === cat ||
+          (cat === "RESTAURANT" && (s.category === "RESTAURANT" || s.category === "SWEETS_BAKERY"))
+      );
+      return filtered.length > 0 ? filtered : DEFAULT_VERIFIED_SHOPS;
+    }
+    return DEFAULT_VERIFIED_SHOPS;
+  });
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   // Sync category param change
   useEffect(() => {
@@ -164,35 +174,17 @@ export default function ShopsDirectoryScreen() {
 
   const fetchShops = async () => {
     try {
-      setLoading(true);
       const url =
         selectedCategory && selectedCategory !== "ALL"
           ? `/shops?category=${selectedCategory}&activeOnly=true`
           : `/shops?activeOnly=true`;
 
-      const res = await apiClient.get(url, { timeout: 8000 });
+      const res = await apiClient.get(url, { timeout: 6000 });
       if (res.data?.success && Array.isArray(res.data.shops) && res.data.shops.length > 0) {
         setShops(res.data.shops);
-      } else {
-        const fallback = selectedCategory && selectedCategory !== "ALL"
-          ? DEFAULT_VERIFIED_SHOPS.filter(
-              (s) =>
-                s.category === selectedCategory ||
-                (selectedCategory === "RESTAURANT" && (s.category === "RESTAURANT" || s.category === "SWEETS_BAKERY"))
-            )
-          : DEFAULT_VERIFIED_SHOPS;
-        setShops(fallback.length > 0 ? fallback : DEFAULT_VERIFIED_SHOPS);
       }
     } catch (err: any) {
-      console.warn("Notice: Using verified local stores fallback:", err?.message || err);
-      const fallback = selectedCategory && selectedCategory !== "ALL"
-        ? DEFAULT_VERIFIED_SHOPS.filter(
-            (s) =>
-              s.category === selectedCategory ||
-              (selectedCategory === "RESTAURANT" && (s.category === "RESTAURANT" || s.category === "SWEETS_BAKERY"))
-          )
-        : DEFAULT_VERIFIED_SHOPS;
-      setShops(fallback.length > 0 ? fallback : DEFAULT_VERIFIED_SHOPS);
+      console.warn("Notice: Live shops sync notice:", err?.message || err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -269,14 +261,7 @@ export default function ShopsDirectoryScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={() => setIsRegisterModalOpen(true)}
-          style={styles.headerAddBtn}
-          activeOpacity={0.8}
-        >
-          <PlusCircle size={15} color="#dc2626" />
-          <Text style={styles.headerAddBtnText}>Add Shop</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       {/* 2. Search Box */}

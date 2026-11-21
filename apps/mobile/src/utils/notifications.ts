@@ -160,3 +160,39 @@ export async function sendReceiptNotification(bookingId: string, amount: number)
     { bookingId, event: "RECEIPT_GENERATED" }
   );
 }
+
+/**
+ * Store & Food Order Notification Lifecycle
+ */
+export async function sendOrderAcceptedNotification(
+  orderNumber: string,
+  shopName: string = "Inisha Store"
+) {
+  await triggerLocalNotification(
+    "Order Confirmed & Preparing 🍳",
+    `"${shopName}" has accepted order #${orderNumber} and is preparing your items with priority.`,
+    { orderNumber, event: "ORDER_ACCEPTED" },
+    "default"
+  );
+}
+
+export async function sendOrderOutForDeliveryNotification(
+  orderNumber: string,
+  riderName: string = "Raju Paswan"
+) {
+  await triggerLocalNotification(
+    "Out for Delivery 🛵",
+    `Delivery Partner ${riderName} is on the way with your order #${orderNumber}! Doorstep delivery in ~15 mins.`,
+    { orderNumber, event: "ORDER_OUT_FOR_DELIVERY" },
+    "job_dispatches"
+  );
+}
+
+export async function sendOrderDeliveredNotification(orderNumber: string) {
+  await triggerLocalNotification(
+    "Order Delivered Safely 🎉",
+    `Order #${orderNumber} has been delivered successfully. Thank you for shopping with Inisha Store!`,
+    { orderNumber, event: "ORDER_DELIVERED" },
+    "default"
+  );
+}

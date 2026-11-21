@@ -231,7 +231,10 @@ export const getShopOrders = async (req: AuthenticatedRequest, res: Response) =>
     const { shopId } = req.params;
     const { status } = req.query;
 
-    const filter: any = { shopId };
+    const filter: any = {};
+    if (shopId && shopId.toLowerCase() !== "all") {
+      filter.shopId = shopId;
+    }
     if (status && status !== "ALL") {
       filter.status = status;
     }
@@ -344,6 +347,19 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       if (io) {
         io.emit(`order:${order.orderId}:status`, {
           orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          updatedAt: order.updatedAt,
+        });
+        io.emit("order:status_update", {
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          updatedAt: order.updatedAt,
+        });
+        io.emit("order:status-changed", {
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
           status: order.status,
           updatedAt: order.updatedAt,
         });

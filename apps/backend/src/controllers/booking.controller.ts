@@ -202,7 +202,11 @@ export const createRepairBooking = async (req: Request, res: Response) => {
 export const getBookingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    let booking = await Booking.findById(id).catch(() => null);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { bookingId: id }] }
+      : { bookingId: id };
+
+    let booking = await Booking.findOne(query).catch(() => null);
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
@@ -288,7 +292,11 @@ export const verifyStartOtp = async (req: Request, res: Response) => {
       });
     }
 
-    const booking = await Booking.findById(id).catch(() => null);
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { bookingId: id }] }
+      : { bookingId: id };
+
+    const booking = await Booking.findOne(query).catch(() => null);
 
     let isValid = false;
     if (booking) {
@@ -301,6 +309,22 @@ export const verifyStartOtp = async (req: Request, res: Response) => {
           note: "Doorstep OTP verified by technician. Work started.",
         });
         await booking.save();
+
+        try {
+          const io = req.app.get("io");
+          if (io) {
+            io.emit(`booking:${booking.bookingId || booking._id}:status`, {
+              bookingId: booking.bookingId || booking._id,
+              status: "IN_PROGRESS",
+              timeline: booking.timeline,
+            });
+            io.emit("booking:status-changed", {
+              bookingId: booking.bookingId || booking._id,
+              status: "IN_PROGRESS",
+              timeline: booking.timeline,
+            });
+          }
+        } catch {}
       }
     }
 
@@ -330,8 +354,12 @@ export const updateStatus = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, note } = req.body;
 
-    const booking = await Booking.findByIdAndUpdate(
-      id,
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { bookingId: id }] }
+      : { bookingId: id };
+
+    const booking = await Booking.findOneAndUpdate(
+      query,
       {
         status,
         $push: {
@@ -344,6 +372,29 @@ export const updateStatus = async (req: Request, res: Response) => {
       },
       { new: true }
     );
+
+    if (booking) {
+      try {
+        const io = req.app.get("io");
+        if (io) {
+          io.emit(`booking:${booking.bookingId || booking._id}:status`, {
+            bookingId: booking.bookingId || booking._id,
+            status: booking.status,
+            timeline: booking.timeline,
+          });
+          io.emit("booking:status-changed", {
+            bookingId: booking.bookingId || booking._id,
+            status: booking.status,
+            timeline: booking.timeline,
+          });
+          io.emit("booking:status_update", {
+            bookingId: booking.bookingId || booking._id,
+            status: booking.status,
+            timeline: booking.timeline,
+          });
+        }
+      } catch {}
+    }
 
     return res.status(200).json({
       success: true,

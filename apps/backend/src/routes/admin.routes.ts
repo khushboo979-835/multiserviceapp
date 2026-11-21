@@ -7,6 +7,7 @@ import { Service } from "../models/Service";
 import { AdminSettings } from "../models/AdminSettings";
 import { MobileRepair, DEFAULT_MOBILE_REPAIRS, ensureDefaultMobileRepairs } from "../models/MobileRepair";
 import Shop from "../models/Shop";
+import Order from "../models/Order";
 import { constantTimeStringEqual, createAdminToken, requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
@@ -969,6 +970,41 @@ router.delete("/shops/:id", async (req: Request, res: Response) => {
       $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }],
     });
     return res.status(200).json({ success: true, message: "Shop deleted successfully" });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/orders
+ * Admin views all marketplace orders
+ */
+router.get("/orders", async (req: Request, res: Response) => {
+  try {
+    const { status, search } = req.query;
+    const filter: any = {};
+
+    if (status && status !== "ALL") {
+      filter.status = status;
+    }
+
+    if (search) {
+      const regex = new RegExp(String(search), "i");
+      filter.$or = [
+        { orderNumber: regex },
+        { customerName: regex },
+        { customerPhone: regex },
+        { shopName: regex },
+      ];
+    }
+
+    const orders = await Order.find(filter).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: orders.length,
+      orders,
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

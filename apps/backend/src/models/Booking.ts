@@ -2,12 +2,17 @@ import { Schema, model, Document } from "mongoose";
 import crypto from "crypto";
 
 export interface IBooking extends Document {
+  bookingId?: string;
+  serviceTitle?: string;
+  serviceName?: string;
   customerId: string;
   customerName: string;
   customerPhone: string;
   providerId?: string;
   providerName?: string;
   providerPhone?: string;
+  providerVehicle?: string;
+  providerRating?: number;
   categoryId: string;
   subcategoryId: string;
   formValues: Record<string, any>;
@@ -61,6 +66,19 @@ export interface IBooking extends Document {
 
 const BookingSchema = new Schema<IBooking>(
   {
+    bookingId: {
+      type: String,
+      index: true,
+      default: "",
+    },
+    serviceTitle: {
+      type: String,
+      default: "",
+    },
+    serviceName: {
+      type: String,
+      default: "",
+    },
     customerId: {
       type: String,
       required: true,
@@ -86,6 +104,14 @@ const BookingSchema = new Schema<IBooking>(
     providerPhone: {
       type: String,
       default: "",
+    },
+    providerVehicle: {
+      type: String,
+      default: "DL 07 IN 8842",
+    },
+    providerRating: {
+      type: Number,
+      default: 4.9,
     },
     categoryId: {
       type: String,

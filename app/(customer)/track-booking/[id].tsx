@@ -10,6 +10,13 @@ import { Booking, BookingStatus, GeoLocation } from "../../../src/types";
 import { ArrowLeft, Phone, MessageSquare, ShieldCheck, Star, CheckCircle2, Bike, CreditCard, Sparkles, QrCode } from "lucide-react-native";
 import { LocationService } from "../../../src/services/location.service";
 import PaymentModal from "../../../src/components/payment/PaymentModal";
+import { apiClient } from "../../../src/api/apiClient";
+import {
+  sendProviderAssignedNotification,
+  sendProviderArrivedNotification,
+  sendServiceCompletedNotification,
+  triggerLocalNotification,
+} from "../../../src/utils/notifications";
 
 import { db } from "../../../src/config/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -24,53 +31,79 @@ export default function TrackBookingScreen() {
   const [chatVisible, setChatVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
-  // Restore booking from store history or create safe fallback so screen never breaks
+  // Restore booking from MongoDB backend, store history or create safe fallback
   useEffect(() => {
-    if (!activeBooking || activeBooking.id !== id) {
-      const found = bookingHistory.find((b) => b.id === id);
-      if (found) {
-        setActiveBooking(found);
-      } else if (id) {
-        const fallbackBooking: Booking = {
-          id: id,
-          customerId: "usr_customer_live",
-          customerName: "Customer",
-          customerPhone: "+91 95078 60048",
-          categoryId: "cat_repair",
-          subcategoryId: "sub_doorstep",
-          serviceTitle: "Split & Window AC Complete Service",
-          serviceName: "Split & Window AC Complete Service",
-          formValues: {},
-          selectedAddress: LocationService.getFallbackLocation(),
-          status: "ACCEPTED",
-          otp: "4821",
-          paymentMethod: "CASH_AFTER_SERVICE",
-          paymentStatus: "PENDING",
-          providerId: "INP-8842",
-          providerName: "Rajesh Kumar (Inisha Certified Pro)",
-          providerPhone: "+91 73520 82614",
-          providerVehicle: "DL 07 IN 8842",
-          pricing: {
-            basePrice: 499,
-            tax: 90,
-            commission: 75,
-            couponDiscount: 0,
-            addOnPrice: 0,
-            providerEarnings: 424,
-            finalAmount: 589,
-          },
-          timeline: [
-            { status: "DRAFT", timestamp: new Date().toISOString(), note: "Booking Created" },
-            { status: "ACCEPTED", timestamp: new Date().toISOString(), note: "Rajesh Kumar (Inisha Pro Verified) assigned" },
-          ],
-          scheduledDate: "Today",
-          scheduledTime: "Immediate Doorstep Visit",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setActiveBooking(fallbackBooking);
+    const fetchBookingFromApi = async () => {
+      if (!id) return;
+      try {
+        const res = await apiClient.get(`/bookings/${id}`);
+        if (res.data?.success && res.data.booking) {
+          const b = res.data.booking;
+          const prev = useBookingStore.getState().activeBooking;
+          setActiveBooking({
+            ...(prev || ({} as any)),
+            ...b,
+            id: b.bookingId || b._id || id,
+            providerName: b.providerName || "Rajesh Kumar (Inisha Certified Pro)",
+            providerPhone: b.providerPhone || "+91 73520 82614",
+            providerVehicle: b.providerVehicle || "DL 07 IN 8842",
+            serviceTitle: b.serviceTitle || b.serviceName || "Doorstep Complete Service",
+            serviceName: b.serviceName || b.serviceTitle || "Doorstep Complete Service",
+            status: (b.status as BookingStatus) || "ACCEPTED",
+            otp: b.otp || b.startServiceOtp || "4821",
+          } as Booking);
+          return;
+        }
+      } catch {}
+
+      if (!activeBooking || activeBooking.id !== id) {
+        const found = bookingHistory.find((b) => b.id === id);
+        if (found) {
+          setActiveBooking(found);
+        } else if (id) {
+          const fallbackBooking: Booking = {
+            id: id,
+            customerId: "usr_customer_live",
+            customerName: "Customer",
+            customerPhone: "+91 95078 60048",
+            categoryId: "cat_repair",
+            subcategoryId: "sub_doorstep",
+            serviceTitle: "Split & Window AC Complete Service",
+            serviceName: "Split & Window AC Complete Service",
+            formValues: {},
+            selectedAddress: LocationService.getFallbackLocation(),
+            status: "ACCEPTED",
+            otp: "4821",
+            paymentMethod: "CASH_AFTER_SERVICE",
+            paymentStatus: "PENDING",
+            providerId: "INP-8842",
+            providerName: "Rajesh Kumar (Inisha Certified Pro)",
+            providerPhone: "+91 73520 82614",
+            providerVehicle: "DL 07 IN 8842",
+            pricing: {
+              basePrice: 499,
+              tax: 90,
+              commission: 75,
+              couponDiscount: 0,
+              addOnPrice: 0,
+              providerEarnings: 424,
+              finalAmount: 589,
+            },
+            timeline: [
+              { status: "DRAFT", timestamp: new Date().toISOString(), note: "Booking Created" },
+              { status: "ACCEPTED", timestamp: new Date().toISOString(), note: "Rajesh Kumar (Inisha Pro Verified) assigned" },
+            ],
+            scheduledDate: "Today",
+            scheduledTime: "Immediate Doorstep Visit",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setActiveBooking(fallbackBooking);
+        }
       }
-    }
+    };
+
+    fetchBookingFromApi();
   }, [id, activeBooking, bookingHistory]);
 
   const vehicleNo = (activeBooking as any)?.providerVehicle || "DL 07 " + (activeBooking?.id?.slice(-4) || "8842");
@@ -147,8 +180,32 @@ export default function TrackBookingScreen() {
         setProviderLoc(data.location);
       });
 
-      socketClient.on("booking:status-changed", (data: { bookingId: string; status: BookingStatus; timeline: any[] }) => {
-        updateActiveBookingStatus(data.status, data.timeline);
+      const handleStatusUpdate = (status: BookingStatus, timeline: any[] = []) => {
+        updateActiveBookingStatus(status, timeline);
+        if (status === "ACCEPTED") {
+          sendProviderAssignedNotification(id, activeBooking?.providerName || "Rajesh Kumar");
+        } else if (status === "EN_ROUTE") {
+          triggerLocalNotification(
+            "Technician En-Route 🛵",
+            "Your service professional is moving towards your doorstep location!"
+          );
+        } else if (status === "ARRIVED") {
+          sendProviderArrivedNotification(id);
+        } else if (status === "COMPLETED") {
+          sendServiceCompletedNotification(id, activeBooking?.pricing?.finalAmount || 589);
+        }
+      };
+
+      socketClient.on("booking:status-changed", (data: any) => {
+        if (data.status) handleStatusUpdate(data.status, data.timeline);
+      });
+
+      socketClient.on("booking:status_update", (data: any) => {
+        if (data.status) handleStatusUpdate(data.status, data.timeline);
+      });
+
+      socketClient.on(`booking:${id}:status`, (data: any) => {
+        if (data.status) handleStatusUpdate(data.status, data.timeline);
       });
     } catch {
       // Offline fallback

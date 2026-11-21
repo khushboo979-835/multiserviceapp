@@ -25,7 +25,7 @@ import { Category, Subcategory, Booking, BookingStatus } from "../../../src/type
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 import SafeImage from "../../../src/components/common/SafeImage";
-import { catalogKeys, fetchCatalogBanners, fetchCatalogCategories, fetchCatalogProducts } from "../../../src/api/catalog";
+import { catalogKeys, fetchCatalogBanners, fetchCatalogCategories, fetchCatalogOffers, fetchCatalogProducts } from "../../../src/api/catalog";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
@@ -121,9 +121,11 @@ export default function CustomerHomeScreen() {
   const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: catalogKeys.categories, queryFn: () => fetchCatalogCategories(), staleTime: 0 });
   const bannersQuery = useQuery({ queryKey: catalogKeys.banners, queryFn: () => fetchCatalogBanners(), staleTime: 0 });
+  const offersQuery = useQuery({ queryKey: catalogKeys.offers, queryFn: () => fetchCatalogOffers(), staleTime: 0 });
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: () => fetchCatalogProducts(), staleTime: 0 });
   const categories = (categoriesQuery.data && categoriesQuery.data.length > 0) ? categoriesQuery.data : MOCK_CATEGORIES;
   const banners = bannersQuery.data ?? [];
+  const specialOffers = (offersQuery.data && offersQuery.data.length > 0) ? offersQuery.data : banners;
   const topDeals = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
   const shopsQuery = useQuery({ queryKey: ["nearbyShops"], queryFn: async () => { try { const res = await apiClient.get("/shops"); return res.data?.shops || []; } catch { return []; } }, staleTime: 60000 });
   const localShops = (shopsQuery.data && shopsQuery.data.length > 0) ? shopsQuery.data : [
@@ -138,6 +140,7 @@ export default function CustomerHomeScreen() {
     useCallback(() => {
       categoriesQuery.refetch();
       bannersQuery.refetch();
+      offersQuery.refetch();
       productsQuery.refetch();
     }, [categoriesQuery, bannersQuery, productsQuery])
   );
@@ -176,6 +179,25 @@ export default function CustomerHomeScreen() {
   const [liveLocation, setLiveLocation] = useState<UserAddressDetails | null>(null);
   const [detectingGps, setDetectingGps] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+  const [activeOfferIndex, setActiveOfferIndex] = useState(0);
+  const offersScrollRef = useRef<ScrollView>(null);
+
+  // Auto-scroll Special Offers banner slider every 4.5 seconds
+  useEffect(() => {
+    if (specialOffers.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveOfferIndex((prev) => {
+        const nextIndex = (prev + 1) % specialOffers.length;
+        const screenWidth = Dimensions.get('window').width;
+        offersScrollRef.current?.scrollTo({
+          x: nextIndex * (screenWidth - 32),
+          animated: true,
+        });
+        return nextIndex;
+      });
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [specialOffers.length]);
 
   // Modals State
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
@@ -599,6 +621,79 @@ export default function CustomerHomeScreen() {
             <View style={styles.hubActionRow}>
               <Text style={styles.hubActionTextOrange}>Shop Store</Text>
               <ArrowRight size={14} color="#ea580c" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Secondary Hub Row: (1) Inisha Food & (2) Inisha Grocery */}
+        <View style={styles.foodGroceryHubContainer}>
+          {/* 1. Inisha Food Hub */}
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedShopFilter('RESTAURANT');
+              const foodShop = localShops.find((s: any) => s.category === 'RESTAURANT' || s.category === 'SWEETS_BAKERY');
+              if (foodShop) {
+                router.push(`/(customer)/shop/${foodShop.shopId}` as any);
+              } else {
+                router.push({
+                  pathname: '/(customer)/(tabs)/explore',
+                  params: { tab: 'FOOD' },
+                } as any);
+              }
+            }}
+            style={styles.hubCardFood}
+            activeOpacity={0.88}
+          >
+            <View style={styles.hubCardHeader}>
+              <View style={[styles.hubIconCircle, { backgroundColor: '#fee2e2' }]}>
+                <Utensils size={24} color='#dc2626' />
+              </View>
+              <View style={styles.hubBadgeRed}>
+                <Text style={styles.hubBadgeRedText}>30-Min Delivery</Text>
+              </View>
+            </View>
+            <Text style={styles.hubCardTitle}>Inisha Food</Text>
+            <Text style={styles.hubCardSub} numberOfLines={2}>
+              Restaurants, Biryani, Fast Food & Hot Meals
+            </Text>
+            <View style={styles.hubActionRow}>
+              <Text style={styles.hubActionTextRed}>Order Food -&gt;</Text>
+              <ArrowRight size={14} color='#dc2626' />
+            </View>
+          </TouchableOpacity>
+
+          {/* 2. Inisha Grocery Hub */}
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedShopFilter('GROCERY');
+              const grocShop = localShops.find((s: any) => s.category === 'GROCERY');
+              if (grocShop) {
+                router.push(`/(customer)/shop/${grocShop.shopId}` as any);
+              } else {
+                router.push({
+                  pathname: '/(customer)/(tabs)/explore',
+                  params: { tab: 'GROCERY' },
+                } as any);
+              }
+            }}
+            style={styles.hubCardGrocery}
+            activeOpacity={0.88}
+          >
+            <View style={styles.hubCardHeader}>
+              <View style={[styles.hubIconCircle, { backgroundColor: '#dcfce7' }]}>
+                <Store size={24} color='#16a34a' />
+              </View>
+              <View style={styles.hubBadgeGreen}>
+                <Text style={styles.hubBadgeGreenText}>10-Min Fast</Text>
+              </View>
+            </View>
+            <Text style={styles.hubCardTitle}>Inisha Grocery</Text>
+            <Text style={styles.hubCardSub} numberOfLines={2}>
+              Fresh Vegetables, Daily Essentials, Atta & Oil
+            </Text>
+            <View style={styles.hubActionRow}>
+              <Text style={styles.hubActionTextGreen}>Shop Grocery -&gt;</Text>
+              <ArrowRight size={14} color='#16a34a' />
             </View>
           </TouchableOpacity>
         </View>
@@ -1028,29 +1123,93 @@ export default function CustomerHomeScreen() {
           </ScrollView>
         </View>
 
-        {/* 7. Why Choose Inisha? (Matching Image 1) */}
-        <View style={styles.whyChooseSection}>
-          <Text style={styles.whyChooseTitle}>Why Choose Inisha?</Text>
-          <View style={styles.whyChooseRow}>
-            <View style={styles.whyChooseItem}>
-              <ShieldCheck size={20} color="#0f172a" />
-              <Text style={styles.whyChooseLabel}>Verified{"\n"}Professionals</Text>
+        {/* Special Offers Banner Carousel (Dynamic Admin /api/offers) */}
+        <View style={styles.offersSectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Sparkles size={18} color='#dc2626' />
+                <Text style={styles.sectionTitle}>Special Offers & Top Deals 🔥</Text>
+              </View>
+              <Text style={styles.sectionSubtitle}>
+                Exclusive discounts on doorstep services, food & groceries
+              </Text>
             </View>
+          </View>
 
-            <View style={styles.whyChooseItem}>
-              <Zap size={20} color="#0f172a" />
-              <Text style={styles.whyChooseLabel}>Fast{"\n"}Service</Text>
-            </View>
+          <ScrollView
+            ref={offersScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={(e) => {
+              const slide = Math.round(
+                e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - 32)
+              );
+              setActiveOfferIndex(slide);
+            }}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.offersScrollContent}
+          >
+            {specialOffers.map((offer, idx) => (
+              <TouchableOpacity
+                key={offer.id || `offer-${idx}`}
+                style={styles.offerSlideCard}
+                activeOpacity={0.9}
+                onPress={() => {
+                  const target = (offer.targetCategory || '').toLowerCase();
+                  if (target.includes('food') || target.includes('restaurant')) {
+                    const foodShop = localShops.find((s: any) => s.category === 'RESTAURANT' || s.category === 'SWEETS_BAKERY');
+                    if (foodShop) router.push(`/(customer)/shop/${foodShop.shopId}` as any);
+                    else router.push('/(customer)/(tabs)/explore' as any);
+                  } else if (target.includes('grocery')) {
+                    const grocShop = localShops.find((s: any) => s.category === 'GROCERY');
+                    if (grocShop) router.push(`/(customer)/shop/${grocShop.shopId}` as any);
+                    else router.push('/(customer)/(tabs)/explore' as any);
+                  } else if (target.includes('mobile') || target.includes('repair')) {
+                    setIsBrandModalOpen(true);
+                  } else if (target.includes('store') || target.includes('product')) {
+                    router.push('/(customer)/(tabs)/explore' as any);
+                  } else {
+                    setIsAllServicesOpen(true);
+                  }
+                }}
+              >
+                <View style={styles.offerTextCol}>
+                  <View style={styles.offerTagBadge}>
+                    <Text style={styles.offerTagBadgeText}>{offer.tag || 'SPECIAL OFFER'}</Text>
+                  </View>
+                  <Text style={styles.offerCardTitle} numberOfLines={2}>
+                    {offer.title}
+                  </Text>
+                  {offer.subtitle ? (
+                    <Text style={styles.offerCardSubtitle} numberOfLines={2}>
+                      {offer.subtitle}
+                    </Text>
+                  ) : null}
+                  <View style={styles.offerCtaBtn}>
+                    <Text style={styles.offerCtaBtnText}>Claim Offer</Text>
+                    <ArrowRight size={13} color='#ffffff' />
+                  </View>
+                </View>
+                <View style={styles.offerImgBox}>
+                  <SafeImage uri={offer.imageUrl} style={styles.offerImg} resizeMode='cover' />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-            <View style={styles.whyChooseItem}>
-              <Lock size={20} color="#0f172a" />
-              <Text style={styles.whyChooseLabel}>Secure{"\n"}Payment</Text>
-            </View>
-
-            <View style={styles.whyChooseItem}>
-              <MapPin size={20} color="#0f172a" />
-              <Text style={styles.whyChooseLabel}>Local{"\n"}Service</Text>
-            </View>
+          {/* Offer Dots Pagination */}
+          <View style={styles.dotsPagination}>
+            {specialOffers.map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.dotItem,
+                  activeOfferIndex === idx && styles.dotItemActive,
+                ]}
+              />
+            ))}
           </View>
         </View>
 
@@ -2290,5 +2449,152 @@ const styles = StyleSheet.create({
   },
   shopFilterChipTextActive: {
     color: "#ffffff",
+  },
+  foodGroceryHubContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  hubCardFood: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    justifyContent: 'space-between',
+  },
+  hubCardGrocery: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#dcfce7',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    justifyContent: 'space-between',
+  },
+  hubBadgeRed: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  hubBadgeRedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#dc2626',
+  },
+  hubBadgeGreen: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  hubBadgeGreenText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#16a34a',
+  },
+  hubActionTextRed: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
+  hubActionTextGreen: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#16a34a',
+  },
+  offersSectionContainer: {
+    marginBottom: 20,
+  },
+  offersScrollContent: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  offerSlideCard: {
+    width: Dimensions.get('window').width - 32,
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  offerTextCol: {
+    flex: 1,
+    paddingRight: 12,
+    justifyContent: 'space-between',
+  },
+  offerTagBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  offerTagBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  offerCardTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#ffffff',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  offerCardSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    lineHeight: 15,
+    marginBottom: 10,
+  },
+  offerCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  offerCtaBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  offerImgBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#1e293b',
+  },
+  offerImg: {
+    width: '100%',
+    height: '100%',
   },
 });

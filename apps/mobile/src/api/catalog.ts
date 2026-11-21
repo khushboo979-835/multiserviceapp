@@ -6,6 +6,7 @@ export const catalogKeys = {
   categories: ["catalog", "categories"] as const,
   products: ["catalog", "products"] as const,
   banners: ["catalog", "banners"] as const,
+  offers: ["catalog", "offers"] as const,
 };
 
 export interface CatalogBanner {
@@ -194,4 +195,24 @@ export const fetchCatalogBanners = async (): Promise<CatalogBanner[]> => {
     isActive: item.isActive !== false,
     order: numberOr(item.order, index),
   }));
+};
+
+export const fetchCatalogOffers = async (): Promise<CatalogBanner[]> => {
+  try {
+    const data = await fetchJson("/offers");
+    const rawList = asList(data, "offers").length > 0 ? asList(data, "offers") : asList(data, "banners");
+    if (!rawList || rawList.length === 0) return fetchCatalogBanners();
+    return rawList.filter((item) => item && item.isActive !== false).map((item, index) => ({
+      id: nonEmptyString(item.id || item._id, `offer-${index}`),
+      title: nonEmptyString(item.title, "Special Offer"),
+      subtitle: nonEmptyString(item.subtitle, ""),
+      tag: nonEmptyString(item.tag, "SPECIAL OFFER"),
+      imageUrl: nonEmptyString(item.imageUrl, "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80"),
+      targetCategory: nonEmptyString(item.targetCategory, "All Services"),
+      isActive: item.isActive !== false,
+      order: numberOr(item.order, index),
+    }));
+  } catch {
+    return fetchCatalogBanners();
+  }
 };

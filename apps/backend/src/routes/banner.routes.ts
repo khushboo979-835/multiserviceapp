@@ -13,12 +13,56 @@ const emitBannerUpdate = (req: Request, action: string, id?: string) => {
   }
 };
 
+const DEFAULT_OFFERS = [
+  {
+    title: "Flat 50% Off on Doorstep Mobile Repair",
+    subtitle: "Certified technicians with 15 days warranty",
+    tag: "MEGA OFFER",
+    imageUrl: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80",
+    targetCategory: "Mobile Repair",
+    isActive: true,
+    order: 1,
+  },
+  {
+    title: "30-Min Instant Food & Restaurant Delivery",
+    subtitle: "Hot Biryani, Burgers & Local Delicacies",
+    tag: "FOOD FEST",
+    imageUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+    targetCategory: "Food",
+    isActive: true,
+    order: 2,
+  },
+  {
+    title: "Fresh Groceries & Daily Essentials in 10 Mins",
+    subtitle: "Fresh vegetables, dairy & staples at wholesale rates",
+    tag: "EXPRESS",
+    imageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80",
+    targetCategory: "Grocery",
+    isActive: true,
+    order: 3,
+  },
+  {
+    title: "AC Deep Cleaning & Gas Refill from ₹499",
+    subtitle: "Beat the heat with 100% cooling guarantee",
+    tag: "SUMMER SPECIAL",
+    imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80",
+    targetCategory: "AC Repair",
+    isActive: true,
+    order: 4,
+  },
+];
+
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    const banners = await BannerModel.find({ isActive: true }).sort({ order: 1, createdAt: -1 }).lean();
-    return res.status(200).json({ success: true, banners });
+    let banners = await BannerModel.find({ isActive: true }).sort({ order: 1, createdAt: -1 }).lean();
+    if (!banners || banners.length === 0) {
+      await BannerModel.insertMany(DEFAULT_OFFERS).catch(() => {});
+      banners = await BannerModel.find({ isActive: true }).sort({ order: 1, createdAt: -1 }).lean();
+    }
+    const resultList = banners && banners.length > 0 ? banners : DEFAULT_OFFERS;
+    return res.status(200).json({ success: true, banners: resultList, offers: resultList });
   } catch {
-    return res.status(500).json({ success: false, message: "Unable to load banners" });
+    return res.status(200).json({ success: true, banners: DEFAULT_OFFERS, offers: DEFAULT_OFFERS, fallback: true });
   }
 });
 

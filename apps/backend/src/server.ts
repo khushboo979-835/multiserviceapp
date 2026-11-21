@@ -16,6 +16,7 @@ import mediaRouter from "./routes/media.routes";
 import shopRouter from "./routes/shop.routes";
 import orderRouter from "./routes/order.routes";
 import deliveryRouter from "./routes/delivery.routes";
+import { MobileRepair, ensureDefaultMobileRepairs, DEFAULT_MOBILE_REPAIRS } from "./models/MobileRepair";
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +50,27 @@ app.use("/api/media", mediaRouter);
 app.use("/api/shops", shopRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/delivery", deliveryRouter);
+
+// Public Mobile Repairs Catalog API
+app.get("/api/mobile-repairs", async (req, res) => {
+  try {
+    let list = await MobileRepair.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 });
+    if (!list || list.length === 0) {
+      await ensureDefaultMobileRepairs();
+      list = await MobileRepair.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 });
+    }
+    return res.status(200).json({
+      success: true,
+      repairs: list && list.length > 0 ? list : DEFAULT_MOBILE_REPAIRS,
+    });
+  } catch (error: any) {
+    return res.status(200).json({
+      success: true,
+      repairs: DEFAULT_MOBILE_REPAIRS,
+      fallback: true,
+    });
+  }
+});
 
 // Initialize MongoDB Atlas connection
 connectDB();

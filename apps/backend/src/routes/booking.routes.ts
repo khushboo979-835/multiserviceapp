@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createBooking,
+  createRepairBooking,
   getBookingById,
   getAllBookings,
   updateTelemetry,
@@ -11,6 +12,7 @@ import {
 const router = Router();
 
 router.post("/", createBooking);
+router.post("/repair", createRepairBooking);
 router.get("/admin/all", getAllBookings);
 router.get("/all", getAllBookings);
 router.get("/:id", getBookingById);

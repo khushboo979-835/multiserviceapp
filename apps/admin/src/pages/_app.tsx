@@ -78,6 +78,7 @@ export default function App({ Component, pageProps }: AppProps) {
     { name: "Delivery Fleet", href: "/fleet", icon: Bike },
     { name: "Products & Inventory", href: "/products", icon: Package },
     { name: "Categories & Services", href: "/categories", icon: Layers },
+    { name: "Mobile Repairs Catalog", href: "/mobile-repairs", icon: Smartphone },
     { name: "User Management", href: "/users", icon: Users },
     { name: "Provider & KYC", href: "/providers", icon: UserCheck },
     { name: "Booking Management", href: "/bookings", icon: Briefcase },

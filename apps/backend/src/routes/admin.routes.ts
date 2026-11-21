@@ -5,6 +5,7 @@ import { ProviderProfile } from "../models/ProviderProfile";
 import { Booking } from "../models/Booking";
 import { Service } from "../models/Service";
 import { AdminSettings } from "../models/AdminSettings";
+import { MobileRepair, DEFAULT_MOBILE_REPAIRS, ensureDefaultMobileRepairs } from "../models/MobileRepair";
 import { constantTimeStringEqual, createAdminToken, requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
@@ -721,6 +722,115 @@ router.post("/commissions/update", async (req: Request, res: Response) => {
       success: true,
       message: "Commission settings updated successfully",
       settings,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * 15. Mobile Repairs Management (Admin Dynamic Control)
+ * GET /api/admin/mobile-repairs
+ */
+router.get("/mobile-repairs", async (req: Request, res: Response) => {
+  try {
+    let list = await MobileRepair.find().sort({ sortOrder: 1, createdAt: 1 });
+    if (!list || list.length === 0) {
+      await ensureDefaultMobileRepairs();
+      list = await MobileRepair.find().sort({ sortOrder: 1, createdAt: 1 });
+    }
+    return res.status(200).json({
+      success: true,
+      repairs: list,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/mobile-repairs
+ * Create or Upsert a Brand Repair Entry
+ */
+router.post("/mobile-repairs", async (req: Request, res: Response) => {
+  try {
+    const { brandId, brandName, logoUrl, models, repairs, isActive, sortOrder } = req.body;
+    if (!brandName) {
+      return res.status(400).json({ success: false, message: "Brand name is required" });
+    }
+
+    const normalizedBrandId = brandId || `brand_${brandName.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+
+    const updated = await MobileRepair.findOneAndUpdate(
+      { brandId: normalizedBrandId },
+      {
+        brandId: normalizedBrandId,
+        brandName,
+        logoUrl: logoUrl || "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_300/v1795239017/inisha/brands/apple_logo.png",
+        models: Array.isArray(models) ? models : [],
+        repairs: Array.isArray(repairs) ? repairs : [],
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Mobile repair brand saved successfully",
+      brand: updated,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/mobile-repairs/:id
+ * Update Brand, Models, Problem Types, or Pricing
+ */
+router.put("/mobile-repairs/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { brandName, logoUrl, models, repairs, isActive, sortOrder } = req.body;
+
+    const query = id.startsWith("brand_") ? { brandId: id } : { _id: id };
+    const existing = await MobileRepair.findOne(query);
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Mobile repair brand not found" });
+    }
+
+    if (brandName) existing.brandName = brandName;
+    if (logoUrl) existing.logoUrl = logoUrl;
+    if (models && Array.isArray(models)) existing.models = models;
+    if (repairs && Array.isArray(repairs)) existing.repairs = repairs;
+    if (isActive !== undefined) existing.isActive = Boolean(isActive);
+    if (sortOrder !== undefined) existing.sortOrder = Number(sortOrder);
+
+    await existing.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Mobile repair brand updated successfully",
+      brand: existing,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/mobile-repairs/:id
+ */
+router.delete("/mobile-repairs/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const query = id.startsWith("brand_") ? { brandId: id } : { _id: id };
+    await MobileRepair.deleteOne(query);
+    return res.status(200).json({
+      success: true,
+      message: "Mobile repair brand deleted successfully",
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

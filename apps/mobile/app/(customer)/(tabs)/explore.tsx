@@ -41,6 +41,7 @@ import { MobileBrand } from "../../../src/types";
 import { useCartStore } from "../../../src/store/useCartStore";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import SafeImage from "../../../src/components/common/SafeImage";
+import BrandRepairModal from "../../../src/components/booking/BrandRepairModal";
 import { catalogKeys, fetchCatalogProducts } from "../../../src/api/catalog";
 
 const { width } = Dimensions.get("window");
@@ -470,87 +471,13 @@ export default function ExploreScreen() {
         </View>
       )}
 
-      {/* Brand Model & Repair Selection Modal */}
+      {/* Brand Model & Doorstep Repair Modal */}
       {selectedBrandModal && (
-        <Modal
-          visible={true}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setSelectedBrandModal(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.brandModalContent}>
-              <View style={styles.modalHeader}>
-                <View style={styles.brandModalTitleRow}>
-                  <SafeImage uri={selectedBrandModal.logoUrl} style={styles.modalBrandLogo} resizeMode="contain" />
-                  <View>
-                    <Text style={styles.modalBrandTitle}>
-                      {selectedBrandModal.name} Official Services
-                    </Text>
-                    <Text style={styles.modalBrandSub}>
-                      Doorstep Repair • 15 Days Warranty
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => setSelectedBrandModal(null)}
-                >
-                  <X size={20} color="#64748b" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
-                <Text style={styles.modalSectionTitle}>Popular Models</Text>
-                <View style={styles.modelsGrid}>
-                  {selectedBrandModal.models.map((model, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={styles.modelPill}
-                      onPress={() => {
-                        setSelectedBrandModal(null);
-                        setSearchQuery(model);
-                      }}
-                    >
-                      <Text style={styles.modelPillText}>{model}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={[styles.modalSectionTitle, { marginTop: 18 }]}>
-                  Common Repairs & Pricing
-                </Text>
-                <View style={styles.repairsList}>
-                  {selectedBrandModal.repairs.map((repair, idx) => (
-                    <View key={idx} style={styles.repairItem}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.repairName}>{repair.name}</Text>
-                        <Text style={styles.repairWarranty}>✓ 100% Genuine Parts</Text>
-                      </View>
-                      <Text style={styles.repairPrice}>₹{repair.price}</Text>
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.brandActionBtn}
-                onPress={() => {
-                  const bName = selectedBrandModal.name;
-                  setSelectedBrandModal(null);
-                  router.push({
-                    pathname: "/(customer)/(tabs)",
-                    params: { id: "cat_mobile", brand: bName, action: "book" },
-                  });
-                }}
-              >
-                <Text style={styles.brandActionBtnText}>
-                  Book Doorstep {selectedBrandModal.name} Repair
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <BrandRepairModal
+          visible={!!selectedBrandModal}
+          initialBrand={selectedBrandModal?.name || "Apple"}
+          onClose={() => setSelectedBrandModal(null)}
+        />
       )}
 
       {/* Sort / Filter Modal */}

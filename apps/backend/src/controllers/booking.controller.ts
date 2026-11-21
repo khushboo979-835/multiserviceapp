@@ -89,6 +89,113 @@ export const createBooking = async (req: Request, res: Response) => {
 };
 
 /**
+ * 1b. Create a Doorstep Mobile Repair Booking
+ * POST /api/bookings/repair
+ */
+export const createRepairBooking = async (req: Request, res: Response) => {
+  try {
+    const {
+      brand,
+      model,
+      selectedIssues,
+      customProblem,
+      totalAmount,
+      userId,
+      address,
+      customerName,
+      customerPhone,
+      scheduledDate,
+      scheduledTime,
+      paymentMethod,
+    } = req.body;
+
+    const startServiceOtp = crypto.randomInt(1000, 10000).toString();
+
+    // Look for available online provider
+    const availableProvider = await ProviderProfile.findOne({
+      isOnline: true,
+      isApproved: true,
+    }).catch(() => null);
+
+    let formattedAddress = "Customer Doorstep Address";
+    let latitude = 25.5941;
+    let longitude = 85.1376;
+
+    if (typeof address === "string" && address.trim().length > 0) {
+      formattedAddress = address.trim();
+    } else if (address && typeof address === "object") {
+      formattedAddress = address.formattedAddress || address.address || address.street || formattedAddress;
+      if (typeof address.latitude === "number") latitude = address.latitude;
+      if (typeof address.longitude === "number") longitude = address.longitude;
+    }
+
+    const calculatedTotal = Number(totalAmount) > 0 ? Number(totalAmount) : 499;
+    const basePrice = Math.max(1, Math.round(calculatedTotal * 0.85));
+    const tax = calculatedTotal - basePrice;
+
+    const issuesList = Array.isArray(selectedIssues)
+      ? selectedIssues.map((it) => (typeof it === "string" ? it : it?.name || JSON.stringify(it)))
+      : [];
+
+    const newBooking = await Booking.create({
+      customerId: userId || "usr_guest",
+      customerName: customerName || "Inisha Customer",
+      customerPhone: customerPhone || "+91 95078 60048",
+      providerId: availableProvider?.partnerId || "INP-TECH-01",
+      providerName: availableProvider?.name || "Certified Mobile Technician",
+      providerPhone: availableProvider?.phone || "+91 98123 45678",
+      categoryId: "cat_mobile",
+      subcategoryId: "sub_mob_doorstep",
+      formValues: {
+        brand: brand || "Generic",
+        model: model || "Smartphone",
+        selectedIssues: issuesList,
+        customProblem: customProblem || "",
+        serviceCategory: "Mobile Doorstep Repair",
+        warrantyDays: 15,
+      },
+      selectedAddress: {
+        formattedAddress,
+        latitude,
+        longitude,
+      },
+      status: availableProvider ? "ASSIGNED" : "PENDING_PROVIDER",
+      startServiceOtp,
+      paymentMethod: paymentMethod || "CASH_AFTER_SERVICE",
+      paymentStatus: "PENDING",
+      pricing: {
+        basePrice,
+        tax,
+        commission: Math.round(basePrice * 0.15),
+        couponDiscount: 0,
+        addOnPrice: 0,
+        providerEarnings: Math.round(basePrice * 0.85),
+        finalAmount: calculatedTotal,
+      },
+      timeline: [
+        {
+          status: "ASSIGNED",
+          timestamp: new Date(),
+          note: `Mobile repair booked for ${brand} ${model}. Technician will arrive with genuine spares.`,
+        },
+      ],
+      scheduledDate: scheduledDate || new Date().toISOString().split("T")[0],
+      scheduledTime: scheduledTime || "Within 60 Minutes",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Doorstep mobile repair booked successfully",
+      booking: newBooking,
+      startServiceOtp,
+    });
+  } catch (error: any) {
+    console.error("createRepairBooking error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * 2. Get booking details by ID
  * GET /api/bookings/:id
  */

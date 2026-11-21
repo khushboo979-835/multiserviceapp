@@ -873,7 +873,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_apple",
     name: "Apple",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/500px-Apple_logo_black.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_300/v1795239017/inisha/brands/apple_logo.png",
     models: ["iPhone 16 Pro Max", "iPhone 16", "iPhone 15 Pro", "iPhone 15", "iPhone 14", "iPhone 13", "iPhone 12", "iPhone 11"],
     repairs: [
       { name: "Original Retina OLED Screen", price: 3499 },
@@ -885,7 +885,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_samsung",
     name: "Samsung",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Samsung_Logo.svg/500px-Samsung_Logo.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_400/v1795239019/inisha/brands/samsung_logo.png",
     models: ["Galaxy S24 Ultra", "Galaxy S23", "Galaxy Z Fold 5", "Galaxy A55", "Galaxy M34 5G", "Galaxy F54"],
     repairs: [
       { name: "Dynamic AMOLED 2X Display", price: 2999 },
@@ -897,7 +897,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_xiaomi",
     name: "Xiaomi / Redmi",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Xiaomi_logo_%282021-%29.svg/500px-Xiaomi_logo_%282021-%29.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_300/v1795239021/inisha/brands/xiaomi_logo.png",
     models: ["Redmi Note 13 Pro+", "Redmi Note 12 5G", "Redmi 13C", "Xiaomi 14", "Xiaomi 13 Pro"],
     repairs: [
       { name: "120Hz AMOLED Screen Glass", price: 1499 },
@@ -909,7 +909,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_oneplus",
     name: "OnePlus",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/OP_LU_Reg_1_Line_POS_RGB.svg/500px-OP_LU_Reg_1_Line_POS_RGB.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_300/v1795239023/inisha/brands/oneplus_logo.png",
     models: ["OnePlus 12", "OnePlus 12R", "OnePlus 11", "OnePlus Nord CE 4", "OnePlus 10T"],
     repairs: [
       { name: "Fluid AMOLED Display (No Green Line)", price: 2799 },
@@ -921,7 +921,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_realme",
     name: "Realme",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Realme_logo.svg/500px-Realme_logo.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_400/v1795239025/inisha/brands/realme_logo.png",
     models: ["Realme 12 Pro+ 5G", "Realme GT 6", "Realme Narzo 70 Pro", "Realme 11", "Realme C67"],
     repairs: [
       { name: "Curved Vision Display Replacement", price: 1699 },
@@ -933,7 +933,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_vivo",
     name: "Vivo",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Vivo_mobile_logo.png/500px-Vivo_mobile_logo.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_400/v1795239026/inisha/brands/vivo_logo.png",
     models: ["Vivo V30 Pro", "Vivo X100", "Vivo T3 5G", "Vivo Y200", "Vivo V29"],
     repairs: [
       { name: "3D Curved AMOLED Screen", price: 1999 },
@@ -945,7 +945,7 @@ export const MOCK_BRANDS: import("../types").MobileBrand[] = [
   {
     id: "brand_oppo",
     name: "OPPO",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/OPPO_Logo.svg/500px-OPPO_Logo.svg.png",
+    logoUrl: "https://res.cloudinary.com/gln413tb/image/upload/f_png,w_400/v1795239027/inisha/brands/oppo_logo.png",
     models: ["OPPO Reno 11 Pro", "OPPO Find X7", "OPPO F25 Pro", "OPPO A79 5G", "OPPO K12x"],
     repairs: [
       { name: "OLED Borderless Display", price: 1899 },

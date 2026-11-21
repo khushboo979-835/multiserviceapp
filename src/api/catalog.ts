@@ -140,10 +140,28 @@ export const normalizeProduct = (item: any, index = 0): Product => {
       })).filter((s: any) => s.label && s.value)
     : undefined;
 
+  const catType = productCategory(item.categoryName || item.category);
+  const nameLower = String(item.name || "").toLowerCase();
+  let finalImg = images[0] || imageUrl;
+
+  // Protect against mismatched or placeholder photos on fashion & grocery products
+  if (
+    !finalImg ||
+    (finalImg.includes("581578731548") && (catType === "WOMENS_FASHION" || nameLower.includes("kurti") || nameLower.includes("saree") || nameLower.includes("suit")))
+  ) {
+    if (catType === "WOMENS_FASHION" || nameLower.includes("kurti") || nameLower.includes("saree")) {
+      finalImg = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&q=80";
+    } else if (catType === "GROCERY" || nameLower.includes("fruit") || nameLower.includes("veg") || nameLower.includes("atta")) {
+      finalImg = "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80";
+    }
+  }
+
+  const resolvedImages = images.length > 0 && images[0] === finalImg ? images : [finalImg];
+
   return {
     id: nonEmptyString(item.id || item._id, `product-${index}`),
     name: nonEmptyString(item.name, "Product"),
-    category: productCategory(item.categoryName || item.category),
+    category: catType,
     categoryName: nonEmptyString(item.categoryName || item.category, "General"),
     description: nonEmptyString(item.description, ""),
     price,
@@ -154,8 +172,8 @@ export const normalizeProduct = (item: any, index = 0): Product => {
       originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0
     ),
     unit: nonEmptyString(item.unit, "1 Unit"),
-    imageUrl: images[0] || imageUrl,
-    images: images.length > 0 ? images : [imageUrl || "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&q=80"],
+    imageUrl: finalImg,
+    images: resolvedImages,
     inStock: item.inStock !== false && !(typeof item.stock === "number" && item.stock <= 0),
     stock: numberOr(item.stock, 100),
     rating: numberOr(item.rating, 4.8),
@@ -175,7 +193,9 @@ export const normalizeProduct = (item: any, index = 0): Product => {
 export const fetchCatalogProducts = async (category?: string): Promise<Product[]> => {
   const queryParam = category && category !== "ALL" ? `?category=${encodeURIComponent(category)}` : "";
   const list = asList(await fetchJson(`/ecommerce/products${queryParam}`), "products");
-  return list.filter((item) => item && typeof item === "object").map((item, index) => normalizeProduct(item, index));
+  return list
+    .filter((item) => item && typeof item === "object" && (Number(item.price) > 0 || Number(item.mrp) > 0))
+    .map((item, index) => normalizeProduct(item, index));
 };
 
 export const fetchProductDetails = async (id: string): Promise<Product> => {

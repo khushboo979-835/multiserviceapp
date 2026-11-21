@@ -545,7 +545,9 @@ seedInitialCatalog();
 router.get("/products", async (req: Request, res: Response) => {
   try {
     const { category, search } = req.query;
-    let query: any = {};
+    let query: any = {
+      price: { $gt: 0 },
+    };
 
     if (category && category !== "ALL" && category !== "all") {
       const catStr = String(category).trim();

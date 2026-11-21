@@ -126,7 +126,9 @@ export default function CustomerHomeScreen() {
   const categories = (categoriesQuery.data && categoriesQuery.data.length > 0) ? categoriesQuery.data : MOCK_CATEGORIES;
   const banners = bannersQuery.data ?? [];
   const specialOffers = (offersQuery.data && offersQuery.data.length > 0) ? offersQuery.data : banners;
-  const topDeals = (productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS;
+  const topDeals = ((productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS).filter(
+    (p) => Number(p.price) > 0 && !p.name?.toLowerCase().includes("home")
+  );
   const shopsQuery = useQuery({ queryKey: ["nearbyShops"], queryFn: async () => { try { const res = await apiClient.get("/shops"); return res.data?.shops || []; } catch { return []; } }, staleTime: 60000 });
   const localShops = (shopsQuery.data && shopsQuery.data.length > 0) ? shopsQuery.data : [
     { shopId: "shop_bihar_sweets_101", name: "Patna Special Sweets & Chaat", category: "SWEETS_BAKERY", logoUrl: "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400&q=80", rating: 4.9, ratingsCount: 240, deliverySettings: { estimatedPrepMins: 15, baseDeliveryFee: 25 }, address: { street: "Kidwaipuri", city: "Patna" } },
@@ -651,7 +653,7 @@ export default function CustomerHomeScreen() {
               Restaurants, Biryani, Fast Food & Hot Meals
             </Text>
             <View style={styles.hubActionRow}>
-              <Text style={styles.hubActionTextRed}>Order Food -&gt;</Text>
+              <Text style={styles.hubActionTextRed}>Order Food</Text>
               <ArrowRight size={14} color='#dc2626' />
             </View>
           </TouchableOpacity>
@@ -680,7 +682,7 @@ export default function CustomerHomeScreen() {
               Fresh Vegetables, Daily Essentials, Atta & Oil
             </Text>
             <View style={styles.hubActionRow}>
-              <Text style={styles.hubActionTextGreen}>Shop Grocery -&gt;</Text>
+              <Text style={styles.hubActionTextGreen}>Shop Grocery</Text>
               <ArrowRight size={14} color='#16a34a' />
             </View>
           </TouchableOpacity>
@@ -702,50 +704,82 @@ export default function CustomerHomeScreen() {
           <ChevronRight size={18} color="#94a3b8" />
         </View>
 
-        {/* 3. Admin-managed hero carousel */}
-        <View style={styles.bannerCarouselContainer}>
+        {/* 3. Special Offers Banner Carousel (Single Auto-Scrolling Carousel) */}
+        <View style={styles.offersSectionContainer}>
           <ScrollView
+            ref={offersScrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onScroll={(e) => {
               const slide = Math.round(
-                e.nativeEvent.contentOffset.x / (Dimensions.get("window").width - 36)
+                e.nativeEvent.contentOffset.x / (Dimensions.get("window").width - 32)
               );
-              setActiveBannerIndex(slide);
+              setActiveOfferIndex(slide);
             }}
             scrollEventThrottle={16}
+            contentContainerStyle={styles.offersScrollContent}
           >
-            {banners.map((banner) => (
-              <View key={banner.id} style={styles.bannerSlideCard}>
-                <View style={styles.bannerTextContent}>
-                  <Text style={styles.bannerTagText}>{banner.tag}</Text>
-                  <Text style={styles.bannerTitleText}>{banner.title}</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const target = banner.targetCategory.toLowerCase();
-                      if (target.includes("store") || target.includes("product") || target.includes("grocery")) setIsStoreOpen(true);
-                      else setIsAllServicesOpen(true);
-                    }}
-                    style={styles.bannerActionBtn}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.bannerActionBtnText}>Explore</Text>
-                  </TouchableOpacity>
-                </View>
-                <SafeImage uri={banner.imageUrl} style={styles.bannerImage} />
-              </View>
-            ))}
+            {specialOffers.map((offer, idx) => {
+              const offerTitle =
+                !offer.title || offer.title.toLowerCase() === "home" || offer.title.trim() === ""
+                  ? "Flat 50% Off on Doorstep Service"
+                  : offer.title;
+              const offerTag =
+                !offer.tag || offer.tag.toLowerCase() === "home" ? "SPECIAL OFFER" : offer.tag;
+              const offerSubtitle = offer.subtitle || "Book certified technicians & instant delivery";
+
+              return (
+                <TouchableOpacity
+                  key={offer.id || `offer-${idx}`}
+                  style={styles.offerSlideCard}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    const target = (offer.targetCategory || "").toLowerCase();
+                    if (target.includes("food") || target.includes("restaurant")) {
+                      router.push({ pathname: "/(customer)/shops", params: { category: "RESTAURANT" } } as any);
+                    } else if (target.includes("grocery")) {
+                      router.push({ pathname: "/(customer)/shops", params: { category: "GROCERY" } } as any);
+                    } else if (target.includes("mobile") || target.includes("repair")) {
+                      setIsBrandModalOpen(true);
+                    } else if (target.includes("store") || target.includes("product")) {
+                      router.push("/(customer)/(tabs)/explore" as any);
+                    } else {
+                      setIsAllServicesOpen(true);
+                    }
+                  }}
+                >
+                  <View style={styles.offerTextCol}>
+                    <View style={styles.offerTagBadge}>
+                      <Text style={styles.offerTagBadgeText}>{offerTag}</Text>
+                    </View>
+                    <Text style={styles.offerCardTitle} numberOfLines={2}>
+                      {offerTitle}
+                    </Text>
+                    <Text style={styles.offerCardSubtitle} numberOfLines={2}>
+                      {offerSubtitle}
+                    </Text>
+                    <View style={styles.offerCtaBtn}>
+                      <Text style={styles.offerCtaBtnText}>Claim Offer</Text>
+                      <ArrowRight size={13} color="#ffffff" />
+                    </View>
+                  </View>
+                  <View style={styles.offerImgBox}>
+                    <SafeImage uri={offer.imageUrl || "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80"} style={styles.offerImg} resizeMode="cover" />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* Dots Pagination */}
           <View style={styles.dotsPagination}>
-            {banners.map((banner, idx) => (
+            {specialOffers.map((_, idx) => (
               <View
-                key={banner.id}
+                key={idx}
                 style={[
                   styles.dotItem,
-                  activeBannerIndex === idx && styles.dotItemActive,
+                  activeOfferIndex === idx && styles.dotItemActive,
                 ]}
               />
             ))}
@@ -830,28 +864,17 @@ export default function CustomerHomeScreen() {
               <Text style={styles.circularCatLabel} numberOfLines={1}>Mobiles</Text>
             </TouchableOpacity>
 
-            {/* 5. ADD YOUR SHOP (Prominent Partner Onboarding Icon!) */}
-            <TouchableOpacity
-              onPress={() => setIsShopRegisterOpen(true)}
-              style={styles.circularCatItem}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.circularIconBox, { backgroundColor: "#fef3c7", borderWidth: 1.5, borderColor: "#f59e0b" }]}>
-                <Plus size={22} color="#b45309" />
-              </View>
-              <Text style={[styles.circularCatLabel, { color: "#b45309", fontWeight: "800" }]} numberOfLines={1}>+ Add Shop</Text>
-            </TouchableOpacity>
-
-            {/* 6. Dynamic Live Services from MongoDB (e.g. AC, Electrician, Plumber, Salon) */}
+            {/* 5-11. Dynamic Live Services from MongoDB (e.g. AC, Electrician, Plumber, Salon & Spa) */}
             {categories
               .filter((c) => c.id !== "cat_mobile" && !c.slug?.includes("mobile"))
-              .slice(0, 6)
+              .slice(0, 7)
               .map((cat, idx) => {
                 const bgColors = ["#fce7f3", "#ede9fe", "#cffafe", "#fef9c3", "#e0f2fe", "#d1fae5"];
                 const iconColors = ["#db2777", "#7c3aed", "#0891b2", "#ca8a04", "#0284c7", "#059669"];
                 const bgColor = bgColors[idx % bgColors.length];
                 const iconColor = iconColors[idx % iconColors.length];
                 const norm = (cat.imageUrl || (cat as any).iconName || cat.slug || cat.name || "").toLowerCase();
+                const displayName = cat.name.toLowerCase() === "salon" ? "Salon & Spa" : cat.name;
 
                 return (
                   <TouchableOpacity
@@ -879,7 +902,7 @@ export default function CustomerHomeScreen() {
                         <Wrench size={24} color={iconColor} />
                       )}
                     </View>
-                    <Text style={styles.circularCatLabel} numberOfLines={1}>{cat.name}</Text>
+                    <Text style={styles.circularCatLabel} numberOfLines={1}>{displayName}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -898,47 +921,16 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* 4.5 Register / Add Shop Partner Banner */}
-        <TouchableOpacity
-          style={styles.merchantPartnerBanner}
-          activeOpacity={0.9}
-          onPress={() => setIsShopRegisterOpen(true)}
-        >
-          <View style={styles.merchantBannerLeft}>
-            <View style={styles.merchantBannerIconBox}>
-              <Store size={22} color="#ffffff" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={styles.merchantTagRow}>
-                <Text style={styles.merchantTagText}>ZERO ONBOARDING FEE</Text>
-              </View>
-              <Text style={styles.merchantBannerTitle}>Add Your Shop on Inisha 🏪</Text>
-              <Text style={styles.merchantBannerSub}>
-                List your Restaurant, Grocery, Mobile or Retail Store & get doorstep delivery across your city
-              </Text>
-            </View>
-          </View>
-          <View style={styles.merchantBannerArrowBox}>
-            <Text style={styles.merchantBannerActionText}>+ Add</Text>
-            <ArrowRight size={12} color="#ffffff" />
-          </View>
-        </TouchableOpacity>
-
-        {/* 4.8 Local Neighborhood Shops & Food Express Delivery (Prominently Placed at the Top!) */}
+        {/* 4.8 Local Neighborhood Shops & Food Express Delivery */}
         <View style={styles.topDealsSection}>
           <View style={styles.sectionHeaderRow}>
             <View>
               <Text style={styles.sectionTitle}>Local Shops & Restaurants 🏪</Text>
               <Text style={styles.sectionSubtitle}>Doorstep delivery from neighborhood shops</Text>
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <TouchableOpacity onPress={() => router.push({ pathname: "/(customer)/shops", params: { category: selectedShopFilter } } as any)}>
-                <Text style={[styles.viewAllLink, { color: "#dc2626", fontWeight: "700" }]}>View All →</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setIsShopRegisterOpen(true)}>
-                <Text style={[styles.viewAllLink, { color: "#0284c7", fontWeight: "800" }]}>+ Add Shop</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={() => router.push({ pathname: "/(customer)/shops", params: { category: selectedShopFilter } } as any)}>
+              <Text style={[styles.viewAllLink, { color: "#dc2626", fontWeight: "700" }]}>View All →</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Shop Category Filter Chips */}
@@ -976,25 +968,26 @@ export default function CustomerHomeScreen() {
                   activeOpacity={0.88}
                   onPress={() => router.push(`/(customer)/shop/${shop.shopId}` as any)}
                 >
-                  <SafeImage uri={shop.logoUrl} style={styles.shopLogoThumbnail} resizeMode="cover" />
+                  <View style={styles.shopCoverContainer}>
+                    <SafeImage uri={shop.coverImageUrl || shop.logoUrl} style={styles.shopLogoThumbnail} resizeMode="cover" />
+                    <View style={styles.zomatoRatingBadge}>
+                      <Text style={styles.zomatoRatingText}>{shop.rating || 4.8} ★</Text>
+                    </View>
+                  </View>
                   <View style={styles.shopCardContent}>
-                    <View style={styles.shopCategoryPill}>
-                      <Text style={styles.shopCategoryPillText}>{String(shop.category || "STORE").replace("_", " ")}</Text>
-                    </View>
                     <Text style={styles.shopCardName} numberOfLines={1}>{shop.name}</Text>
+                    <Text style={styles.zomatoCuisineText} numberOfLines={1}>
+                      {shop.subCategories?.slice(0, 2).join(", ") || String(shop.category || "Store").replace("_", " ")} • {shop.address?.city || "Patna"}
+                    </Text>
                     <View style={styles.shopCardMetaRow}>
-                      <View style={styles.shopRatingBox}>
-                        <Star size={11} color="#f59e0b" fill="#f59e0b" />
-                        <Text style={styles.shopRatingText}>{shop.rating || 4.8}</Text>
+                      <View style={styles.zomatoTimePill}>
+                        <Clock size={11} color="#16a34a" />
+                        <Text style={styles.zomatoTimeText}>{shop.deliverySettings?.estimatedPrepMins || 20} mins</Text>
                       </View>
-                      <Text style={styles.shopMetaDot}>•</Text>
-                      <Text style={styles.shopPrepTime}>{shop.deliverySettings?.estimatedPrepMins || 20}m</Text>
-                      <Text style={styles.shopMetaDot}>•</Text>
-                      <Text style={styles.shopCityText}>{shop.address?.city || "Patna"}</Text>
-                    </View>
-                    <View style={styles.shopCardActionBtn}>
-                      <Text style={styles.shopCardActionBtnText}>Order Now</Text>
-                      <ArrowRight size={12} color="#dc2626" />
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <Text style={styles.shopCardActionBtnText}>Order Now</Text>
+                        <ArrowRight size={11} color="#dc2626" />
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -1012,42 +1005,33 @@ export default function CustomerHomeScreen() {
             {categories.slice(0, 6).map((cat) => {
               const basePrice = cat.subcategories?.[0]?.basePrice || 399;
               const normSlug = (cat.slug || cat.id || cat.name || "").toLowerCase();
-              const imgUri = (cat.imageUrl && cat.imageUrl.startsWith("http"))
-                ? cat.imageUrl
-                : normSlug.includes("mobile") || normSlug.includes("phone")
-                ? "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80"
-                : normSlug.includes("ac") || normSlug.includes("air") || normSlug.includes("wind")
-                ? "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80"
-                : normSlug.includes("elec") || normSlug.includes("zap") || normSlug.includes("wiring")
-                ? "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=600&q=80"
-                : normSlug.includes("plumb") || normSlug.includes("water") || normSlug.includes("pipe")
-                ? "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=600&q=80"
-                : normSlug.includes("clean") || normSlug.includes("sanit")
-                ? "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80"
-                : normSlug.includes("salon") || normSlug.includes("parlour") || normSlug.includes("beauty") || normSlug.includes("spa")
-                ? "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80"
-                : normSlug.includes("appliance") || normSlug.includes("geyser") || normSlug.includes("oven")
-                ? "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&q=80"
-                : normSlug.includes("carpenter") || normSlug.includes("wood") || normSlug.includes("furniture")
-                ? "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=600&q=80"
-                : normSlug.includes("paint")
-                ? "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=600&q=80"
-                : normSlug.includes("cctv") || normSlug.includes("camera") || normSlug.includes("security")
-                ? "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&q=80"
-                : normSlug.includes("ro") || normSlug.includes("purifier")
-                ? "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&q=80"
-                : normSlug.includes("computer") || normSlug.includes("laptop") || normSlug.includes("pc")
-                ? "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&q=80"
-                : normSlug.includes("washing") || normSlug.includes("fridge") || normSlug.includes("refrigerator")
-                ? "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&q=80"
-                : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80";
+              let imgUri = "";
+              if (normSlug.includes("ac") || normSlug.includes("air") || normSlug.includes("wind") || normSlug.includes("cool")) {
+                imgUri = "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=80"; // Split AC unit
+              } else if (normSlug.includes("elec") || normSlug.includes("zap") || normSlug.includes("wiring")) {
+                imgUri = "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=600&q=80"; // Electrician with tools & panel
+              } else if (normSlug.includes("plumb") || normSlug.includes("water") || normSlug.includes("pipe") || normSlug.includes("tap")) {
+                imgUri = "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=600&q=80"; // Plumber fixing sink pipe
+              } else if (normSlug.includes("salon") || normSlug.includes("parlour") || normSlug.includes("beauty") || normSlug.includes("spa")) {
+                imgUri = "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&q=80"; // Beauty Salon
+              } else if (normSlug.includes("clean") || normSlug.includes("sanit") || normSlug.includes("maid")) {
+                imgUri = "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80"; // Home Cleaning
+              } else if (normSlug.includes("carpenter") || normSlug.includes("wood") || normSlug.includes("furniture")) {
+                imgUri = "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=600&q=80"; // Woodworking
+              } else if (normSlug.includes("mobile") || normSlug.includes("phone")) {
+                imgUri = "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=80"; // Smartphone repair
+              } else {
+                imgUri = (cat.imageUrl && cat.imageUrl.startsWith("http")) ? cat.imageUrl : "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&q=80";
+              }
+
+              const serviceDisplayName = cat.name.toLowerCase() === "salon" ? "Salon & Spa" : cat.name;
 
               return (
                 <View key={cat.id} style={styles.popularServiceCard}>
-                  <SafeImage uri={imgUri} style={styles.popularServiceImg} />
+                  <SafeImage uri={imgUri} style={styles.popularServiceImg} resizeMode="cover" />
                   <View style={styles.popularServiceContent}>
                     <Text style={styles.popularServiceName} numberOfLines={1}>
-                      {cat.name}
+                      {serviceDisplayName}
                     </Text>
                     <View style={styles.ratingRow}>
                       <Star size={12} color="#f59e0b" fill="#f59e0b" />
@@ -1055,7 +1039,7 @@ export default function CustomerHomeScreen() {
                     </View>
 
                     <View style={styles.popularServiceBottomRow}>
-                      <View>
+                      <View style={{ flex: 1, paddingRight: 6 }}>
                         <Text style={styles.startingLabel}>Doorstep Technician</Text>
                         <Text style={styles.popularPriceText}>Starting ₹{basePrice}</Text>
                       </View>
@@ -1065,7 +1049,7 @@ export default function CustomerHomeScreen() {
                         style={styles.bookNowBtn}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.bookNowBtnText}>Book Now</Text>
+                        <Text style={styles.bookNowBtnText} numberOfLines={1}>Book Now</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1124,95 +1108,7 @@ export default function CustomerHomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Special Offers Banner Carousel (Dynamic Admin /api/offers) */}
-        <View style={styles.offersSectionContainer}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Sparkles size={18} color='#dc2626' />
-                <Text style={styles.sectionTitle}>Special Offers & Top Deals 🔥</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                Exclusive discounts on doorstep services, food & groceries
-              </Text>
-            </View>
-          </View>
 
-          <ScrollView
-            ref={offersScrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={(e) => {
-              const slide = Math.round(
-                e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - 32)
-              );
-              setActiveOfferIndex(slide);
-            }}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.offersScrollContent}
-          >
-            {specialOffers.map((offer, idx) => (
-              <TouchableOpacity
-                key={offer.id || `offer-${idx}`}
-                style={styles.offerSlideCard}
-                activeOpacity={0.9}
-                onPress={() => {
-                  const target = (offer.targetCategory || '').toLowerCase();
-                  if (target.includes('food') || target.includes('restaurant')) {
-                    const foodShop = localShops.find((s: any) => s.category === 'RESTAURANT' || s.category === 'SWEETS_BAKERY');
-                    if (foodShop) router.push(`/(customer)/shop/${foodShop.shopId}` as any);
-                    else router.push('/(customer)/(tabs)/explore' as any);
-                  } else if (target.includes('grocery')) {
-                    const grocShop = localShops.find((s: any) => s.category === 'GROCERY');
-                    if (grocShop) router.push(`/(customer)/shop/${grocShop.shopId}` as any);
-                    else router.push('/(customer)/(tabs)/explore' as any);
-                  } else if (target.includes('mobile') || target.includes('repair')) {
-                    setIsBrandModalOpen(true);
-                  } else if (target.includes('store') || target.includes('product')) {
-                    router.push('/(customer)/(tabs)/explore' as any);
-                  } else {
-                    setIsAllServicesOpen(true);
-                  }
-                }}
-              >
-                <View style={styles.offerTextCol}>
-                  <View style={styles.offerTagBadge}>
-                    <Text style={styles.offerTagBadgeText}>{offer.tag || 'SPECIAL OFFER'}</Text>
-                  </View>
-                  <Text style={styles.offerCardTitle} numberOfLines={2}>
-                    {offer.title}
-                  </Text>
-                  {offer.subtitle ? (
-                    <Text style={styles.offerCardSubtitle} numberOfLines={2}>
-                      {offer.subtitle}
-                    </Text>
-                  ) : null}
-                  <View style={styles.offerCtaBtn}>
-                    <Text style={styles.offerCtaBtnText}>Claim Offer</Text>
-                    <ArrowRight size={13} color='#ffffff' />
-                  </View>
-                </View>
-                <View style={styles.offerImgBox}>
-                  <SafeImage uri={offer.imageUrl} style={styles.offerImg} resizeMode='cover' />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Offer Dots Pagination */}
-          <View style={styles.dotsPagination}>
-            {specialOffers.map((_, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.dotItem,
-                  activeOfferIndex === idx && styles.dotItemActive,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
 
         {/* Inisha AI Assistant Floating Box */}
         <TouchableOpacity
@@ -1749,7 +1645,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   popularServiceCard: {
-    width: 220,
+    width: Math.max(Dimensions.get("window").width * 0.46, 215),
     backgroundColor: "#ffffff",
     borderRadius: 16,
     borderWidth: 1,
@@ -1802,14 +1698,18 @@ const styles = StyleSheet.create({
   },
   bookNowBtn: {
     backgroundColor: "#2563eb",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
+    minWidth: 78,
+    alignItems: "center",
+    justifyContent: "center",
   },
   bookNowBtnText: {
     color: "#ffffff",
     fontSize: 11,
     fontWeight: "800",
+    textAlign: "center",
   },
   topDealsSection: {
     marginBottom: 20,
@@ -2267,7 +2167,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   localShopCard: {
-    width: 200,
+    width: 215,
     backgroundColor: "#ffffff",
     borderRadius: 16,
     overflow: "hidden",
@@ -2280,9 +2180,47 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  shopCoverContainer: {
+    position: "relative",
+    width: "100%",
+    height: 115,
+  },
+  zomatoRatingBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#15803d",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  zomatoRatingText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  zomatoCuisineText: {
+    fontSize: 11,
+    color: "#64748b",
+    marginBottom: 6,
+  },
+  zomatoTimePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  zomatoTimeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#334155",
+  },
   shopLogoThumbnail: {
     width: "100%",
-    height: 100,
+    height: 115,
     backgroundColor: "#f1f5f9",
   },
   shopCardContent: {

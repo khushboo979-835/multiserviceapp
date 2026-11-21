@@ -13,6 +13,7 @@ import {
   addShopItem,
 } from "../controllers/shop.controller";
 import { requireAuth, requireRole } from "../middleware/auth.middleware";
+import { requireAdmin } from "../middleware/adminAuth";
 
 const router = Router();
 
@@ -22,21 +23,21 @@ router.get("/", getShops);
 router.get("/:id", getShopById);
 router.get("/:id/products", getShopProducts);
 
-// Partner registration with KYC verification
+// Partner registration with KYC verification (Public Onboarding)
 router.post("/register", registerPartnerShop);
 
-// Shop Approval & KYC Management (Admin / Internal)
-router.put("/:id/approve", approveShop);
-router.put("/:id/reject", rejectShop);
+// Shop Approval & KYC Management (Admin Only)
+router.put("/:id/approve", requireAdmin, approveShop);
+router.put("/:id/reject", requireAdmin, rejectShop);
 
 // Merchant / Admin dashboard analytics
 router.get("/:id/dashboard", requireAuth, getShopDashboardStats);
 
-// Shop Onboarding and Profile Management (Merchant or Super Admin)
-router.post("/", createShop);
-router.put("/:id", updateShop);
+// Shop Creation & Management (Admin Only from Web Admin Panel)
+router.post("/", requireAdmin, createShop);
+router.put("/:id", requireAdmin, updateShop);
 
 // Shop Item / Product CRUD
-router.post("/:id/items", addShopItem);
+router.post("/:id/items", requireAdmin, addShopItem);
 
 export default router;

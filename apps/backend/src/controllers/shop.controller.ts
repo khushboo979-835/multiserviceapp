@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Shop, { IShop } from "../models/Shop";
 import Product from "../models/Product";
 import Order from "../models/Order";
@@ -228,8 +229,8 @@ export const getShops = async (req: Request, res: Response) => {
     if (activeOnly === "true") {
       filter.isActive = true;
       // In customer view, only approved/active shops appear
-      filter.isApproved = { $ne: false };
-      filter.kycStatus = { $ne: "REJECTED" };
+      filter.isApproved = true;
+      filter.kycStatus = "APPROVED";
     }
 
     if (kycStatus && kycStatus !== "ALL") {
@@ -237,7 +238,28 @@ export const getShops = async (req: Request, res: Response) => {
     }
 
     if (category && category !== "ALL") {
-      filter.category = String(category).toUpperCase();
+      const catStr = String(category).trim();
+      const catRegex = new RegExp(catStr, "i");
+      if (/food|restaurant|biryani|dining|sweets/i.test(catStr)) {
+        filter.$or = [
+          { category: "RESTAURANT" },
+          { category: "SWEETS_BAKERY" },
+          { category: catRegex },
+          { subCategories: catRegex },
+        ];
+      } else if (/grocery|mart|vegetable|daily/i.test(catStr)) {
+        filter.$or = [
+          { category: "GROCERY" },
+          { category: catRegex },
+          { subCategories: catRegex },
+        ];
+      } else {
+        filter.$or = [
+          { category: catStr.toUpperCase() },
+          { category: catRegex },
+          { subCategories: catRegex },
+        ];
+      }
     }
 
     if (search) {
@@ -334,9 +356,11 @@ export const getNearbyShops = async (req: Request, res: Response) => {
 export const getShopById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const shop = await Shop.findOne({
-      $or: [{ shopId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }],
-    });
+    const queryConditions: any[] = [{ shopId: id }];
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      queryConditions.push({ _id: id });
+    }
+    const shop = await Shop.findOne({ $or: queryConditions });
 
     if (!shop) {
       return res.status(404).json({
@@ -352,6 +376,7 @@ export const getShopById = async (req: Request, res: Response) => {
         { sellerName: shop.name },
       ],
       inStock: true,
+      price: { $gt: 0 },
     }).sort({ rating: -1, createdAt: -1 });
 
     return res.status(200).json({

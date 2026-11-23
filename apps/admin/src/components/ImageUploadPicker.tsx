@@ -13,6 +13,42 @@ const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "gln413tb";
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "inisha_preset";
 const API_KEY = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "775595328596497";
 
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 800, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function ImageUploadPicker({
   value,
   onChange,
@@ -40,6 +76,9 @@ export default function ImageUploadPicker({
     setUploadError("");
 
     try {
+      // 1. Client-side compress first (drops 10MB camera photo to ~150KB)
+      const compressedDataUrl = await compressImage(file);
+
       let signatureData: any = null;
       try {
         const { data } = await apiClient.post("/media/cloudinary-signature");
@@ -54,7 +93,7 @@ export default function ImageUploadPicker({
       const activePreset = signatureData?.uploadPreset || UPLOAD_PRESET;
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedDataUrl);
 
       if (signatureData?.signature) {
         formData.append("api_key", signatureData.apiKey || API_KEY);
@@ -80,12 +119,8 @@ export default function ImageUploadPicker({
         return;
       }
 
-      // Fallback to data URL
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) onChange(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Fast fallback to lightweight compressed data URL
+      onChange(compressedDataUrl);
     } catch (error: any) {
       console.error("Image upload error:", error);
       setUploadError("Image upload failed. Please try again.");

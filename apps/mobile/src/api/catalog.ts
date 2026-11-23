@@ -203,18 +203,67 @@ export const fetchProductDetails = async (id: string): Promise<Product> => {
   return normalizeProduct(data);
 };
 
+export const DEFAULT_CATALOG_BANNERS: CatalogBanner[] = [
+  {
+    id: "banner_default_1",
+    title: "Flat 50% Off on Doorstep Mobile Repair",
+    subtitle: "Certified technicians with 15 days warranty",
+    tag: "MEGA OFFER",
+    imageUrl: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80",
+    targetCategory: "Mobile Repair",
+    isActive: true,
+    order: 1,
+  },
+  {
+    id: "banner_default_2",
+    title: "30-Min Instant Food & Restaurant Delivery",
+    subtitle: "Hot Biryani, Burgers & Local Delicacies",
+    tag: "FOOD FEST",
+    imageUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+    targetCategory: "Food",
+    isActive: true,
+    order: 2,
+  },
+  {
+    id: "banner_default_3",
+    title: "Fresh Groceries & Daily Essentials in 10 Mins",
+    subtitle: "Fresh vegetables, dairy & staples at wholesale rates",
+    tag: "EXPRESS",
+    imageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80",
+    targetCategory: "Grocery",
+    isActive: true,
+    order: 3,
+  },
+  {
+    id: "banner_default_4",
+    title: "AC Deep Cleaning & Gas Refill from ₹499",
+    subtitle: "Beat the heat with 100% cooling guarantee",
+    tag: "SUMMER SPECIAL",
+    imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80",
+    targetCategory: "AC Repair",
+    isActive: true,
+    order: 4,
+  },
+];
+
 export const fetchCatalogBanners = async (): Promise<CatalogBanner[]> => {
-  const list = asList(await fetchJson("/banners"), "banners");
-  return list.filter((item) => item && item.isActive !== false).map((item, index) => ({
-    id: nonEmptyString(item.id || item._id, `banner-${index}`),
-    title: nonEmptyString(item.title, "Special offer"),
-    subtitle: nonEmptyString(item.subtitle, ""),
-    tag: nonEmptyString(item.tag, "OFFER"),
-    imageUrl: nonEmptyString(item.imageUrl, ""),
-    targetCategory: nonEmptyString(item.targetCategory, "All Services"),
-    isActive: item.isActive !== false,
-    order: numberOr(item.order, index),
-  }));
+  try {
+    const list = asList(await fetchJson("/banners"), "banners");
+    if (!list || list.length === 0) return DEFAULT_CATALOG_BANNERS;
+    const filtered = list.filter((item) => item && item.isActive !== false).map((item, index) => ({
+      id: nonEmptyString(item.id || item._id, `banner-${index}`),
+      title: nonEmptyString(item.title, "Special offer"),
+      subtitle: nonEmptyString(item.subtitle, ""),
+      tag: nonEmptyString(item.tag, "OFFER"),
+      imageUrl: nonEmptyString(item.imageUrl, "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&q=80"),
+      targetCategory: nonEmptyString(item.targetCategory, "All Services"),
+      isActive: item.isActive !== false,
+      order: numberOr(item.order, index),
+    }));
+    return filtered.length > 0 ? filtered : DEFAULT_CATALOG_BANNERS;
+  } catch (error) {
+    return DEFAULT_CATALOG_BANNERS;
+  }
 };
 
 export const fetchCatalogOffers = async (): Promise<CatalogBanner[]> => {
@@ -222,7 +271,7 @@ export const fetchCatalogOffers = async (): Promise<CatalogBanner[]> => {
     const data = await fetchJson("/offers");
     const rawList = asList(data, "offers").length > 0 ? asList(data, "offers") : asList(data, "banners");
     if (!rawList || rawList.length === 0) return fetchCatalogBanners();
-    return rawList.filter((item) => item && item.isActive !== false).map((item, index) => ({
+    const filtered = rawList.filter((item) => item && item.isActive !== false).map((item, index) => ({
       id: nonEmptyString(item.id || item._id, `offer-${index}`),
       title: nonEmptyString(item.title, "Special Offer"),
       subtitle: nonEmptyString(item.subtitle, ""),
@@ -232,6 +281,7 @@ export const fetchCatalogOffers = async (): Promise<CatalogBanner[]> => {
       isActive: item.isActive !== false,
       order: numberOr(item.order, index),
     }));
+    return filtered.length > 0 ? filtered : DEFAULT_CATALOG_BANNERS;
   } catch {
     return fetchCatalogBanners();
   }

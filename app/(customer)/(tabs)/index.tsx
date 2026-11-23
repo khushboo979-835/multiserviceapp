@@ -25,7 +25,7 @@ import { Category, Subcategory, Booking, BookingStatus } from "../../../src/type
 import DynamicFormBuilder from "../../../src/components/booking/DynamicFormBuilder";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 import SafeImage from "../../../src/components/common/SafeImage";
-import { catalogKeys, fetchCatalogBanners, fetchCatalogCategories, fetchCatalogOffers, fetchCatalogProducts } from "../../../src/api/catalog";
+import { catalogKeys, fetchCatalogBanners, fetchCatalogCategories, fetchCatalogOffers, fetchCatalogProducts, DEFAULT_CATALOG_BANNERS } from "../../../src/api/catalog";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import { LocationService, UserAddressDetails } from "../../../src/services/location.service";
 import LocationPickerModal from "../../../src/components/location/LocationPickerModal";
@@ -124,7 +124,7 @@ export default function CustomerHomeScreen() {
   const offersQuery = useQuery({ queryKey: catalogKeys.offers, queryFn: () => fetchCatalogOffers(), staleTime: 0 });
   const productsQuery = useQuery({ queryKey: catalogKeys.products, queryFn: () => fetchCatalogProducts(), staleTime: 0 });
   const categories = (categoriesQuery.data && categoriesQuery.data.length > 0) ? categoriesQuery.data : MOCK_CATEGORIES;
-  const banners = bannersQuery.data ?? [];
+  const banners = (bannersQuery.data && bannersQuery.data.length > 0) ? bannersQuery.data : DEFAULT_CATALOG_BANNERS;
   const specialOffers = (offersQuery.data && offersQuery.data.length > 0) ? offersQuery.data : banners;
   const topDeals = ((productsQuery.data && productsQuery.data.length > 0) ? productsQuery.data : MOCK_PRODUCTS).filter(
     (p) => Number(p.price) > 0 && !p.name?.toLowerCase().includes("home")

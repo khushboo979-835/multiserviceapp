@@ -105,18 +105,18 @@ export class LocationService {
   }
 
   /**
-   * Fallback location (Cyber City, Gurugram)
+   * Fallback location (Sultanganj, Bhagalpur, Bihar)
    */
   public static getFallbackLocation(): UserAddressDetails {
     return {
-      formattedAddress: "7A, Cyber City, Phase III, Sector 24, Gurugram, Haryana 122002",
-      latitude: 28.4901,
-      longitude: 77.0805,
-      city: "Gurugram",
-      district: "Gurugram",
-      region: "Haryana",
-      postalCode: "122002",
-      landmark: "Cyber City Phase III",
+      formattedAddress: "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar 813213",
+      latitude: 25.2425,
+      longitude: 86.7381,
+      city: "Sultanganj",
+      district: "Bhagalpur",
+      region: "Bihar",
+      postalCode: "813213",
+      landmark: "Rahmatnagar, Dilgouri",
     };
   }
 
@@ -245,15 +245,18 @@ export class LocationService {
    */
   public static getPopularCities(): { name: string; state: string; lat: number; lng: number }[] {
     return [
+      { name: "Sultanganj", state: "Bihar (Dilgouri / Rahmatnagar)", lat: 25.2425, lng: 86.7381 },
+      { name: "Dilgouri", state: "Sultanganj, Bhagalpur", lat: 25.2418, lng: 86.7375 },
+      { name: "Bhagalpur", state: "Bihar", lat: 25.2425, lng: 86.9842 },
       { name: "Patna", state: "Bihar", lat: 25.5941, lng: 85.1376 },
+      { name: "Munger", state: "Bihar", lat: 25.3757, lng: 86.4744 },
+      { name: "Kahalgaon", state: "Bihar", lat: 25.2638, lng: 87.2343 },
       { name: "Delhi NCR", state: "Delhi", lat: 28.6139, lng: 77.209 },
       { name: "Gurugram", state: "Haryana", lat: 28.4595, lng: 77.0266 },
       { name: "Noida", state: "Uttar Pradesh", lat: 28.5355, lng: 77.391 },
       { name: "Lucknow", state: "Uttar Pradesh", lat: 26.8467, lng: 80.9462 },
       { name: "Bangalore", state: "Karnataka", lat: 12.9716, lng: 77.5946 },
-      { name: "Mumbai", state: "Maharashtra", lat: 19.076, lng: 72.8777 },
-      { name: "Hyderabad", state: "Telangana", lat: 17.385, lng: 78.4867 },
-      { name: "Pune", state: "Maharashtra", lat: 18.5204, lng: 73.8567 },
+      { name: "Kolkata", state: "West Bengal", lat: 22.5726, lng: 88.3639 },
     ];
   }
 

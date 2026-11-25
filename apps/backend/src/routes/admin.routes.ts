@@ -1395,5 +1395,40 @@ router.delete("/services/:id", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/admin/seed-catalog
+ * Manually trigger complete catalog seed (57 services: Men's, Women's, Mobile)
+ */
+router.post("/seed-catalog", async (req: Request, res: Response) => {
+  try {
+    const { ensureCatalogSeeded } = await import("../services/catalogSeed.service");
+    const result = await ensureCatalogSeeded();
+    return res.status(200).json({
+      success: true,
+      message: "Catalog successfully seeded with 57 services.",
+      result,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/catalog-services
+ * Retrieve all seeded catalog services grouped by category and subCategory
+ */
+router.get("/catalog-services", async (req: Request, res: Response) => {
+  try {
+    const services = await Service.find({ isActive: true }).sort({ category: 1, subCategory: 1, price: 1 });
+    return res.status(200).json({
+      success: true,
+      total: services.length,
+      services,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
 

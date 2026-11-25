@@ -74,7 +74,16 @@ app.get("/api/mobile-repairs", async (req, res) => {
 });
 
 // Initialize MongoDB Atlas connection
-connectDB();
+connectDB().then(async (conn) => {
+  if (conn) {
+    try {
+      const { ensureCatalogSeeded } = await import("./services/catalogSeed.service");
+      await ensureCatalogSeeded();
+    } catch (sErr: any) {
+      console.warn("⚠️ [ServerStartup] Auto-seed warning:", sErr?.message);
+    }
+  }
+});
 
 import path from "path";
 import fs from "fs";

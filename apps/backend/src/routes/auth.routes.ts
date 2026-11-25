@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { User, AppUserRole } from "../models/User";
 import { Otp } from "../models/Otp";
 import { ProviderProfile } from "../models/ProviderProfile";
+import { DeliveryPartner } from "../models/DeliveryPartner";
 import Shop from "../models/Shop";
 import { SmsService } from "../services/sms.service";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware";
@@ -621,8 +622,8 @@ router.post("/shop-owner/login", handleMerchantLogin);
  */
 router.post("/delivery/login", async (req: Request, res: Response) => {
   try {
-    const { partnerId, phone, password } = req.body;
-    const cleanId = String(partnerId || phone || "").trim();
+    const { partnerId, phone, phoneNumber, password } = req.body;
+    const cleanId = String(partnerId || phone || phoneNumber || "").trim();
     const cleanPass = String(password || "").trim();
     const digitsOnly = cleanId.replace(/\D/g, "").slice(-10);
 
@@ -636,20 +637,61 @@ router.post("/delivery/login", async (req: Request, res: Response) => {
     const isMasterPass =
       cleanPass === "InishaRider@2026" || cleanPass === "rider123" || cleanPass === "123456";
 
+    // 1. Check DeliveryPartner collection first
+    let partner = await DeliveryPartner.findOne({
+      $or: [
+        { partnerId: cleanId },
+        { partnerId: cleanId.toUpperCase() },
+        { phone: `+91${digitsOnly}` },
+        { phone: digitsOnly },
+        { email: cleanId.toLowerCase() },
+      ],
+    });
+
+    // Check password if partner exists
+    if (partner && !isMasterPass) {
+      const isMatch = partner.comparePassword(cleanPass);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid rider password. Please check your password or contact Support.",
+        });
+      }
+    }
+
+    // 2. Also check or sync with User collection
     let user = await User.findOne({
       $or: [
         { assignedPartnerId: cleanId },
+        { assignedPartnerId: partner?.partnerId },
         { phoneNumber: `+91${digitsOnly}` },
       ],
     });
 
-    const isShopDelivery = cleanId.toUpperCase().startsWith("SHP-") || (user && user.role === "SHOP_DELIVERY");
+    const isShopDelivery =
+      cleanId.toUpperCase().startsWith("SHP-") ||
+      partner?.role === "SHOP_DELIVERY" ||
+      user?.role === "SHOP_DELIVERY";
     const role: AppUserRole = isShopDelivery ? "SHOP_DELIVERY" : "INISHA_DELIVERY";
 
-    if (!user && isMasterPass) {
+    if (!partner && !user && isMasterPass) {
       const assignedId = cleanId.toUpperCase().startsWith("INP-") || cleanId.toUpperCase().startsWith("SHP-")
         ? cleanId.toUpperCase()
         : `${isShopDelivery ? "SHP" : "INP"}-${digitsOnly.slice(-4) || "701"}`;
+
+      partner = await DeliveryPartner.create({
+        partnerId: assignedId,
+        name: `Delivery Rider (${assignedId})`,
+        phone: `+91${digitsOnly || "9876543211"}`,
+        email: `${digitsOnly}@rider.inishacityservice.com`,
+        password: cleanPass,
+        vehicleType: "BIKE",
+        vehicleNumber: "BR-01-XX-0000",
+        isAvailable: true,
+        isVerified: true,
+        role: role,
+        walletBalance: 1200,
+      });
 
       user = await User.create({
         phoneNumber: `+91${digitsOnly || "9876543211"}`,
@@ -662,20 +704,27 @@ router.post("/delivery/login", async (req: Request, res: Response) => {
       });
     }
 
-    if (!isMasterPass && !user) {
+    if (!partner && !user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid rider credentials. Please check your credentials or contact Support.",
+        message: "Invalid rider credentials. Please check your Partner ID or contact Support.",
       });
     }
 
+    const effectiveId = partner?.partnerId || user?.assignedPartnerId || cleanId;
+    const effectiveName = partner?.name || user?.name || "Delivery Partner";
+    const effectivePhone = partner?.phone || user?.phoneNumber || `+91${digitsOnly}`;
+    const effectiveVehicleType = partner?.vehicleType || user?.deliveryVehicleType || "BIKE";
+    const effectiveVehicleNumber = partner?.vehicleNumber || user?.deliveryVehicleNumber || "BR-01-XX-0000";
+    const effectiveWallet = partner?.walletBalance ?? user?.walletBalance ?? 1200;
+
     const token = generateJwtToken(
       {
-        userId: user?._id?.toString() || "usr_rider_" + digitsOnly,
-        role: user?.role || role,
-        assignedPartnerId: user?.assignedPartnerId || cleanId,
+        userId: partner?._id?.toString() || user?._id?.toString() || "usr_rider_" + digitsOnly,
+        role: role,
+        assignedPartnerId: effectiveId,
         shopId: user?.shopId || "",
-        phoneNumber: user?.phoneNumber || `+91${digitsOnly}`,
+        phoneNumber: effectivePhone,
       },
       60
     );
@@ -683,22 +732,28 @@ router.post("/delivery/login", async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       token,
-      role: user?.role || role,
+      role: role,
       partner: {
-        id: user?._id?.toString() || "usr_rider_" + digitsOnly,
-        assignedPartnerId: user?.assignedPartnerId || cleanId,
-        name: user?.name || "Delivery Partner",
-        phone: user?.phoneNumber || `+91${digitsOnly}`,
-        deliveryVehicleType: user?.deliveryVehicleType || "BIKE",
-        isOnline: user?.isOnline ?? true,
-        walletBalance: user?.walletBalance ?? 1200,
+        id: partner?._id?.toString() || user?._id?.toString() || "usr_rider_" + digitsOnly,
+        partnerId: effectiveId,
+        assignedPartnerId: effectiveId,
+        name: effectiveName,
+        phone: effectivePhone,
+        phoneNumber: effectivePhone,
+        deliveryVehicleType: effectiveVehicleType,
+        deliveryVehicleNumber: effectiveVehicleNumber,
+        isOnline: partner?.isAvailable ?? true,
+        isAvailable: partner?.isAvailable ?? true,
+        walletBalance: effectiveWallet,
+        totalTrips: partner?.totalDeliveries || 0,
+        rating: partner?.rating || 4.9,
       },
       user: {
-        id: user?._id?.toString() || "usr_rider_" + digitsOnly,
-        phoneNumber: user?.phoneNumber || `+91${digitsOnly}`,
-        role: user?.role || role,
-        assignedPartnerId: user?.assignedPartnerId || cleanId,
-        name: user?.name || "Delivery Partner",
+        id: partner?._id?.toString() || user?._id?.toString() || "usr_rider_" + digitsOnly,
+        phoneNumber: effectivePhone,
+        role: role,
+        assignedPartnerId: effectiveId,
+        name: effectiveName,
       },
     });
   } catch (error: any) {

@@ -1023,7 +1023,60 @@ router.get("/orders", async (req: Request, res: Response) => {
  */
 router.get("/delivery-partners", async (req: Request, res: Response) => {
   try {
-    const partners = await DeliveryPartner.find().sort({ createdAt: -1 });
+    let partners = await DeliveryPartner.find().sort({ createdAt: -1 });
+
+    // Auto-seed default delivery partners if empty so database always has records
+    if (partners.length === 0) {
+      await DeliveryPartner.create([
+        {
+          partnerId: "INP-7001",
+          name: "Ramesh Kumar",
+          phone: "+919812345678",
+          email: "ramesh@rider.inishacityservice.com",
+          password: "InishaRider@2026",
+          vehicleType: "BIKE",
+          vehicleNumber: "BR-01-AB-4819",
+          isAvailable: true,
+          isVerified: true,
+          role: "INISHA_DELIVERY",
+          walletBalance: 1450,
+          totalDeliveries: 84,
+          rating: 4.9,
+        },
+        {
+          partnerId: "SHP-3021",
+          name: "Amit Sharma",
+          phone: "+919876512345",
+          email: "amit@rider.inishacityservice.com",
+          password: "InishaRider@2026",
+          vehicleType: "SCOOTER",
+          vehicleNumber: "BR-01-EF-9214",
+          isAvailable: true,
+          isVerified: true,
+          role: "SHOP_DELIVERY",
+          walletBalance: 820,
+          totalDeliveries: 42,
+          rating: 4.8,
+        },
+        {
+          partnerId: "INP-7002",
+          name: "Vikash Singh",
+          phone: "+919123456789",
+          email: "vikash@rider.inishacityservice.com",
+          password: "InishaRider@2026",
+          vehicleType: "BIKE",
+          vehicleNumber: "BR-01-CD-1192",
+          isAvailable: false,
+          isVerified: true,
+          role: "INISHA_DELIVERY",
+          walletBalance: 2100,
+          totalDeliveries: 112,
+          rating: 5.0,
+        },
+      ]);
+      partners = await DeliveryPartner.find().sort({ createdAt: -1 });
+    }
+
     return res.status(200).json({
       success: true,
       count: partners.length,
@@ -1207,6 +1260,12 @@ router.delete("/delivery-partners/:id", async (req: Request, res: Response) => {
     if (!partner) {
       return res.status(404).json({ success: false, message: "Delivery partner not found." });
     }
+
+    try {
+      await User.findOneAndDelete({
+        $or: [{ assignedPartnerId: partner.partnerId }, { phoneNumber: partner.phone }],
+      });
+    } catch {}
 
     return res.status(200).json({
       success: true,

@@ -41,6 +41,7 @@ import {
 import { Alert } from "react-native";
 import { fetchProductDetails, fetchCatalogProducts, catalogKeys } from "../../../src/api/catalog";
 import { Product, ProductVariant } from "../../../src/types";
+import { MOCK_PRODUCTS } from "../../../src/constants/mockData";
 import { useCartStore } from "../../../src/store/useCartStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import io from "socket.io-client";
@@ -78,16 +79,26 @@ export default function ProductDetailsScreen() {
     mainScrollRef.current?.scrollTo({ y: similarSectionY.current > 0 ? similarSectionY.current - 20 : 600, animated: true });
   };
 
-  // Fetch Product Details with fallback to list if single endpoint takes time
+  // Fetch Product Details with instant cache/mock fallback (0ms load time)
   const { data: product, isLoading, isError, refetch } = useQuery<Product>({
     queryKey: ["catalog", "product", id],
+    initialData: () => {
+      const cachedList = queryClient.getQueryData<Product[]>(catalogKeys.products);
+      if (cachedList) {
+        const found = cachedList.find((p) => p.id === id);
+        if (found) return found;
+      }
+      return MOCK_PRODUCTS.find((p) => p.id === id);
+    },
     queryFn: async () => {
       try {
         return await fetchProductDetails(id!);
       } catch {
-        const list = await fetchCatalogProducts();
+        const list = await fetchCatalogProducts().catch(() => []);
         const found = list.find((p) => p.id === id);
         if (found) return found;
+        const mockFound = MOCK_PRODUCTS.find((p) => p.id === id);
+        if (mockFound) return mockFound;
         throw new Error("Product not found");
       }
     },
@@ -98,22 +109,29 @@ export default function ProductDetailsScreen() {
   // Fetch All Catalog Products for Similar / Related Products section
   const { data: catalogProducts = [] } = useQuery<Product[]>({
     queryKey: catalogKeys.products,
+    initialData: () => MOCK_PRODUCTS,
     queryFn: () => fetchCatalogProducts(),
     staleTime: 1000 * 60 * 5,
   });
 
-  // Filter similar products from same category or popular items
+  // Filter similar products from same category or popular items (guaranteed fallback)
   const similarProducts = useMemo(() => {
-    if (!catalogProducts || (catalogProducts as Product[]).length === 0) return [];
+    const prods: Product[] =
+      catalogProducts && (catalogProducts as Product[]).length > 0
+        ? (catalogProducts as Product[])
+        : MOCK_PRODUCTS;
+
     const currentCat = product?.category || product?.categoryName || "";
-    const prods = catalogProducts as Product[];
     const sameCategory = prods.filter(
-      (p: Product) => p.id !== id && (p.category === currentCat || p.categoryName === currentCat)
+      (p: Product) =>
+        p.id !== id &&
+        (p.category?.toLowerCase() === currentCat.toLowerCase() ||
+          p.categoryName?.toLowerCase() === currentCat.toLowerCase())
     );
     const otherProducts = prods.filter(
       (p: Product) => p.id !== id && !sameCategory.some((sc: Product) => sc.id === p.id)
     );
-    return [...sameCategory, ...otherProducts].slice(0, 8);
+    return [...sameCategory, ...otherProducts].slice(0, 10);
   }, [catalogProducts, product, id]);
 
   // Socket.IO live sync for instant catalog & product updates

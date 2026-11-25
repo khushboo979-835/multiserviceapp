@@ -220,23 +220,39 @@ export default function AllServicesModal({
                     let subName = subcategory.name;
                     const norm = `${category.name} ${subcategory.name}`.toLowerCase();
                     if (
-                      norm.includes("men") &&
-                      (norm.includes("groom") ||
-                        norm.includes("beauty") ||
-                        norm.includes("parlour") ||
-                        norm.includes("salon"))
+                      norm.includes("women") ||
+                      norm.includes("female") ||
+                      norm.includes("bridal") ||
+                      norm.includes("wax") ||
+                      norm.includes("mehndi") ||
+                      norm.includes("threading") ||
+                      norm.includes("saree")
+                    ) {
+                      catName = "Beauty Parlour";
+                      subName = "Women's Beauty Services";
+                    } else if (
+                      norm.includes("hair") ||
+                      norm.includes("cut") ||
+                      norm.includes("beard") ||
+                      norm.includes("groom") ||
+                      norm.includes("facial") ||
+                      norm.includes("salon") ||
+                      norm.includes("parlour") ||
+                      norm.includes("beauty") ||
+                      norm.includes("massage") ||
+                      norm.includes("spa") ||
+                      norm.includes("cleanup") ||
+                      norm.includes("detan") ||
+                      norm.includes("bleach")
                     ) {
                       catName = "Beauty Parlour";
                       subName = "Men's Grooming";
                     } else if (
-                      norm.includes("women") &&
-                      (norm.includes("beauty") ||
-                        norm.includes("parlour") ||
-                        norm.includes("salon"))
+                      norm.includes("mobile") ||
+                      norm.includes("phone") ||
+                      norm.includes("screen") ||
+                      norm.includes("display")
                     ) {
-                      catName = "Beauty Parlour";
-                      subName = "Women's Beauty Services";
-                    } else if (norm.includes("mobile") || norm.includes("phone")) {
                       catName = "Mobile Repair";
                       subName = "Doorstep Mobile Repair";
                     }

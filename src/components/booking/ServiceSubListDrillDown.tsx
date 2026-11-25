@@ -71,17 +71,50 @@ export default function ServiceSubListDrillDown({
   onBookService,
 }: ServiceSubListDrillDownProps) {
   // Category state
+  const combined = `${initialCategory} ${initialSubCategory}`.toLowerCase();
+
   const isBeauty =
-    initialCategory.toLowerCase().includes("beauty") ||
-    initialCategory.toLowerCase().includes("parlour") ||
-    initialCategory.toLowerCase().includes("salon");
+    combined.includes("beauty") ||
+    combined.includes("parlour") ||
+    combined.includes("salon") ||
+    combined.includes("groom") ||
+    combined.includes("hair") ||
+    combined.includes("cut") ||
+    combined.includes("beard") ||
+    combined.includes("facial") ||
+    combined.includes("cleanup") ||
+    combined.includes("detan") ||
+    combined.includes("bleach") ||
+    combined.includes("spa") ||
+    combined.includes("massage") ||
+    combined.includes("wax") ||
+    combined.includes("makeup") ||
+    combined.includes("bridal") ||
+    combined.includes("threading") ||
+    combined.includes("nail") ||
+    combined.includes("manicure") ||
+    combined.includes("pedicure");
+
+  const isWomenPreferred =
+    combined.includes("women") ||
+    combined.includes("female") ||
+    combined.includes("bridal") ||
+    combined.includes("saree") ||
+    combined.includes("wax") ||
+    combined.includes("makeup") ||
+    combined.includes("threading") ||
+    combined.includes("mehndi");
 
   const isMobile =
-    initialCategory.toLowerCase().includes("mobile") ||
-    initialCategory.toLowerCase().includes("phone");
+    combined.includes("mobile") ||
+    combined.includes("phone") ||
+    combined.includes("screen") ||
+    combined.includes("display") ||
+    combined.includes("jack") ||
+    combined.includes("battery");
 
   const [activeTab, setActiveTab] = useState<"MEN" | "WOMEN">(
-    initialSubCategory.toLowerCase().includes("women") ? "WOMEN" : "MEN"
+    isWomenPreferred ? "WOMEN" : "MEN"
   );
   const [selectedBrand, setSelectedBrand] = useState<string>("All Brands");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -96,24 +129,47 @@ export default function ServiceSubListDrillDown({
       list = MOBILE_REPAIR_CATALOG;
     } else {
       // Home repairs (AC, Electrician, Plumber, etc.)
-      const catNorm = initialCategory.toLowerCase();
-      list = OTHER_HOME_SERVICES_CATALOG.filter(
-        (s: CatalogServiceItem) =>
-          s.category.toLowerCase().includes(catNorm) ||
-          catNorm.includes(s.category.toLowerCase())
-      );
-      if (list.length === 0) list = OTHER_HOME_SERVICES_CATALOG;
+      const catNorm = combined;
+      if (catNorm.includes("ac") || catNorm.includes("air") || catNorm.includes("cool")) {
+        list = OTHER_HOME_SERVICES_CATALOG.filter((s: CatalogServiceItem) => s.category === "AC Repair");
+      } else if (
+        catNorm.includes("elec") ||
+        catNorm.includes("zap") ||
+        catNorm.includes("wire") ||
+        catNorm.includes("switch")
+      ) {
+        list = OTHER_HOME_SERVICES_CATALOG.filter((s: CatalogServiceItem) => s.category === "Electrician");
+      } else if (
+        catNorm.includes("plumb") ||
+        catNorm.includes("pipe") ||
+        catNorm.includes("tap") ||
+        catNorm.includes("water") ||
+        catNorm.includes("drain")
+      ) {
+        list = OTHER_HOME_SERVICES_CATALOG.filter((s: CatalogServiceItem) => s.category === "Plumber");
+      } else if (
+        catNorm.includes("carpenter") ||
+        catNorm.includes("wood") ||
+        catNorm.includes("door") ||
+        catNorm.includes("furniture")
+      ) {
+        list = OTHER_HOME_SERVICES_CATALOG.filter((s: CatalogServiceItem) => s.category === "Carpenter");
+      } else if (catNorm.includes("clean") || catNorm.includes("sanit") || catNorm.includes("maid")) {
+        list = OTHER_HOME_SERVICES_CATALOG.filter((s: CatalogServiceItem) => s.category === "Cleaning");
+      } else {
+        list = OTHER_HOME_SERVICES_CATALOG;
+      }
     }
 
     if (!searchQuery.trim()) return list;
 
     const query = searchQuery.toLowerCase().trim();
     return list.filter(
-      (s) =>
+      (s: CatalogServiceItem) =>
         s.serviceName.toLowerCase().includes(query) ||
         s.description.toLowerCase().includes(query)
     );
-  }, [isBeauty, isMobile, activeTab, initialCategory, searchQuery]);
+  }, [isBeauty, isMobile, activeTab, combined, searchQuery]);
 
   const categoryHeaderTitle = useMemo(() => {
     if (isBeauty) {

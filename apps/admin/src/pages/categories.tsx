@@ -92,10 +92,41 @@ const AVAILABLE_ICONS = [
   { id: "tool", label: "General Repair", icon: Wrench },
 ];
 
+export interface CatalogSubService {
+  _id?: string;
+  serviceId?: string;
+  serviceName: string;
+  category: string;
+  subCategory?: string;
+  description: string;
+  price: number;
+  discountedPrice?: number;
+  duration: string;
+  imageUrl?: string;
+  isActive: boolean;
+  rating?: number;
+}
+
 export default function AdminCategoriesAndServices() {
-  const [activeTab, setActiveTab] = useState<"SERVICES" | "STORE">("SERVICES");
+  const [activeTab, setActiveTab] = useState<"SUB_SERVICES" | "SERVICES" | "STORE">("SUB_SERVICES");
   const [searchQuery, setSearchQuery] = useState("");
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
+
+  // Sub-Services Catalog state (57 Urban Company services)
+  const [subServices, setSubServices] = useState<CatalogSubService[]>([]);
+  const [subServicesLoading, setSubServicesLoading] = useState(false);
+  const [subCategoryFilter, setSubCategoryFilter] = useState("ALL");
+  const [subServiceModalOpen, setSubServiceModalOpen] = useState(false);
+  const [editingSubService, setEditingSubService] = useState<CatalogSubService | null>(null);
+  const [subServiceForm, setSubServiceForm] = useState({
+    serviceName: "",
+    category: "Beauty Parlour",
+    subCategory: "Men's Grooming",
+    price: 100,
+    duration: "30 min",
+    imageUrl: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80",
+    description: "",
+  });
 
   const defaultServices: ServiceCategory[] = [
     {
@@ -438,7 +469,121 @@ export default function AdminCategoriesAndServices() {
     };
 
     loadLiveBackendData();
+    fetchSubServices();
   }, []);
+
+  const fetchSubServices = async () => {
+    try {
+      setSubServicesLoading(true);
+      const res = await apiClient.get("/admin/services").catch(() => null);
+      if (res?.data?.success && Array.isArray(res.data.services) && res.data.services.length > 0) {
+        setSubServices(res.data.services);
+      } else {
+        const seedRes = await apiClient.post("/admin/services/seed").catch(() => null);
+        if (seedRes?.data?.success && Array.isArray(seedRes.data.services)) {
+          setSubServices(seedRes.data.services);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch sub-services:", err);
+    } finally {
+      setSubServicesLoading(false);
+    }
+  };
+
+  const handleOpenAddSubServiceModal = () => {
+    setEditingSubService(null);
+    setSubServiceForm({
+      serviceName: "",
+      category: "Beauty Parlour",
+      subCategory: "Men's Grooming",
+      price: 100,
+      duration: "30 min",
+      imageUrl: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80",
+      description: "",
+    });
+    setSubServiceModalOpen(true);
+  };
+
+  const handleOpenEditSubServiceModal = (service: CatalogSubService) => {
+    setEditingSubService(service);
+    setSubServiceForm({
+      serviceName: service.serviceName,
+      category: service.category || "Beauty Parlour",
+      subCategory: service.subCategory || "Men's Grooming",
+      price: service.price || 100,
+      duration: service.duration || "30 min",
+      imageUrl: service.imageUrl || "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80",
+      description: service.description || "",
+    });
+    setSubServiceModalOpen(true);
+  };
+
+  const handleSaveSubService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingStatus("Saving service...");
+      if (editingSubService?._id || editingSubService?.serviceId) {
+        const id = editingSubService._id || editingSubService.serviceId;
+        await apiClient.put(`/admin/services/${id}`, subServiceForm);
+        setSavingStatus("Service updated successfully!");
+      } else {
+        await apiClient.post("/admin/services", subServiceForm);
+        setSavingStatus("Service added successfully!");
+      }
+      setSubServiceModalOpen(false);
+      setEditingSubService(null);
+      await fetchSubServices();
+      setTimeout(() => setSavingStatus(null), 3000);
+    } catch (err: any) {
+      alert("Failed to save service: " + (err.response?.data?.message || err.message));
+      setSavingStatus(null);
+    }
+  };
+
+  const handleDeleteSubService = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete service "${name}"?`)) return;
+    try {
+      setSavingStatus("Deleting service...");
+      await apiClient.delete(`/admin/services/${id}`);
+      setSubServices((prev) => prev.filter((s) => s._id !== id && s.serviceId !== id));
+      setSavingStatus(`Service "${name}" deleted successfully.`);
+      setTimeout(() => setSavingStatus(null), 3000);
+    } catch (err: any) {
+      alert("Failed to delete service: " + (err.response?.data?.message || err.message));
+      setSavingStatus(null);
+    }
+  };
+
+  const handleToggleSubServiceActive = async (service: CatalogSubService) => {
+    try {
+      const id = service._id || service.serviceId;
+      const targetActive = !service.isActive;
+      setSubServices((prev) =>
+        prev.map((s) => (s._id === id || s.serviceId === id ? { ...s, isActive: targetActive } : s))
+      );
+      await apiClient.put(`/admin/services/${id}`, { isActive: targetActive });
+    } catch (err) {
+      console.warn("Failed to toggle service active:", err);
+      await fetchSubServices();
+    }
+  };
+
+  const handleSeed57Services = async () => {
+    if (!window.confirm("Seed/Restore all 57 standard Urban Company beauty and mobile repair services to MongoDB?")) return;
+    try {
+      setSavingStatus("Seeding 57 services...");
+      const res = await apiClient.post("/admin/services/seed");
+      if (res.data?.success) {
+        setSavingStatus("Successfully seeded 57 services!");
+        await fetchSubServices();
+      }
+      setTimeout(() => setSavingStatus(null), 3000);
+    } catch (err: any) {
+      alert("Failed to seed services: " + (err.response?.data?.message || err.message));
+      setSavingStatus(null);
+    }
+  };
 
   const handleSelectService = (srv: ServiceCategory) => {
     setSelectedService(srv);
@@ -690,6 +835,25 @@ export default function AdminCategoriesAndServices() {
     alert("Product removed from store!");
   };
 
+  const filteredSubServices = subServices.filter((s) => {
+    const matchesCategory =
+      subCategoryFilter === "ALL" ||
+      s.category?.toLowerCase() === subCategoryFilter.toLowerCase() ||
+      s.subCategory?.toLowerCase() === subCategoryFilter.toLowerCase() ||
+      (subCategoryFilter === "MENS_GROOMING" && s.subCategory?.toLowerCase().includes("men")) ||
+      (subCategoryFilter === "WOMENS_BEAUTY" && s.subCategory?.toLowerCase().includes("women"));
+
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      q === "" ||
+      s.serviceName?.toLowerCase().includes(q) ||
+      s.category?.toLowerCase().includes(q) ||
+      s.subCategory?.toLowerCase().includes(q) ||
+      s.description?.toLowerCase().includes(q);
+
+    return matchesCategory && matchesSearch;
+  });
+
   const filteredServices = services.filter(
     (s) =>
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -729,6 +893,17 @@ export default function AdminCategoriesAndServices() {
           {/* Tabs */}
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             <button
+              onClick={() => setActiveTab("SUB_SERVICES")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === "SUB_SERVICES"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Sparkles size={13} />
+              Sub-Services ({subServices.length})
+            </button>
+            <button
               onClick={() => setActiveTab("SERVICES")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
                 activeTab === "SERVICES"
@@ -737,7 +912,7 @@ export default function AdminCategoriesAndServices() {
               }`}
             >
               <Layers size={13} />
-              Services ({services.length})
+              Main Categories ({services.length})
             </button>
             <button
               onClick={() => setActiveTab("STORE")}
@@ -752,13 +927,31 @@ export default function AdminCategoriesAndServices() {
             </button>
           </div>
 
-          {activeTab === "SERVICES" ? (
+          {activeTab === "SUB_SERVICES" ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSeed57Services}
+                title="Seed 57 Standard UC Services"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 border border-slate-200 transition"
+              >
+                <RefreshCw size={13} />
+                Restore 57 Services
+              </button>
+              <button
+                onClick={handleOpenAddSubServiceModal}
+                className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-red-600/20 transition"
+              >
+                <Plus size={14} />
+                + Add Sub-Service
+              </button>
+            </div>
+          ) : activeTab === "SERVICES" ? (
             <button
               onClick={() => setNewServiceModalOpen(true)}
               className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-red-600/20 transition"
             >
               <Plus size={14} />
-              + Add Service
+              + Add Category
             </button>
           ) : (
             <button
@@ -780,7 +973,9 @@ export default function AdminCategoriesAndServices() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={
-            activeTab === "SERVICES"
+            activeTab === "SUB_SERVICES"
+              ? "Search sub-services (e.g. Hair Cutting, Facial, Display, Battery, AC Cleaning)..."
+              : activeTab === "SERVICES"
               ? "Search service by name (e.g. RO, AC, Mobile, Washing Machine)..."
               : "Search store product (e.g. Screen, Coil, Filter, Switch)..."
           }
@@ -796,7 +991,118 @@ export default function AdminCategoriesAndServices() {
         )}
       </div>
 
-      {activeTab === "SERVICES" ? (
+      {activeTab === "SUB_SERVICES" ? (
+        /* Sub-Services View */
+        <div className="space-y-4">
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {[
+              { id: "ALL", label: `All Services (${subServices.length})` },
+              { id: "MENS_GROOMING", label: "Men's Grooming" },
+              { id: "WOMENS_BEAUTY", label: "Women's Beauty" },
+              { id: "Mobile Repair", label: "Mobile Repair" },
+              { id: "AC Repair", label: "AC Repair" },
+              { id: "Electrician", label: "Electrician" },
+              { id: "Plumber", label: "Plumber" },
+              { id: "Carpenter", label: "Carpenter" },
+              { id: "Cleaning", label: "Cleaning" },
+            ].map((chip) => {
+              const isActive = subCategoryFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => setSubCategoryFilter(chip.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sub-Services Grid */}
+          {subServicesLoading ? (
+            <div className="p-12 text-center text-slate-500 font-medium">Loading sub-services...</div>
+          ) : filteredSubServices.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
+              <Sparkles size={40} className="mx-auto text-slate-300" />
+              <h3 className="font-bold text-slate-800">No Services Found</h3>
+              <p className="text-xs text-slate-500">Click "+ Add Sub-Service" or "Restore 57 Services" to populate.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredSubServices.map((svc) => (
+                <div
+                  key={svc._id || svc.serviceId}
+                  className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                >
+                  <div className="flex gap-3">
+                    <img
+                      src={svc.imageUrl || "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=200&q=80"}
+                      alt={svc.serviceName}
+                      className="w-16 h-16 rounded-xl object-cover bg-slate-100 border border-slate-100 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-100">
+                          {svc.category}
+                        </span>
+                        {svc.subCategory && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                            {svc.subCategory}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-sm text-slate-900 mt-1 truncate">{svc.serviceName}</h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                        {svc.description || "Expert doorstep service"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 mt-3 pt-3 flex items-center justify-between">
+                    <div>
+                      <span className="text-base font-black text-emerald-600">₹{svc.price}</span>
+                      <span className="text-xs text-slate-400 ml-2 font-medium">⏱ {svc.duration}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleToggleSubServiceActive(svc)}
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg transition ${
+                          svc.isActive !== false
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {svc.isActive !== false ? "Active" : "Inactive"}
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditSubServiceModal(svc)}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                        title="Edit Service"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSubService(svc._id || svc.serviceId || "", svc.serviceName)}
+                        className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition"
+                        title="Delete Service"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : activeTab === "SERVICES" ? (
         /* Services View */
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Column: All Services List */}
@@ -1547,6 +1853,143 @@ export default function AdminCategoriesAndServices() {
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
                 >
                   Save Product
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-Service Add / Edit Modal */}
+      {subServiceModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-black text-lg text-slate-900">
+                {editingSubService ? "Edit Sub-Service" : "Add New Sub-Service"}
+              </h3>
+              <button
+                onClick={() => setSubServiceModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSubService} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  Service Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Hair Cutting, Facial, Display Replacement"
+                  value={subServiceForm.serviceName}
+                  onChange={(e) => setSubServiceForm({ ...subServiceForm, serviceName: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Category *
+                  </label>
+                  <select
+                    value={subServiceForm.category}
+                    onChange={(e) => setSubServiceForm({ ...subServiceForm, category: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900"
+                  >
+                    <option value="Beauty Parlour">Beauty Parlour</option>
+                    <option value="Mobile Repair">Mobile Repair</option>
+                    <option value="AC Repair">AC Repair</option>
+                    <option value="Electrician">Electrician</option>
+                    <option value="Plumber">Plumber</option>
+                    <option value="Carpenter">Carpenter</option>
+                    <option value="Cleaning">Cleaning</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Sub-Category
+                  </label>
+                  <select
+                    value={subServiceForm.subCategory}
+                    onChange={(e) => setSubServiceForm({ ...subServiceForm, subCategory: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900"
+                  >
+                    <option value="Men's Grooming">Men's Grooming</option>
+                    <option value="Women's Beauty Services">Women's Beauty Services</option>
+                    <option value="Doorstep Mobile Repair">Doorstep Mobile Repair</option>
+                    <option value="Home Repair">Home Repair</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={subServiceForm.price}
+                    onChange={(e) => setSubServiceForm({ ...subServiceForm, price: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Duration *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 30 min, 60 min"
+                    value={subServiceForm.duration}
+                    onChange={(e) => setSubServiceForm({ ...subServiceForm, duration: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <ImageUploadPicker
+                value={subServiceForm.imageUrl}
+                onChange={(url) => setSubServiceForm({ ...subServiceForm, imageUrl: url })}
+                label="Service Photo (Phone Gallery / File / Unsplash)"
+              />
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Service highlights, materials used, warranty..."
+                  value={subServiceForm.description}
+                  onChange={(e) => setSubServiceForm({ ...subServiceForm, description: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSubServiceModalOpen(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded-xl text-xs shadow-md shadow-red-600/20"
+                >
+                  {editingSubService ? "Save Changes" : "Create Sub-Service"}
                 </button>
               </div>
             </form>

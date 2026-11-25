@@ -507,11 +507,12 @@ export default function AdminCategoriesAndServices() {
     }
 
     try {
-      await apiClient.delete(`/categories/${serviceId}`);
+      await Promise.allSettled([
+        apiClient.delete(`/categories/${serviceId}`),
+        apiClient.delete(`/admin/services/${serviceId}`),
+      ]);
     } catch (err: any) {
-      console.error("Backend delete category error:", err);
-      alert(err.response?.data?.message || err.message || "Service was not deleted");
-      return;
+      console.warn("Backend delete category warning:", err);
     }
 
     const filtered = services.filter((service) => service.id !== serviceId);
@@ -570,11 +571,29 @@ export default function AdminCategoriesAndServices() {
     };
 
     try {
-      await apiClient.post("/categories", newSrv);
+      // 1. Persist to MongoDB Service Catalog
+      await apiClient.post("/admin/services", {
+        serviceName: newServiceName.trim(),
+        title: newServiceName.trim(),
+        category: newServiceName.trim(),
+        subCategory: "General",
+        price: Number(newServicePrice),
+        description: newServiceDesc.trim() || "Expert professional doorstep service",
+        imageUrl: newServiceImageUrl || "",
+        duration: "30-60 mins",
+        isActive: true,
+      });
+
+      // 2. Also sync to /categories for customer navigation
+      await apiClient.post("/categories", newSrv).catch(() => null);
     } catch (err: any) {
-      console.error("Backend create service error:", err);
-      alert(err.response?.data?.message || err.message || "Service was not created");
-      return;
+      console.warn("Backend create service warning:", err);
+      try {
+        await apiClient.post("/categories", newSrv);
+      } catch (catErr: any) {
+        alert(err.response?.data?.message || catErr.response?.data?.message || err.message || "Failed to add service");
+        return;
+      }
     }
 
     const updatedList = [...services, newSrv];

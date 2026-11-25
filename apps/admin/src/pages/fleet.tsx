@@ -106,9 +106,14 @@ export default function DeliveryFleetPage() {
   const fetchRiders = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get("/users?role=DELIVERY").catch(() => null);
+      const res = await apiClient.get("/admin/delivery-partners").catch(() => null);
       if (res?.data?.success && Array.isArray(res.data.users) && res.data.users.length > 0) {
         setRiders(res.data.users);
+      } else {
+        const fallbackRes = await apiClient.get("/users?role=DELIVERY").catch(() => null);
+        if (fallbackRes?.data?.success && Array.isArray(fallbackRes.data.users) && fallbackRes.data.users.length > 0) {
+          setRiders(fallbackRes.data.users);
+        }
       }
     } catch {
       // Keep state
@@ -123,40 +128,64 @@ export default function DeliveryFleetPage() {
 
     try {
       const cleanPhone = newRider.phoneNumber.replace(/\D/g, "").slice(-10);
-      const partnerId = `${newRider.role === "SHOP_DELIVERY" ? "SHP" : "INP"}-${cleanPhone.slice(-4) || "8812"}`;
-
-      const created: RiderData = {
-        userId: `rider_${Date.now()}`,
-        assignedPartnerId: partnerId,
+      const res = await apiClient.post("/admin/delivery-partners", {
         name: newRider.name,
-        phoneNumber: `+91 ${cleanPhone}`,
+        phoneNumber: cleanPhone,
+        phone: cleanPhone,
         role: newRider.role,
         shopId: newRider.shopId,
+        vehicleType: newRider.deliveryVehicleType,
         deliveryVehicleType: newRider.deliveryVehicleType,
+        vehicleNumber: newRider.deliveryVehicleNumber || "BR-01-XX-0000",
         deliveryVehicleNumber: newRider.deliveryVehicleNumber || "BR-01-XX-0000",
-        isOnline: true,
-        walletBalance: newRider.initialBalance,
-        totalTrips: 0,
-        rating: 5.0,
-      };
+        password: newRider.password || "InishaRider@2026",
+        initialBalance: newRider.initialBalance,
+      });
 
-      setRiders((prev) => [created, ...prev]);
+      if (res.data?.success) {
+        setToastMessage(`Rider "${newRider.name}" onboarded successfully!`);
+        await fetchRiders();
+      } else {
+        throw new Error(res.data?.message || "Failed to onboard rider");
+      }
+
       setIsModalOpen(false);
-      setToastMessage(`Rider "${newRider.name}" onboarded with ID ${partnerId}!`);
       setTimeout(() => setToastMessage(""), 4000);
     } catch (err: any) {
-      alert("Failed to onboard rider: " + err.message);
+      alert("Failed to onboard rider: " + (err.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleRiderOnline = (partnerId: string) => {
-    setRiders((prev) =>
-      prev.map((r) =>
-        r.assignedPartnerId === partnerId ? { ...r, isOnline: !r.isOnline } : r
-      )
-    );
+  const toggleRiderOnline = async (partnerId: string, currentOnline?: boolean) => {
+    try {
+      const targetStatus = currentOnline !== undefined ? !currentOnline : false;
+      setRiders((prev) =>
+        prev.map((r) =>
+          r.assignedPartnerId === partnerId ? { ...r, isOnline: targetStatus, isAvailable: targetStatus } : r
+        )
+      );
+
+      await apiClient.patch(`/admin/delivery-partners/${partnerId}/status`, {
+        isAvailable: targetStatus,
+      });
+    } catch (err) {
+      console.warn("Failed to update rider status:", err);
+      await fetchRiders();
+    }
+  };
+
+  const handleDeleteRider = async (partnerId: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove rider "${name}"?`)) return;
+    try {
+      await apiClient.delete(`/admin/delivery-partners/${partnerId}`);
+      setToastMessage(`Rider "${name}" deleted successfully.`);
+      setRiders((prev) => prev.filter((r) => r.assignedPartnerId !== partnerId && r._id !== partnerId));
+      setTimeout(() => setToastMessage(""), 4000);
+    } catch (err: any) {
+      alert("Failed to delete rider: " + (err.response?.data?.message || err.message));
+    }
   };
 
   const filteredRiders = useMemo(() => {
@@ -330,12 +359,22 @@ export default function DeliveryFleetPage() {
                       </span>
                     </td>
 
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 text-right space-x-2">
                       <button
-                        onClick={() => toggleRiderOnline(rider.assignedPartnerId)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition"
+                        onClick={() => toggleRiderOnline(rider.assignedPartnerId, rider.isOnline)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          rider.isOnline
+                            ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                            : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold"
+                        }`}
                       >
                         {rider.isOnline ? "Set Offline" : "Set Online"}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRider(rider.assignedPartnerId || rider._id || "", rider.name)}
+                        className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold transition"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>

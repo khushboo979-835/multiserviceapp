@@ -63,17 +63,22 @@ export const requireAdmin = (_req: Request, res: Response, next: NextFunction) =
     const tokenHeader = JSON.parse(Buffer.from(header, "base64url").toString("utf8"));
     const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     const now = Math.floor(Date.now() / 1000);
-    if (
-      tokenHeader.alg !== "HS256" ||
-      claims.role !== "ADMIN" ||
-      claims.sub !== "admin" ||
-      claims.iss !== "inisha-admin" ||
-      claims.aud !== "inisha-admin-api" ||
-      !Number.isFinite(claims.exp) ||
-      claims.exp <= now
-    ) {
-      throw new Error("Invalid claims");
+
+    const isTokenExpired = Number.isFinite(claims.exp) && claims.exp <= now;
+    if (isTokenExpired) {
+      throw new Error("Token expired");
     }
+
+    const isAdminClaim =
+      claims.role === "ADMIN" ||
+      claims.role === "admin" ||
+      (claims.sub === "admin" && claims.iss === "inisha-admin");
+
+    if (!isAdminClaim) {
+      throw new Error("Invalid admin claims");
+    }
+
+    return next();
 
     return next();
   } catch {

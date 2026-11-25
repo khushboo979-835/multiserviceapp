@@ -4,6 +4,7 @@ import { User } from "../models/User";
 import { ProviderProfile } from "../models/ProviderProfile";
 import { Booking } from "../models/Booking";
 import { Service } from "../models/Service";
+import { DeliveryPartner } from "../models/DeliveryPartner";
 import { AdminSettings } from "../models/AdminSettings";
 import { MobileRepair, DEFAULT_MOBILE_REPAIRS, ensureDefaultMobileRepairs } from "../models/MobileRepair";
 import Shop from "../models/Shop";
@@ -1004,6 +1005,390 @@ router.get("/orders", async (req: Request, res: Response) => {
       success: true,
       count: orders.length,
       orders,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * ========================================================
+ * DELIVERY PARTNER / FLEET MANAGEMENT (PHASE 2)
+ * ========================================================
+ */
+
+/**
+ * GET /api/admin/delivery-partners
+ * Fetch all delivery partners
+ */
+router.get("/delivery-partners", async (req: Request, res: Response) => {
+  try {
+    const partners = await DeliveryPartner.find().sort({ createdAt: -1 });
+    return res.status(200).json({
+      success: true,
+      count: partners.length,
+      deliveryPartners: partners,
+      users: partners.map((p) => ({
+        _id: p._id,
+        userId: p._id,
+        assignedPartnerId: p.partnerId,
+        name: p.name,
+        phoneNumber: p.phone,
+        email: p.email,
+        role: p.role,
+        deliveryVehicleType: p.vehicleType,
+        deliveryVehicleNumber: p.vehicleNumber,
+        isOnline: p.isAvailable,
+        isAvailable: p.isAvailable,
+        isVerified: p.isVerified,
+        walletBalance: p.walletBalance,
+        totalTrips: p.totalDeliveries,
+        rating: p.rating,
+        profilePhoto: p.profilePhoto,
+        licenseNumber: p.licenseNumber,
+        aadhaarNumber: p.aadhaarNumber,
+        createdAt: p.createdAt,
+      })),
+    });
+  } catch (error: any) {
+    console.error("GET /api/admin/delivery-partners error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/delivery-partners
+ * Add a new delivery partner / fleet driver
+ */
+router.post("/delivery-partners", async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      phone,
+      phoneNumber,
+      email,
+      password,
+      vehicleType,
+      deliveryVehicleType,
+      vehicleNumber,
+      deliveryVehicleNumber,
+      licenseNumber,
+      aadhaarNumber,
+      profilePhoto,
+      isAvailable = true,
+      isVerified = true,
+      role = "delivery",
+    } = req.body;
+
+    const rawPhone = String(phone || phoneNumber || "").trim();
+    const cleanPhone = rawPhone.replace(/\D/g, "").slice(-10);
+
+    if (!name || !cleanPhone) {
+      return res.status(400).json({
+        success: false,
+        message: "Partner name and a valid 10-digit phone number are required.",
+      });
+    }
+
+    const formattedPhone = `+91${cleanPhone}`;
+    const rawPass = password || "InishaRider@2026";
+    const partnerId = `INP-DEL-${cleanPhone.slice(-4) || Date.now().toString().slice(-4)}`;
+    const chosenVehicle = vehicleType || deliveryVehicleType || "Bike";
+    const chosenVehicleNumber = vehicleNumber || deliveryVehicleNumber || "BR-01-XX-0000";
+
+    // Check if partner with this phone already exists
+    let existingPartner = await DeliveryPartner.findOne({ phone: formattedPhone });
+    if (existingPartner) {
+      return res.status(400).json({
+        success: false,
+        message: `Delivery partner with phone ${formattedPhone} already exists.`,
+      });
+    }
+
+    const partner = await DeliveryPartner.create({
+      partnerId,
+      name,
+      phone: formattedPhone,
+      email: email || `${cleanPhone}@rider.inishacityservice.com`,
+      password: rawPass,
+      vehicleType: chosenVehicle,
+      vehicleNumber: chosenVehicleNumber,
+      licenseNumber: licenseNumber || "",
+      aadhaarNumber: aadhaarNumber || "",
+      profilePhoto: profilePhoto || "",
+      isAvailable: isAvailable !== false,
+      isVerified: isVerified !== false,
+      role: role || "delivery",
+      walletBalance: 500,
+    });
+
+    // Also sync to User collection for seamless Driver App login
+    try {
+      let existingUser = await User.findOne({ phoneNumber: formattedPhone });
+      if (existingUser) {
+        existingUser.role = "INISHA_DELIVERY";
+        existingUser.assignedPartnerId = partnerId;
+        existingUser.deliveryVehicleType = chosenVehicle.toUpperCase() as any;
+        existingUser.deliveryVehicleNumber = chosenVehicleNumber;
+        existingUser.isVerified = true;
+        await existingUser.save();
+      } else {
+        await User.create({
+          phoneNumber: formattedPhone,
+          name,
+          email: email || `${cleanPhone}@rider.inishacityservice.com`,
+          role: "INISHA_DELIVERY",
+          assignedPartnerId: partnerId,
+          deliveryVehicleType: chosenVehicle.toUpperCase() as any,
+          deliveryVehicleNumber: chosenVehicleNumber,
+          isVerified: true,
+          walletBalance: 500,
+        });
+      }
+    } catch (uErr) {
+      console.warn("User sync warning for delivery partner:", uErr);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `Delivery partner "${name}" created successfully!`,
+      deliveryPartner: partner,
+    });
+  } catch (error: any) {
+    console.error("POST /api/admin/delivery-partners error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PATCH /api/admin/delivery-partners/:id/status
+ * Toggle online / available status
+ */
+router.patch("/delivery-partners/:id/status", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isAvailable, isVerified } = req.body;
+
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { partnerId: id }] }
+      : { partnerId: id };
+
+    const updateFields: any = {};
+    if (typeof isAvailable === "boolean") updateFields.isAvailable = isAvailable;
+    if (typeof isVerified === "boolean") updateFields.isVerified = isVerified;
+
+    const partner = await DeliveryPartner.findOneAndUpdate(query, { $set: updateFields }, { new: true });
+    if (!partner) {
+      return res.status(404).json({ success: false, message: "Delivery partner not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Delivery partner status updated successfully.",
+      deliveryPartner: partner,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/delivery-partners/:id
+ * Delete a delivery partner
+ */
+router.delete("/delivery-partners/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { partnerId: id }] }
+      : { partnerId: id };
+
+    const partner = await DeliveryPartner.findOneAndDelete(query);
+    if (!partner) {
+      return res.status(404).json({ success: false, message: "Delivery partner not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Delivery partner "${partner.name}" deleted successfully.`,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * ========================================================
+ * SERVICE CATALOG MANAGEMENT (PHASE 2)
+ * ========================================================
+ */
+
+/**
+ * GET /api/admin/services
+ * Get all catalog services with category & search filters
+ */
+router.get("/services", async (req: Request, res: Response) => {
+  try {
+    const { category, subCategory, search } = req.query;
+    const filter: any = {};
+
+    if (category && category !== "ALL") {
+      filter.category = new RegExp(`^${category}$`, "i");
+    }
+    if (subCategory && subCategory !== "ALL") {
+      filter.subCategory = new RegExp(`^${subCategory}$`, "i");
+    }
+    if (search) {
+      const regex = new RegExp(String(search), "i");
+      filter.$or = [
+        { serviceName: regex },
+        { title: regex },
+        { description: regex },
+        { category: regex },
+        { subCategory: regex },
+      ];
+    }
+
+    const services = await Service.find(filter).sort({ category: 1, subCategory: 1, price: 1 });
+
+    return res.status(200).json({
+      success: true,
+      count: services.length,
+      services,
+    });
+  } catch (error: any) {
+    console.error("GET /api/admin/services error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/services
+ * Add a new service to catalog
+ */
+router.post("/services", async (req: Request, res: Response) => {
+  try {
+    const {
+      serviceName,
+      title,
+      category,
+      subCategory,
+      price,
+      discountedPrice,
+      duration,
+      imageUrl,
+      mediaUrls,
+      description,
+      isActive = true,
+    } = req.body;
+
+    const resolvedName = (serviceName || title || "").trim();
+    const resolvedCategory = (category || "").trim();
+
+    if (!resolvedName || !resolvedCategory || price === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Service name, category, and price are required.",
+      });
+    }
+
+    const numPrice = Number(price);
+    if (isNaN(numPrice) || numPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid price is required.",
+      });
+    }
+
+    const serviceId = `srv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const resolvedImageUrl = imageUrl || (Array.isArray(mediaUrls) && mediaUrls[0]) || "";
+    const resolvedMediaUrls = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls : (resolvedImageUrl ? [resolvedImageUrl] : []);
+
+    const newService = await Service.create({
+      serviceId,
+      serviceName: resolvedName,
+      title: resolvedName,
+      category: resolvedCategory,
+      subCategory: (subCategory || "").trim(),
+      price: numPrice,
+      discountedPrice: Number(discountedPrice) || 0,
+      duration: duration || "30 min",
+      imageUrl: resolvedImageUrl,
+      mediaUrls: resolvedMediaUrls,
+      description: description || "",
+      isActive: isActive !== false,
+      rating: 4.9,
+      reviewCount: 25,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Service "${resolvedName}" added successfully to ${resolvedCategory}!`,
+      service: newService,
+    });
+  } catch (error: any) {
+    console.error("POST /api/admin/services error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/services/:id
+ * Update an existing service
+ */
+router.put("/services/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    if (updateData.serviceName && !updateData.title) {
+      updateData.title = updateData.serviceName;
+    }
+    if (updateData.title && !updateData.serviceName) {
+      updateData.serviceName = updateData.title;
+    }
+    if (updateData.imageUrl && (!updateData.mediaUrls || updateData.mediaUrls.length === 0)) {
+      updateData.mediaUrls = [updateData.imageUrl];
+    }
+
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { serviceId: id }] }
+      : { serviceId: id };
+
+    const service = await Service.findOneAndUpdate(query, { $set: updateData }, { new: true });
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Service updated successfully.",
+      service,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/services/:id
+ * Delete a service from catalog
+ */
+router.delete("/services/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const query = id.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: id }, { serviceId: id }] }
+      : { serviceId: id };
+
+    const service = await Service.findOneAndDelete(query);
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Service "${service.serviceName || service.title}" deleted successfully.`,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

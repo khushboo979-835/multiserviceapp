@@ -57,6 +57,7 @@ export interface IOrderDeliveryInfo {
 export interface IOrder extends Document {
   orderId: string;
   orderNumber: string;
+  userId: mongoose.Types.ObjectId;
   customerId: string;
   customerName: string;
   customerPhone: string;
@@ -81,6 +82,7 @@ const OrderSchema: Schema = new Schema(
   {
     orderId: { type: String, required: true, unique: true, index: true },
     orderNumber: { type: String, required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     customerId: { type: String, required: true, index: true },
     customerName: { type: String, required: true },
     customerPhone: { type: String, required: true },

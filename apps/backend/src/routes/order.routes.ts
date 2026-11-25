@@ -13,7 +13,8 @@ import { requireAuth } from "../middleware/auth.middleware";
 const router = Router();
 
 // Customer checkout & orders
-router.post("/checkout", createOrder);
+router.post("/checkout", requireAuth, createOrder);
+router.post("/", requireAuth, createOrder);
 router.get("/my-orders", requireAuth, getMyOrders);
 
 // Shop Orders

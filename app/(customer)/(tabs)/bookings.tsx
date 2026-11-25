@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import BrandLogo from "../../../src/components/common/BrandLogo";
 import { db } from "../../../src/config/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { apiClient } from "../../../src/api/apiClient";
 
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
@@ -16,25 +17,50 @@ export default function BookingsScreen() {
   const { user } = useAuthStore();
   const [liveBookings, setLiveBookings] = useState<any[]>([]);
 
-  // Real-time Firestore sync
+  // Fetch user-isolated bookings from backend & real-time Firestore sync
   useEffect(() => {
+    if (!user) {
+      setLiveBookings([]);
+      setBookingHistory([]);
+      return;
+    }
+
+    const fetchMyBookings = async () => {
+      try {
+        const res = await apiClient.get("/bookings/my-bookings");
+        if (res.data?.success && Array.isArray(res.data.bookings)) {
+          const mapped = res.data.bookings.map((b: any) => ({
+            id: b.bookingId || b._id,
+            ...b,
+          }));
+          setLiveBookings(mapped);
+          setBookingHistory(mapped);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch my bookings from API:", err);
+      }
+    };
+
+    fetchMyBookings();
+
+    // Real-time Firestore sync strictly isolated to this authenticated user
+    const cleanUserPhone = (user?.phoneNumber || "").replace(/\D/g, "").slice(-10);
+    const userId = user?.id;
+    if (!cleanUserPhone && !userId) return;
+
     try {
       const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
       const unsub = onSnapshot(q, (snapshot) => {
         const list: any[] = [];
-        const cleanUserPhone = (user?.phoneNumber || "").replace(/\D/g, "").slice(-10);
 
         snapshot.forEach((docSnap) => {
           const d = docSnap.data();
           const dPhone = (d.customerPhone || "").replace(/\D/g, "").slice(-10);
+          const isMyBooking =
+            (userId && (d.customerId === userId || d.userId === userId)) ||
+            (cleanUserPhone && dPhone === cleanUserPhone);
 
-          // If booking belongs to current customer or if user not logged in
-          if (
-            !cleanUserPhone ||
-            dPhone === cleanUserPhone ||
-            d.customerId === user?.id ||
-            d.customerName === user?.name
-          ) {
+          if (isMyBooking) {
             list.push({
               id: docSnap.id,
               ...d,

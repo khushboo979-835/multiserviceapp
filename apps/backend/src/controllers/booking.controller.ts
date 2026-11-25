@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { Booking } from "../models/Booking";
 import { ProviderProfile } from "../models/ProviderProfile";
+import { User } from "../models/User";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 // In-memory fallback map for active bookings telemetry when running offline or testing
 export const telemetryStore = new Map<
@@ -13,8 +16,16 @@ export const telemetryStore = new Map<
  * 1. Create a new booking
  * POST /api/bookings
  */
-export const createBooking = async (req: Request, res: Response) => {
+export const createBooking = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const rawUserId = req.user?.id || req.user?.userId;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to book a service.",
+      });
+    }
+
     const {
       customerId,
       customerName,
@@ -37,10 +48,29 @@ export const createBooking = async (req: Request, res: Response) => {
       isApproved: true,
     }).catch(() => null);
 
+    let userObjectId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(rawUserId)) {
+      userObjectId = new mongoose.Types.ObjectId(rawUserId);
+    } else {
+      const phoneToFind = req.user?.phoneNumber || customerPhone;
+      let existingUser = phoneToFind ? await User.findOne({ phoneNumber: phoneToFind }) : null;
+      if (!existingUser && phoneToFind) {
+        existingUser = await User.create({
+          phoneNumber: phoneToFind,
+          role: "CUSTOMER",
+          name: customerName || req.user?.name || "Customer",
+          walletBalance: 250,
+          isVerified: true,
+        });
+      }
+      userObjectId = existingUser ? (existingUser._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
+    }
+
     const newBooking = await Booking.create({
-      customerId: customerId || "usr_guest",
-      customerName: customerName || "Inisha Customer",
-      customerPhone: customerPhone || "+91 9876543210",
+      userId: userObjectId,
+      customerId: userObjectId.toString(),
+      customerName: customerName || req.user?.name || "Inisha Customer",
+      customerPhone: customerPhone || req.user?.phoneNumber || "+91 9876543210",
       providerId: availableProvider?.partnerId || "INP-8842",
       providerName: availableProvider?.name || "Rohan Sharma",
       providerPhone: availableProvider?.phone || "+91 98123 45678",
@@ -49,9 +79,9 @@ export const createBooking = async (req: Request, res: Response) => {
       formValues: formValues || {},
       selectedAddress: {
         formattedAddress:
-          selectedAddress?.formattedAddress || "Cyber City, Gurugram, Haryana",
-        latitude: selectedAddress?.latitude || 28.4595,
-        longitude: selectedAddress?.longitude || 77.0266,
+          selectedAddress?.formattedAddress || "Sultanganj, Bhagalpur, Bihar",
+        latitude: selectedAddress?.latitude || 25.2425,
+        longitude: selectedAddress?.longitude || 86.7381,
       },
       status: "ASSIGNED",
       startServiceOtp,
@@ -92,15 +122,22 @@ export const createBooking = async (req: Request, res: Response) => {
  * 1b. Create a Doorstep Mobile Repair Booking
  * POST /api/bookings/repair
  */
-export const createRepairBooking = async (req: Request, res: Response) => {
+export const createRepairBooking = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const rawUserId = req.user?.id || req.user?.userId;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to book a repair.",
+      });
+    }
+
     const {
       brand,
       model,
       selectedIssues,
       customProblem,
       totalAmount,
-      userId,
       address,
       customerName,
       customerPhone,
@@ -117,9 +154,9 @@ export const createRepairBooking = async (req: Request, res: Response) => {
       isApproved: true,
     }).catch(() => null);
 
-    let formattedAddress = "Customer Doorstep Address";
-    let latitude = 25.5941;
-    let longitude = 85.1376;
+    let formattedAddress = "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar 813213";
+    let latitude = 25.2425;
+    let longitude = 86.7381;
 
     if (typeof address === "string" && address.trim().length > 0) {
       formattedAddress = address.trim();
@@ -127,6 +164,24 @@ export const createRepairBooking = async (req: Request, res: Response) => {
       formattedAddress = address.formattedAddress || address.address || address.street || formattedAddress;
       if (typeof address.latitude === "number") latitude = address.latitude;
       if (typeof address.longitude === "number") longitude = address.longitude;
+    }
+
+    let userObjectId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(rawUserId)) {
+      userObjectId = new mongoose.Types.ObjectId(rawUserId);
+    } else {
+      const phoneToFind = req.user?.phoneNumber || customerPhone;
+      let existingUser = phoneToFind ? await User.findOne({ phoneNumber: phoneToFind }) : null;
+      if (!existingUser && phoneToFind) {
+        existingUser = await User.create({
+          phoneNumber: phoneToFind,
+          role: "CUSTOMER",
+          name: customerName || req.user?.name || "Customer",
+          walletBalance: 250,
+          isVerified: true,
+        });
+      }
+      userObjectId = existingUser ? (existingUser._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
     }
 
     const calculatedTotal = Number(totalAmount) > 0 ? Number(totalAmount) : 499;
@@ -138,9 +193,10 @@ export const createRepairBooking = async (req: Request, res: Response) => {
       : [];
 
     const newBooking = await Booking.create({
-      customerId: userId || "usr_guest",
-      customerName: customerName || "Inisha Customer",
-      customerPhone: customerPhone || "+91 95078 60048",
+      userId: userObjectId,
+      customerId: userObjectId.toString(),
+      customerName: customerName || req.user?.name || "Inisha Customer",
+      customerPhone: customerPhone || req.user?.phoneNumber || "+91 95078 60048",
       providerId: availableProvider?.partnerId || "INP-TECH-01",
       providerName: availableProvider?.name || "Certified Mobile Technician",
       providerPhone: availableProvider?.phone || "+91 98123 45678",
@@ -436,5 +492,42 @@ export const getAllBookings = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 7. Get Customer Personal Bookings (Strict Account Isolation)
+ * GET /api/bookings/my-bookings
+ */
+export const getMyBookings = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const rawUserId = req.user?.id || req.user?.userId;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to fetch personal bookings.",
+      });
+    }
+
+    const userConditions: any[] = [{ customerId: rawUserId }];
+    if (mongoose.Types.ObjectId.isValid(rawUserId)) {
+      userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
+      userConditions.push({ userId: rawUserId });
+    }
+
+    const bookings = await Booking.find({ $or: userConditions }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      bookings,
+    });
+  } catch (error: any) {
+    console.error("getMyBookings error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch bookings",
+      error: error?.message,
+    });
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ import {
 import { useRouter } from "expo-router";
 import { useCartStore } from "../../../src/store/useCartStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
+import { useAuthStore } from "../../../src/store/useAuthStore";
+import { apiClient } from "../../../src/api/apiClient";
 import { StoreOrder } from "../../../src/types";
 import InishaHeader from "../../../src/components/common/InishaHeader";
 import SafeImage from "../../../src/components/common/SafeImage";
@@ -43,9 +45,67 @@ const { width } = Dimensions.get("window");
 export default function OrdersScreen() {
   const router = useRouter();
   const [activeSegment, setActiveSegment] = useState<"STORE" | "SERVICES">("STORE");
-  const { orders } = useCartStore();
+  const { user } = useAuthStore();
+  const { orders, setOrders } = useCartStore();
   const { bookingHistory, activeBooking } = useBookingStore();
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<StoreOrder | null>(null);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setOrders([]);
+      return;
+    }
+
+    const fetchMyOrders = async () => {
+      setLoadingOrders(true);
+      try {
+        const res = await apiClient.get("/orders/my-orders");
+        if (res.data?.success && Array.isArray(res.data.orders)) {
+          const mappedOrders: StoreOrder[] = res.data.orders.map((o: any) => ({
+            id: o.orderId || o._id,
+            orderNumber: o.orderNumber || `IN-${o.orderId?.slice(-6) || "ORD"}`,
+            items: (o.items || []).map((it: any) => ({
+              product: {
+                id: it.productId,
+                name: it.name,
+                price: it.price,
+                originalPrice: it.originalPrice || it.price,
+                imageUrl: it.imageUrl || "",
+                category: "GENERAL",
+                categoryName: "Store",
+                unit: it.variant || "1 Unit",
+              },
+              quantity: it.quantity || 1,
+            })),
+            itemTotal: o.pricing?.subtotal || 0,
+            deliveryFee: o.pricing?.deliveryFee || 0,
+            discountAmount: o.pricing?.discount || 0,
+            giftWrapFee: o.pricing?.packagingFee || 0,
+            totalAmount: o.pricing?.total || 0,
+            status: o.status || "PLACED",
+            otp: o.deliveryInfo?.deliveryOtp || "---",
+            isGift: false,
+            deliveryAddress:
+              typeof o.deliveryAddress === "string"
+                ? o.deliveryAddress
+                : `${o.deliveryAddress?.street || ""}, ${o.deliveryAddress?.city || ""}`,
+            paymentMethod: o.paymentMethod || "COD",
+            paymentStatus: o.paymentStatus || "PENDING",
+            placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Recent",
+            estimatedDeliveryTime: o.estimatedDeliveryTime || "20-30 mins",
+          }));
+          setOrders(mappedOrders);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch customer orders:", err);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
+    fetchMyOrders();
+  }, [user]);
 
   const handleShareInvoice = async (order: StoreOrder) => {
     try {

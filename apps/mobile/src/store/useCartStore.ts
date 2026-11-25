@@ -29,6 +29,8 @@ interface CartStore {
   removeCoupon: () => void;
   placeOrder: (deliveryAddress: string, paymentMethod: string, backendOrder?: any) => StoreOrder;
   updateOrderStatus: (orderId: string, status: StoreOrderStatus) => void;
+  setOrders: (orders: StoreOrder[]) => void;
+  clearCartStore: () => void;
 
   // Computed / Helpers
   getItemCount: () => number;
@@ -88,7 +90,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   giftRecipientName: "",
   giftMessage: "",
   appliedCoupon: null,
-  orders: INITIAL_ORDERS,
+  orders: [],
 
   addItem: (product: Product, shopId?: string, shopName?: string): AddItemResult => {
     const state = get();
@@ -298,4 +300,18 @@ export const useCartStore = create<CartStore>((set, get) => ({
       ),
     }));
   },
+
+  setOrders: (orders: StoreOrder[]) => set({ orders }),
+
+  clearCartStore: () =>
+    set({
+      items: [],
+      currentShopId: null,
+      currentShopName: null,
+      appliedCoupon: null,
+      isGift: false,
+      giftRecipientName: "",
+      giftMessage: "",
+      orders: [],
+    }),
 }));

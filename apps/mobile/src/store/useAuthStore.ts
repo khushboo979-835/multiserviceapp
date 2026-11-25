@@ -105,7 +105,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setIsLoading: (isLoading) => set({ isLoading }),
 
   logout: () => {
-    AsyncStorage.multiRemove(["@auth_token", "@user_profile", "@provider_profile"]).catch(() => {});
+    AsyncStorage.multiRemove([
+      "@auth_token",
+      "@user_profile",
+      "@provider_profile",
+      "@cart_items",
+      "@user_orders",
+      "@booking_history",
+      "@active_booking",
+    ]).catch(() => {});
+
+    try {
+      const { useCartStore } = require("./useCartStore");
+      useCartStore.getState().clearCartStore();
+    } catch {}
+
+    try {
+      const { useBookingStore } = require("./useBookingStore");
+      useBookingStore.getState().resetBookingStore();
+    } catch {}
+
     set({
       user: null,
       token: null,

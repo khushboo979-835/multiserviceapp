@@ -169,6 +169,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       activeBooking: null,
       draftBooking: null,
       nearbyProviders: [],
+      bookingHistory: [],
       isTracking: false,
       messages: [],
     }),

@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import Order, { IOrder, OrderStatus } from "../models/Order";
 import Shop from "../models/Shop";
 import Product from "../models/Product";
 import Delivery from "../models/Delivery";
+import { User } from "../models/User";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 /**
@@ -120,13 +122,40 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
     const orderId = `ord_${Date.now()}`;
     const orderNumber = `IN-${shop.category.slice(0, 3)}-${timestamp}`;
 
-    const customerId = req.user?.id || req.body.customerId || "usr_guest";
+    const rawUserId = req.user?.id || req.user?.userId;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to place an order.",
+      });
+    }
+
+    let userObjectId: mongoose.Types.ObjectId;
+    if (mongoose.Types.ObjectId.isValid(rawUserId)) {
+      userObjectId = new mongoose.Types.ObjectId(rawUserId);
+    } else {
+      const phoneToFind = req.user?.phoneNumber || deliveryAddress?.phone;
+      let existingUser = phoneToFind ? await User.findOne({ phoneNumber: phoneToFind }) : null;
+      if (!existingUser && phoneToFind) {
+        existingUser = await User.create({
+          phoneNumber: phoneToFind,
+          role: "CUSTOMER",
+          name: req.user?.name || req.body.customerName || "Customer",
+          walletBalance: 250,
+          isVerified: true,
+        });
+      }
+      userObjectId = existingUser ? (existingUser._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
+    }
+
+    const customerId = userObjectId.toString();
     const customerName = req.user?.name || req.body.customerName || "Customer";
     const customerPhone = req.user?.phoneNumber || req.body.customerPhone || deliveryAddress.phone;
 
     const newOrder = await Order.create({
       orderId,
       orderNumber,
+      userId: userObjectId,
       customerId,
       customerName,
       customerPhone,
@@ -196,16 +225,21 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
  */
 export const getMyOrders = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const customerId = req.user?.id || req.user?.userId;
-    const phone = req.user?.phoneNumber;
+    const rawUserId = req.user?.id || req.user?.userId;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to fetch personal orders.",
+      });
+    }
 
-    const orders = await Order.find({
-      $or: [
-        { customerId },
-        { customerPhone: phone },
-        { customerPhone: phone?.replace(/\D/g, "").slice(-10) },
-      ],
-    }).sort({ createdAt: -1 });
+    const userConditions: any[] = [{ customerId: rawUserId }];
+    if (mongoose.Types.ObjectId.isValid(rawUserId)) {
+      userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
+      userConditions.push({ userId: rawUserId });
+    }
+
+    const orders = await Order.find({ $or: userConditions }).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,

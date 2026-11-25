@@ -170,7 +170,21 @@ export default function OrdersScreen() {
       >
         {activeSegment === "STORE" ? (
           /* ================= STORE ORDERS LIST ================= */
-          orders.length === 0 ? (
+          !user ? (
+            <View style={styles.emptyWrap}>
+              <Package size={50} color="#94a3b8" />
+              <Text style={styles.emptyTitle}>Sign In to View Orders</Text>
+              <Text style={styles.emptySub}>
+                Please sign in with your phone or email to view your personal orders and live tracking.
+              </Text>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => router.push("/(customer)/(tabs)/profile")}
+              >
+                <Text style={styles.actionBtnText}>Sign In / Register</Text>
+              </TouchableOpacity>
+            </View>
+          ) : orders.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Package size={50} color="#94a3b8" />
               <Text style={styles.emptyTitle}>No Orders Yet</Text>

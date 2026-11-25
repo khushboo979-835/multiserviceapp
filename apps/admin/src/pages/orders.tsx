@@ -91,6 +91,9 @@ const STATUS_TABS = [
 
 export default function MarketplaceOrdersPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [deliveryPartners, setDeliveryPartners] = useState<any[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [assigningDriver, setAssigningDriver] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,19 +104,82 @@ export default function MarketplaceOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      // Fetch recent marketplace orders
-      const res = await apiClient.get("/orders/shop/all?status=ALL").catch(() => {
-        // Fallback to direct query if route returns all
-        return apiClient.get("/admin/orders").catch(() => ({ data: { success: true, orders: [] } }));
-      });
+      // Fetch recent marketplace orders and delivery fleet
+      const [res, fleetRes] = await Promise.all([
+        apiClient.get("/orders/shop/all?status=ALL").catch(() => {
+          return apiClient.get("/admin/orders").catch(() => ({ data: { success: true, orders: [] } }));
+        }),
+        apiClient.get("/admin/delivery-partners").catch(() => ({ data: { success: true, partners: [] } })),
+      ]);
 
       if (res.data?.success && Array.isArray(res.data?.orders)) {
         setOrders(res.data.orders);
+      }
+      if (fleetRes.data?.success && Array.isArray(fleetRes.data?.partners)) {
+        setDeliveryPartners(fleetRes.data.partners);
       }
     } catch (err: any) {
       console.error("Failed to fetch orders:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignDriver = async (orderId: string) => {
+    const partner = deliveryPartners.find((p) => (p.partnerId || p._id) === selectedDriverId);
+    if (!partner) return;
+    try {
+      setAssigningDriver(true);
+      await apiClient.put(`/orders/${orderId}/status`, {
+        status: "ACCEPTED",
+        deliveryInfo: {
+          partnerId: partner.partnerId || partner._id,
+          partnerName: partner.name,
+          partnerPhone: partner.phone,
+          partnerVehicle: `${partner.vehicleType || "Bike"} (${partner.vehicleNumber || "Verified"})`,
+        },
+      });
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.orderId === orderId
+            ? {
+                ...o,
+                status: "ACCEPTED",
+                deliveryInfo: {
+                  ...o.deliveryInfo,
+                  partnerName: partner.name,
+                  partnerPhone: partner.phone,
+                  partnerVehicle: `${partner.vehicleType || "Bike"} (${partner.vehicleNumber || "Verified"})`,
+                },
+              }
+            : o
+        )
+      );
+
+      if (selectedOrder && selectedOrder.orderId === orderId) {
+        setSelectedOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "ACCEPTED",
+                deliveryInfo: {
+                  ...prev.deliveryInfo,
+                  partnerName: partner.name,
+                  partnerPhone: partner.phone,
+                  partnerVehicle: `${partner.vehicleType || "Bike"} (${partner.vehicleNumber || "Verified"})`,
+                },
+              }
+            : null
+        );
+      }
+      setSelectedDriverId("");
+      setToastMessage(`Assigned driver ${partner.name} to order #${orderId}`);
+      setTimeout(() => setToastMessage(""), 4000);
+    } catch (err: any) {
+      alert("Failed to assign driver: " + (err.response?.data?.message || err.message));
+    } finally {
+      setAssigningDriver(false);
     }
   };
 
@@ -344,6 +410,50 @@ export default function MarketplaceOrdersPage() {
                   >
                     {selectedOrder.status}
                   </span>
+                </div>
+
+                {/* Delivery Driver Assignment */}
+                <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-blue-600" />
+                      Delivery Driver
+                    </label>
+                    {selectedOrder.deliveryInfo?.partnerName && (
+                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Assigned
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedOrder.deliveryInfo?.partnerName ? (
+                    <div className="text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                      <div className="font-bold text-slate-800">{selectedOrder.deliveryInfo.partnerName}</div>
+                      <div className="text-slate-500">{selectedOrder.deliveryInfo.partnerPhone} • {selectedOrder.deliveryInfo.partnerVehicle}</div>
+                    </div>
+                  ) : null}
+
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedDriverId}
+                      onChange={(e) => setSelectedDriverId(e.target.value)}
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">-- Choose Driver from Fleet --</option>
+                      {deliveryPartners.map((p) => (
+                        <option key={p.partnerId || p._id} value={p.partnerId || p._id}>
+                          {p.name} ({p.vehicleType || "Bike"} - {p.phone})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      disabled={!selectedDriverId || assigningDriver}
+                      onClick={() => handleAssignDriver(selectedOrder.orderId)}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition"
+                    >
+                      {assigningDriver ? "..." : "Assign"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Status Transitions */}

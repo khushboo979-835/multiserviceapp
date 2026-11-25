@@ -42,46 +42,6 @@ interface CartStore {
   getFinalTotal: () => number;
 }
 
-const INITIAL_ORDERS: StoreOrder[] = [
-  {
-    id: "ord_inisha_101",
-    orderNumber: "IN-2026-9812",
-    items: [
-      {
-        product: {
-          id: "prod_acc_1",
-          name: "65W SuperVOOC Fast Charger Type-C",
-          category: "MOBILE_ACCESSORIES",
-          categoryName: "Mobile Accessories",
-          description: "Ultra-fast charging for OnePlus, Realme, Oppo, Samsung, Xiaomi.",
-          price: 699,
-          originalPrice: 1499,
-          discountPercentage: 53,
-          unit: "1 Pack",
-          imageUrl: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=500&q=80",
-          inStock: true,
-          rating: 4.9,
-          deliveryTimeMins: 15,
-        },
-        quantity: 1,
-      },
-    ],
-    itemTotal: 699,
-    deliveryFee: 0,
-    discountAmount: 0,
-    giftWrapFee: 0,
-    totalAmount: 699,
-    status: "DELIVERED",
-    otp: "7482",
-    isGift: false,
-    deliveryAddress: "Kidwaipuri, Boring Road, Patna, Bihar - 800001",
-    paymentMethod: "UPI Online (Paid)",
-    paymentStatus: "PAID",
-    placedAt: "Yesterday",
-    estimatedDeliveryTime: "Delivered",
-  },
-];
-
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
   currentShopId: null,

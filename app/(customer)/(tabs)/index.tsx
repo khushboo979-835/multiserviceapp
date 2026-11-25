@@ -47,6 +47,7 @@ import BrandRepairModal from "../../../src/components/booking/BrandRepairModal";
 import GSTInvoiceModal from "../../../src/components/booking/GSTInvoiceModal";
 import RatingReviewModal from "../../../src/components/booking/RatingReviewModal";
 import AllServicesModal from "../../../src/components/booking/AllServicesModal";
+import ServiceSubListDrillDown from "../../../src/components/booking/ServiceSubListDrillDown";
 import LanguageCitySelectorModal from "../../../src/components/common/LanguageCitySelectorModal";
 import CallSimulationModal from "../../../src/components/common/CallSimulationModal";
 import InAppAdminPortalModal from "../../../src/components/admin/InAppAdminPortalModal";
@@ -202,6 +203,11 @@ export default function CustomerHomeScreen() {
   }, [specialOffers.length]);
 
   // Modals State
+  const [drillDownService, setDrillDownService] = useState<{
+    visible: boolean;
+    category: string;
+    subCategory?: string;
+  } | null>(null);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [isAllServicesOpen, setIsAllServicesOpen] = useState(false);
@@ -274,14 +280,33 @@ export default function CustomerHomeScreen() {
   const userLocationCity = liveLocation?.city || selectedCity || "Sultanganj";
 
   const handleCategoryPress = (category: Category) => {
-    if (category.id === "cat_mobile" || category.slug?.includes("mobile")) {
-      setIsBrandModalOpen(true);
+    const norm = (category.name || category.slug || "").toLowerCase();
+    if (norm.includes("mobile") || norm.includes("phone")) {
+      setDrillDownService({
+        visible: true,
+        category: "Mobile Repair",
+        subCategory: "Doorstep Mobile Repair",
+      });
       return;
     }
-    setSelectedCategory(category);
-    if (category.subcategories && category.subcategories.length >= 1) {
-      handleSubcategoryPress(category.subcategories[0]);
+    if (
+      norm.includes("beauty") ||
+      norm.includes("parlour") ||
+      norm.includes("salon") ||
+      norm.includes("groom")
+    ) {
+      setDrillDownService({
+        visible: true,
+        category: "Beauty Parlour",
+        subCategory: "Men's Grooming",
+      });
+      return;
     }
+    setDrillDownService({
+      visible: true,
+      category: category.name,
+      subCategory: category.subcategories?.[0]?.name,
+    });
   };
 
   const handleSubcategoryPress = (subcategory: Subcategory) => {
@@ -1059,7 +1084,7 @@ export default function CustomerHomeScreen() {
           </ScrollView>
         </View>
 
-        {/* 6. Top Deals (Horizontal Cards with Real Product Photos & Add button - Image 1) */}
+        {/* 6. Top Deals (2-Column Vertical Grid with Real Product Photos & Add button) */}
         <View style={styles.topDealsSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Top Deals</Text>
@@ -1068,15 +1093,15 @@ export default function CustomerHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <View style={styles.topDealsGrid}>
             {topDeals.map((deal) => (
               <TouchableOpacity
                 key={deal.id}
-                style={styles.topDealCard}
+                style={styles.topDealGridCard}
                 activeOpacity={0.9}
                 onPress={() => router.push(`/product/${deal.id}` as any)}
               >
-                <SafeImage uri={deal.imageUrl} style={styles.topDealImg} />
+                <SafeImage uri={deal.imageUrl} style={styles.topDealGridImg} resizeMode="cover" />
                 {deal.discountPercentage > 0 && (
                   <View style={styles.dealDiscountBadge}>
                     <Text style={styles.dealDiscountText}>{deal.discountPercentage}% OFF</Text>
@@ -1087,7 +1112,9 @@ export default function CustomerHomeScreen() {
                   <Text style={styles.topDealName} numberOfLines={1}>
                     {deal.name}
                   </Text>
-                  {deal.originalPrice > deal.price ? <Text style={styles.dealOriginalPrice}>₹{deal.originalPrice}</Text> : null}
+                  {deal.originalPrice > deal.price ? (
+                    <Text style={styles.dealOriginalPrice}>₹{deal.originalPrice}</Text>
+                  ) : null}
 
                   <View style={styles.topDealBottomRow}>
                     <Text style={styles.dealFinalPrice}>₹{deal.price}</Text>
@@ -1105,7 +1132,7 @@ export default function CustomerHomeScreen() {
                 </View>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
 
@@ -1367,9 +1394,64 @@ export default function CustomerHomeScreen() {
           setSelectedCategory(cat);
           setSelectedSubcategory(sub);
           setCurrentPrice(sub.basePrice);
+          initDraftBooking(cat.id, sub.id, sub.basePrice);
           setIsFormOpen(true);
         }}
       />
+
+      {drillDownService && (
+        <ServiceSubListDrillDown
+          visible={drillDownService.visible}
+          onClose={() => setDrillDownService(null)}
+          initialCategory={drillDownService.category}
+          initialSubCategory={drillDownService.subCategory}
+          onBookService={(svc) => {
+            setDrillDownService(null);
+            const matchedCat = categories.find(
+              (c) =>
+                c.name.toLowerCase().includes(svc.category.toLowerCase()) ||
+                svc.category.toLowerCase().includes(c.name.toLowerCase())
+            );
+            const parentCat: Category = matchedCat || {
+              id: `cat_${Date.now()}`,
+              name: svc.category,
+              slug: svc.category.toLowerCase().replace(/\s+/g, "-"),
+              description: `${svc.category} services`,
+              imageUrl: svc.imageUrl,
+              subcategories: [],
+              isActive: true,
+            };
+            const customSub: Subcategory = {
+              id: `sub_${Date.now()}`,
+              categoryId: parentCat.id,
+              name: `${svc.serviceName}${
+                svc.selectedBrand && svc.selectedBrand !== "All Brands"
+                  ? ` (${svc.selectedBrand})`
+                  : ""
+              }`,
+              slug: svc.serviceName.toLowerCase().replace(/\s+/g, "-"),
+              basePrice: svc.price,
+              description: `${svc.duration} • ${svc.description}`,
+              imageUrl: svc.imageUrl,
+              formConfig: {
+                fields: [
+                  {
+                    id: "f_phone",
+                    label: "Contact Phone Number",
+                    type: "TEXT",
+                    validation: { required: true },
+                  },
+                ],
+              },
+            };
+            setSelectedCategory(parentCat);
+            setSelectedSubcategory(customSub);
+            setCurrentPrice(svc.price);
+            initDraftBooking(parentCat.id, customSub.id, svc.price);
+            setIsFormOpen(true);
+          }}
+        />
+      )}
           <ShopRegistrationModal
         visible={isShopRegisterOpen}
         onClose={() => setIsShopRegisterOpen(false)}
@@ -1713,6 +1795,32 @@ const styles = StyleSheet.create({
   },
   topDealsSection: {
     marginBottom: 20,
+  },
+  topDealsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+  },
+  topDealGridCard: {
+    width: "48.5%",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    overflow: "hidden",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    marginBottom: 2,
+  },
+  topDealGridImg: {
+    width: "100%",
+    height: 125,
+    backgroundColor: "#f8fafc",
   },
   topDealCard: {
     width: 140,

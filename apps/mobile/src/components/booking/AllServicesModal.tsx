@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import { Category, Subcategory } from "../../types";
 import SafeImage from "../common/SafeImage";
+import ServiceSubListDrillDown from "./ServiceSubListDrillDown";
 
 interface AllServicesModalProps {
   visible: boolean;
@@ -104,6 +105,13 @@ export default function AllServicesModal({
 }: AllServicesModalProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCatId, setSelectedCatId] = useState<string>("ALL");
+  const [drillDownState, setDrillDownState] = useState<{
+    visible: boolean;
+    category: string;
+    subCategory: string;
+    parentCategory: Category;
+    parentSubcategory: Subcategory;
+  } | null>(null);
 
   React.useEffect(() => {
     if (visible && initialQuery) {
@@ -208,8 +216,37 @@ export default function AllServicesModal({
                   key={subcategory.id}
                   activeOpacity={0.85}
                   onPress={() => {
-                    onClose();
-                    onSelectService(category, subcategory);
+                    let catName = category.name;
+                    let subName = subcategory.name;
+                    const norm = `${category.name} ${subcategory.name}`.toLowerCase();
+                    if (
+                      norm.includes("men") &&
+                      (norm.includes("groom") ||
+                        norm.includes("beauty") ||
+                        norm.includes("parlour") ||
+                        norm.includes("salon"))
+                    ) {
+                      catName = "Beauty Parlour";
+                      subName = "Men's Grooming";
+                    } else if (
+                      norm.includes("women") &&
+                      (norm.includes("beauty") ||
+                        norm.includes("parlour") ||
+                        norm.includes("salon"))
+                    ) {
+                      catName = "Beauty Parlour";
+                      subName = "Women's Beauty Services";
+                    } else if (norm.includes("mobile") || norm.includes("phone")) {
+                      catName = "Mobile Repair";
+                      subName = "Doorstep Mobile Repair";
+                    }
+                    setDrillDownState({
+                      visible: true,
+                      category: catName,
+                      subCategory: subName,
+                      parentCategory: category,
+                      parentSubcategory: subcategory,
+                    });
                   }}
                   style={styles.serviceCard}
                 >
@@ -257,6 +294,38 @@ export default function AllServicesModal({
           </ScrollView>
         </View>
       </View>
+
+      {/* Screenshot 6 Black Card Sub-Services Drill-Down Modal */}
+      {drillDownState && (
+        <ServiceSubListDrillDown
+          visible={drillDownState.visible}
+          onClose={() => setDrillDownState(null)}
+          initialCategory={drillDownState.category}
+          initialSubCategory={drillDownState.subCategory}
+          onBookService={(selectedSvc) => {
+            const currentCat = drillDownState.parentCategory;
+            const currentSub = drillDownState.parentSubcategory;
+            setDrillDownState(null);
+            onClose();
+            onSelectService(
+              {
+                ...currentCat,
+                name: selectedSvc.category,
+              },
+              {
+                ...currentSub,
+                name: `${selectedSvc.serviceName}${
+                  selectedSvc.selectedBrand && selectedSvc.selectedBrand !== "All Brands"
+                    ? ` (${selectedSvc.selectedBrand})`
+                    : ""
+                }`,
+                basePrice: selectedSvc.price,
+                description: `${selectedSvc.duration} • ${selectedSvc.description}`,
+              }
+            );
+          }}
+        />
+      )}
     </Modal>
   );
 }

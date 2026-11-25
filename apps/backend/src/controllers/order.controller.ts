@@ -329,7 +329,7 @@ export const getOrderById = async (req: Request, res: Response) => {
 export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, cancelledReason } = req.body;
+    const { status, cancelledReason, deliveryInfo } = req.body;
 
     const validStatuses: OrderStatus[] = [
       "PENDING",
@@ -362,6 +362,12 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     order.status = status;
     if (cancelledReason) {
       order.cancelledReason = cancelledReason;
+    }
+    if (deliveryInfo) {
+      order.deliveryInfo = {
+        ...order.deliveryInfo,
+        ...deliveryInfo,
+      };
     }
 
     if (status === "DELIVERED") {

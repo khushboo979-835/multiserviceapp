@@ -1,5 +1,22 @@
 import mongoose, { Schema, Document } from "mongoose";
-import bcrypt from "bcryptjs";
+import crypto from "crypto";
+
+function hashDeliveryPassword(plain: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(plain, salt, 1000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyDeliveryPassword(plain: string, stored: string): boolean {
+  if (!stored) return false;
+  const parts = stored.split(":");
+  if (parts.length !== 2) {
+    return plain === stored;
+  }
+  const [salt, originalHash] = parts;
+  const testHash = crypto.pbkdf2Sync(plain, salt, 1000, 64, "sha512").toString("hex");
+  return testHash === originalHash;
+}
 
 export type VehicleType = "Bike" | "Scooter" | "Van" | "Bicycle";
 
@@ -125,12 +142,11 @@ const DeliveryPartnerSchema = new Schema<IDeliveryPartner>(
   { timestamps: true }
 );
 
-// Hash password before saving
-DeliveryPartnerSchema.pre("save", async function (next) {
+// Hash password before saving using built-in Node crypto (PBKDF2-SHA512)
+DeliveryPartnerSchema.pre("save", function (next) {
   if (!this.isModified("password")) return next();
   try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    this.password = hashDeliveryPassword(this.password);
     next();
   } catch (err: any) {
     next(err);
@@ -138,7 +154,7 @@ DeliveryPartnerSchema.pre("save", async function (next) {
 });
 
 DeliveryPartnerSchema.methods.comparePassword = async function (candidate: string): Promise<boolean> {
-  return bcrypt.compare(candidate, this.password);
+  return verifyDeliveryPassword(candidate, this.password);
 };
 
 DeliveryPartnerSchema.index({ currentLocation: "2dsphere" });

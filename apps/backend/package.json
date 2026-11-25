@@ -8,8 +8,6 @@
     "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts"
   },
   "dependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

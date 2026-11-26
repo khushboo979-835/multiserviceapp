@@ -18,7 +18,18 @@ function verifyDeliveryPassword(plain: string, stored: string): boolean {
   return testHash === originalHash;
 }
 
-export type VehicleType = "Bike" | "Scooter" | "Van" | "Bicycle";
+export type VehicleType =
+  | "Bike"
+  | "Scooter"
+  | "Van"
+  | "Bicycle"
+  | "Motorcycle"
+  | "Auto"
+  | "BIKE"
+  | "SCOOTER"
+  | "VAN"
+  | "BICYCLE"
+  | "MOTORCYCLE";
 
 export interface IDeliveryPartner extends Document {
   partnerId: string;
@@ -78,8 +89,30 @@ const DeliveryPartnerSchema = new Schema<IDeliveryPartner>(
     },
     vehicleType: {
       type: String,
-      enum: ["Bike", "Scooter", "Van", "Bicycle"],
+      enum: [
+        "Bike",
+        "Scooter",
+        "Van",
+        "Bicycle",
+        "Motorcycle",
+        "Auto",
+        "BIKE",
+        "SCOOTER",
+        "VAN",
+        "BICYCLE",
+        "MOTORCYCLE",
+      ],
       default: "Bike",
+      set: (val: string) => {
+        if (!val) return "Bike";
+        const upper = String(val).trim().toUpperCase();
+        if (upper === "BIKE" || upper === "MOTORCYCLE") return "Bike";
+        if (upper === "SCOOTER") return "Scooter";
+        if (upper === "VAN") return "Van";
+        if (upper === "BICYCLE") return "Bicycle";
+        if (upper === "AUTO") return "Auto";
+        return val.charAt(0).toUpperCase() + val.slice(1);
+      },
     },
     vehicleNumber: {
       type: String,

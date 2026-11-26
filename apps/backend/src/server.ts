@@ -17,6 +17,7 @@ import shopRouter from "./routes/shop.routes";
 import orderRouter from "./routes/order.routes";
 import deliveryRouter from "./routes/delivery.routes";
 import { MobileRepair, ensureDefaultMobileRepairs, DEFAULT_MOBILE_REPAIRS } from "./models/MobileRepair";
+import { User } from "./models/User";
 
 // Load environment variables
 dotenv.config();
@@ -51,6 +52,21 @@ app.use("/api/media", mediaRouter);
 app.use("/api/shops", shopRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/delivery", deliveryRouter);
+
+// Public / Internal Users API (handles queries like /api/users?role=DELIVERY)
+app.get("/api/users", async (req, res) => {
+  try {
+    const { role } = req.query;
+    const filter: any = {};
+    if (role) {
+      filter.role = String(role).toUpperCase();
+    }
+    const users = await User.find(filter).select("-password").limit(100);
+    return res.status(200).json({ success: true, count: users.length, users });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Public Mobile Repairs Catalog API
 app.get("/api/mobile-repairs", async (req, res) => {

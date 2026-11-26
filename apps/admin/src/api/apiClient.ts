@@ -36,11 +36,19 @@ apiClient.interceptors.response.use(
   async (error) => {
     const config = error.config;
 
-    // Handle 401 unauthenticated
+    // Handle 401 unauthenticated - avoid kicking admin to login on single action failures
     if (error.response && error.response.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("admin_token");
-        window.location.href = "/login";
+        const isLoginRequest = config?.url?.includes("/admin/login");
+        const isCurrentPageLogin = window.location.pathname === "/login";
+
+        // Only redirect to login if user genuinely has no token and is not already on login page
+        const existingToken = localStorage.getItem("admin_token");
+        if (!existingToken && !isLoginRequest && !isCurrentPageLogin) {
+          window.location.href = "/login";
+        } else {
+          console.warn(`[AdminApiClient] 401 received for ${config?.url}. Preserving admin session.`);
+        }
       }
       return Promise.reject(error);
     }

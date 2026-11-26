@@ -1034,7 +1034,7 @@ router.get("/delivery-partners", async (req: Request, res: Response) => {
           phone: "+919812345678",
           email: "ramesh@rider.inishacityservice.com",
           password: "InishaRider@2026",
-          vehicleType: "BIKE",
+          vehicleType: "Bike",
           vehicleNumber: "BR-01-AB-4819",
           isAvailable: true,
           isVerified: true,
@@ -1049,7 +1049,7 @@ router.get("/delivery-partners", async (req: Request, res: Response) => {
           phone: "+919876512345",
           email: "amit@rider.inishacityservice.com",
           password: "InishaRider@2026",
-          vehicleType: "SCOOTER",
+          vehicleType: "Scooter",
           vehicleNumber: "BR-01-EF-9214",
           isAvailable: true,
           isVerified: true,
@@ -1064,7 +1064,7 @@ router.get("/delivery-partners", async (req: Request, res: Response) => {
           phone: "+919123456789",
           email: "vikash@rider.inishacityservice.com",
           password: "InishaRider@2026",
-          vehicleType: "BIKE",
+          vehicleType: "Bike",
           vehicleNumber: "BR-01-CD-1192",
           isAvailable: false,
           isVerified: true,
@@ -1146,7 +1146,13 @@ router.post("/delivery-partners", async (req: Request, res: Response) => {
     const formattedPhone = `+91${cleanPhone}`;
     const rawPass = password || "InishaRider@2026";
     const partnerId = `INP-DEL-${cleanPhone.slice(-4) || Date.now().toString().slice(-4)}`;
-    const chosenVehicle = vehicleType || deliveryVehicleType || "Bike";
+    let chosenVehicle = String(vehicleType || deliveryVehicleType || "Bike").trim();
+    const upv = chosenVehicle.toUpperCase();
+    if (upv === "BIKE" || upv === "MOTORCYCLE") chosenVehicle = "Bike";
+    else if (upv === "SCOOTER") chosenVehicle = "Scooter";
+    else if (upv === "VAN") chosenVehicle = "Van";
+    else if (upv === "BICYCLE") chosenVehicle = "Bicycle";
+    else if (upv === "AUTO") chosenVehicle = "Auto";
     const chosenVehicleNumber = vehicleNumber || deliveryVehicleNumber || "BR-01-XX-0000";
 
     // Check if partner with this phone already exists
@@ -1329,6 +1335,7 @@ router.post("/services", async (req: Request, res: Response) => {
   try {
     const {
       serviceName,
+      name,
       title,
       category,
       subCategory,
@@ -1341,7 +1348,7 @@ router.post("/services", async (req: Request, res: Response) => {
       isActive = true,
     } = req.body;
 
-    const resolvedName = (serviceName || title || "").trim();
+    const resolvedName = (serviceName || name || title || "").trim();
     const resolvedCategory = (category || "").trim();
 
     if (!resolvedName || !resolvedCategory || price === undefined) {
@@ -1400,6 +1407,10 @@ router.put("/services/:id", async (req: Request, res: Response) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    if (updateData.name) {
+      if (!updateData.serviceName) updateData.serviceName = updateData.name;
+      if (!updateData.title) updateData.title = updateData.name;
+    }
     if (updateData.serviceName && !updateData.title) {
       updateData.title = updateData.serviceName;
     }

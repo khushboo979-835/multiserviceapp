@@ -130,7 +130,7 @@ export default function DeliveryFleetPage() {
         }));
         setRiders(mapped);
       } else {
-        const fallbackRes = await apiClient.get("/users?role=DELIVERY").catch(() => null);
+        const fallbackRes = await apiClient.get("/admin/users?role=DELIVERY").catch(() => null);
         if (fallbackRes?.data?.success && Array.isArray(fallbackRes.data.users) && fallbackRes.data.users.length > 0) {
           setRiders(fallbackRes.data.users);
         }

@@ -1023,59 +1023,7 @@ router.get("/orders", async (req: Request, res: Response) => {
  */
 router.get("/delivery-partners", async (req: Request, res: Response) => {
   try {
-    let partners = await DeliveryPartner.find().sort({ createdAt: -1 });
-
-    // Auto-seed default delivery partners if empty so database always has records
-    if (partners.length === 0) {
-      await DeliveryPartner.create([
-        {
-          partnerId: "INP-7001",
-          name: "Ramesh Kumar",
-          phone: "+919812345678",
-          email: "ramesh@rider.inishacityservice.com",
-          password: "InishaRider@2026",
-          vehicleType: "Bike",
-          vehicleNumber: "BR-01-AB-4819",
-          isAvailable: true,
-          isVerified: true,
-          role: "INISHA_DELIVERY",
-          walletBalance: 1450,
-          totalDeliveries: 84,
-          rating: 4.9,
-        },
-        {
-          partnerId: "SHP-3021",
-          name: "Amit Sharma",
-          phone: "+919876512345",
-          email: "amit@rider.inishacityservice.com",
-          password: "InishaRider@2026",
-          vehicleType: "Scooter",
-          vehicleNumber: "BR-01-EF-9214",
-          isAvailable: true,
-          isVerified: true,
-          role: "SHOP_DELIVERY",
-          walletBalance: 820,
-          totalDeliveries: 42,
-          rating: 4.8,
-        },
-        {
-          partnerId: "INP-7002",
-          name: "Vikash Singh",
-          phone: "+919123456789",
-          email: "vikash@rider.inishacityservice.com",
-          password: "InishaRider@2026",
-          vehicleType: "Bike",
-          vehicleNumber: "BR-01-CD-1192",
-          isAvailable: false,
-          isVerified: true,
-          role: "INISHA_DELIVERY",
-          walletBalance: 2100,
-          totalDeliveries: 112,
-          rating: 5.0,
-        },
-      ]);
-      partners = await DeliveryPartner.find().sort({ createdAt: -1 });
-    }
+    const partners = await DeliveryPartner.find().sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -1105,6 +1053,81 @@ router.get("/delivery-partners", async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("GET /api/admin/delivery-partners error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/delivery-partners/seed
+ * Manually seed default riders only when explicitly requested by Admin
+ */
+router.post("/delivery-partners/seed", async (req: Request, res: Response) => {
+  try {
+    const existing = await DeliveryPartner.find();
+    if (existing.length > 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Delivery partners already exist.",
+        count: existing.length,
+        deliveryPartners: existing,
+      });
+    }
+
+    const defaultPartners = await DeliveryPartner.create([
+      {
+        partnerId: "INP-7001",
+        name: "Ramesh Kumar",
+        phone: "+919812345678",
+        email: "ramesh@rider.inishacityservice.com",
+        password: "InishaRider@2026",
+        vehicleType: "Bike",
+        vehicleNumber: "BR-01-AB-4819",
+        isAvailable: true,
+        isVerified: true,
+        role: "INISHA_DELIVERY",
+        walletBalance: 1450,
+        totalDeliveries: 84,
+        rating: 4.9,
+      },
+      {
+        partnerId: "SHP-3021",
+        name: "Amit Sharma",
+        phone: "+919876512345",
+        email: "amit@rider.inishacityservice.com",
+        password: "InishaRider@2026",
+        vehicleType: "Scooter",
+        vehicleNumber: "BR-01-EF-9214",
+        isAvailable: true,
+        isVerified: true,
+        role: "SHOP_DELIVERY",
+        walletBalance: 820,
+        totalDeliveries: 42,
+        rating: 4.8,
+      },
+      {
+        partnerId: "INP-7002",
+        name: "Vikash Singh",
+        phone: "+919123456789",
+        email: "vikash@rider.inishacityservice.com",
+        password: "InishaRider@2026",
+        vehicleType: "Bike",
+        vehicleNumber: "BR-01-CD-1192",
+        isAvailable: false,
+        isVerified: true,
+        role: "INISHA_DELIVERY",
+        walletBalance: 2100,
+        totalDeliveries: 112,
+        rating: 5.0,
+      },
+    ]);
+
+    return res.status(201).json({
+      success: true,
+      message: "Default delivery partners seeded successfully.",
+      count: defaultPartners.length,
+      deliveryPartners: defaultPartners,
+    });
+  } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -1258,11 +1281,17 @@ router.patch("/delivery-partners/:id/status", async (req: Request, res: Response
 router.delete("/delivery-partners/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const query = id.match(/^[0-9a-fA-F]{24}$/)
-      ? { $or: [{ _id: id }, { partnerId: id }] }
-      : { partnerId: id };
+    const cleanId = String(id || "").trim();
+    const orConditions: any[] = [
+      { partnerId: cleanId },
+      { phone: cleanId },
+      { email: cleanId.toLowerCase() },
+    ];
+    if (cleanId.match(/^[0-9a-fA-F]{24}$/)) {
+      orConditions.push({ _id: cleanId });
+    }
 
-    const partner = await DeliveryPartner.findOneAndDelete(query);
+    const partner = await DeliveryPartner.findOneAndDelete({ $or: orConditions });
     if (!partner) {
       return res.status(404).json({ success: false, message: "Delivery partner not found." });
     }

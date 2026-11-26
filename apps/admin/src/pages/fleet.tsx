@@ -84,7 +84,7 @@ const DEFAULT_RIDERS: RiderData[] = [
 ];
 
 export default function DeliveryFleetPage() {
-  const [riders, setRiders] = useState<RiderData[]>(DEFAULT_RIDERS);
+  const [riders, setRiders] = useState<RiderData[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterRole, setFilterRole] = useState<"ALL" | "INISHA_DELIVERY" | "SHOP_DELIVERY">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,29 +111,35 @@ export default function DeliveryFleetPage() {
     try {
       setLoading(true);
       const res = await apiClient.get("/admin/delivery-partners").catch(() => null);
-      if (res?.data?.success && Array.isArray(res.data.users) && res.data.users.length > 0) {
-        setRiders(res.data.users);
-      } else if (res?.data?.deliveryPartners && Array.isArray(res.data.deliveryPartners) && res.data.deliveryPartners.length > 0) {
-        const mapped = res.data.deliveryPartners.map((p: any) => ({
-          _id: p._id,
-          userId: p._id,
-          assignedPartnerId: p.partnerId,
-          name: p.name,
-          phoneNumber: p.phone,
-          role: p.role || "INISHA_DELIVERY",
-          deliveryVehicleType: p.vehicleType || "BIKE",
-          deliveryVehicleNumber: p.vehicleNumber || "BR-01-XX-0000",
-          isOnline: p.isAvailable !== false,
-          walletBalance: p.walletBalance || 500,
-          totalTrips: p.totalDeliveries || 0,
-          rating: p.rating || 4.9,
-        }));
-        setRiders(mapped);
-      } else {
-        const fallbackRes = await apiClient.get("/admin/users?role=DELIVERY").catch(() => null);
-        if (fallbackRes?.data?.success && Array.isArray(fallbackRes.data.users) && fallbackRes.data.users.length > 0) {
-          setRiders(fallbackRes.data.users);
+      if (res?.data?.success) {
+        if (Array.isArray(res.data.users)) {
+          setRiders(res.data.users);
+          return;
+        } else if (Array.isArray(res.data.deliveryPartners)) {
+          const mapped = res.data.deliveryPartners.map((p: any) => ({
+            _id: p._id,
+            userId: p._id,
+            assignedPartnerId: p.partnerId,
+            name: p.name,
+            phoneNumber: p.phone,
+            role: p.role || "INISHA_DELIVERY",
+            deliveryVehicleType: p.vehicleType || "BIKE",
+            deliveryVehicleNumber: p.vehicleNumber || "BR-01-XX-0000",
+            isOnline: p.isAvailable !== false,
+            walletBalance: p.walletBalance || 500,
+            totalTrips: p.totalDeliveries || 0,
+            rating: p.rating || 4.9,
+          }));
+          setRiders(mapped);
+          return;
         }
+      }
+
+      const fallbackRes = await apiClient.get("/admin/users?role=DELIVERY").catch(() => null);
+      if (fallbackRes?.data?.success && Array.isArray(fallbackRes.data.users) && fallbackRes.data.users.length > 0) {
+        setRiders(fallbackRes.data.users);
+      } else {
+        setRiders([]);
       }
     } catch {
       // Keep state
@@ -212,15 +218,18 @@ export default function DeliveryFleetPage() {
   const handleDeleteRider = async (partnerId: string, name: string) => {
     if (!window.confirm(`Are you sure you want to remove rider "${name}"?`)) return;
     try {
-      await apiClient.delete(`/admin/delivery-partners/${partnerId}`);
-      setToastMessage(`Rider "${name}" deleted successfully.`);
       setRiders((prev) =>
         prev.filter((r) => r.assignedPartnerId !== partnerId && r._id !== partnerId && r.userId !== partnerId)
       );
+      const res = await apiClient.delete(`/admin/delivery-partners/${partnerId}`);
+      if (res.data?.success) {
+        setToastMessage(`Rider "${name}" deleted permanently.`);
+      }
       setTimeout(() => setToastMessage(""), 4000);
       await fetchRiders();
     } catch (err: any) {
       alert("Failed to delete rider: " + (err.response?.data?.message || err.message));
+      await fetchRiders();
     }
   };
 
@@ -407,7 +416,7 @@ export default function DeliveryFleetPage() {
                         {rider.isOnline ? "Set Offline" : "Set Online"}
                       </button>
                       <button
-                        onClick={() => handleDeleteRider(rider.assignedPartnerId || rider._id || "", rider.name)}
+                        onClick={() => handleDeleteRider(rider._id || rider.assignedPartnerId || "", rider.name)}
                         className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold transition"
                       >
                         Delete
@@ -415,6 +424,28 @@ export default function DeliveryFleetPage() {
                     </td>
                   </tr>
                 ))}
+
+                {filteredRiders.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Bike className="w-6 h-6" />
+                        </div>
+                        <div className="text-base font-bold text-slate-800">No delivery partners found</div>
+                        <p className="text-xs text-slate-400 max-w-sm">
+                          There are currently no active delivery partners in the system. Click below to onboard a new delivery rider.
+                        </p>
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+                        >
+                          + Onboard Delivery Partner
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

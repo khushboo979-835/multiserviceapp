@@ -516,8 +516,8 @@ function ZomatoShopCard({ shop, onPress }: { shop: Shop; onPress: () => void }) 
           <MapPin size={12} color="#64748b" />
           <Text style={styles.addressText} numberOfLines={1}>
             {shop.address?.street
-              ? `${shop.address.street}, ${shop.address.city || "Patna"}`
-              : "Boring Road, Kidwaipuri, Patna"}
+              ? `${shop.address.street}, ${shop.address.city || "Bhagalpur"}`
+              : "Station Road, Sultanganj, Bhagalpur"}
           </Text>
           <Text style={styles.distanceDot}>•</Text>
           <Text style={styles.distanceText}>1.8 km</Text>

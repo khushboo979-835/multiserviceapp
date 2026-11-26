@@ -52,6 +52,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isInitialized: true,
           isLoading: false,
         });
+
+        // Hydrate latest user profile from backend MongoDB in background
+        try {
+          const API_URL =
+            process.env.EXPO_PUBLIC_API_URL ||
+            "https://multiserviceapp-4pdw.onrender.com/api";
+          fetch(`${API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data?.success && data?.user) {
+                set((state) => {
+                  const merged = { ...state.user, ...data.user };
+                  AsyncStorage.setItem("@user_profile", JSON.stringify(merged)).catch(() => {});
+                  AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(merged)).catch(() => {});
+                  if (data.user.address) {
+                    AsyncStorage.setItem("@user_delivery_address", data.user.address).catch(() => {});
+                  }
+                  if (data.user.city) {
+                    AsyncStorage.setItem("@user_selected_city", data.user.city).catch(() => {});
+                  }
+                  return { user: merged };
+                });
+              }
+            })
+            .catch(() => {});
+        } catch {}
+
         return;
       }
     } catch (err) {
@@ -60,19 +89,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isInitialized: true, isLoading: false });
   },
 
-  setAuth: (user, token) =>
-    set({
+  setAuth: (user, token) => {
+    if (token) {
+      AsyncStorage.setItem("@auth_token", token).catch(() => {});
+    }
+    if (user) {
+      AsyncStorage.setItem("@user_profile", JSON.stringify(user)).catch(() => {});
+      AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(user)).catch(() => {});
+    }
+    set((state) => ({
       user,
-      token,
+      token: token || state.token,
       isAuthenticated: true,
       isLoading: false,
       isInitialized: true,
-    }),
+    }));
+  },
 
   updateUser: (updatedUser) =>
-    set((state) => ({
-      user: state.user ? { ...state.user, ...updatedUser } : null,
-    })),
+    set((state) => {
+      const newUser = state.user ? { ...state.user, ...updatedUser } : null;
+      if (newUser) {
+        AsyncStorage.setItem("@user_profile", JSON.stringify(newUser)).catch(() => {});
+        AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(newUser)).catch(() => {});
+      }
+      return { user: newUser };
+    }),
 
   setProviderProfile: (profile) => set({ providerProfile: profile }),
 

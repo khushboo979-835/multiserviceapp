@@ -225,7 +225,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       isGift: state.isGift,
       giftRecipientName: state.isGift ? state.giftRecipientName : undefined,
       giftMessage: state.isGift ? state.giftMessage : undefined,
-      deliveryAddress: deliveryAddress || "Home - Kidwaipuri, Boring Road, Patna",
+      deliveryAddress: deliveryAddress || "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
       paymentMethod,
       paymentStatus: paymentMethod.includes("COD") ? "PENDING_COD" : "PAID",
       deliveryPartner: {

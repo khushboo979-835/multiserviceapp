@@ -95,8 +95,8 @@ export default function TrackOrderScreen() {
               otp: o.deliveryInfo?.deliveryOtp || "4821",
               isGift: false,
               deliveryAddress: o.deliveryAddress?.street
-                ? `${o.deliveryAddress.street}, ${o.deliveryAddress.city || "Patna"}`
-                : "Boring Road, Kidwaipuri, Patna",
+                ? `${o.deliveryAddress.street}, ${o.deliveryAddress.city || "Bhagalpur"}`
+                : "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
               paymentMethod: o.paymentMethod || "COD",
               paymentStatus: o.paymentStatus || "PENDING_COD",
               deliveryPartner: {
@@ -169,7 +169,7 @@ export default function TrackOrderScreen() {
         status: "OUT_FOR_DELIVERY",
         otp: "3921",
         isGift: false,
-        deliveryAddress: "Shobha Apartment, Boring Road, Kidwaipuri, Patna, Bihar - 800001",
+        deliveryAddress: "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
         paymentMethod: "CASH_ON_DELIVERY",
         paymentStatus: "PENDING_COD",
         deliveryPartner: {

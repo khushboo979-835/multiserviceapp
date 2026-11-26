@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Share,
   Modal,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import {
   LogOut,
@@ -62,9 +63,62 @@ export default function ProfileScreen() {
   const [merchantVisible, setMerchantVisible] = useState(false);
   const [shopRegisterVisible, setShopRegisterVisible] = useState(false);
 
-  const [selectedCity, setSelectedCity] = useState("Patna");
+  const [selectedCity, setSelectedCity] = useState("Bhagalpur");
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "hi" | "hinglish">("en");
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    async function loadCityAndLang() {
+      try {
+        const storedCity = await AsyncStorage.getItem("@user_selected_city");
+        if (storedCity && storedCity.trim()) {
+          setSelectedCity(storedCity.trim());
+        } else if (user?.city && user.city.trim()) {
+          setSelectedCity(user.city.trim());
+        } else {
+          setSelectedCity("Bhagalpur");
+        }
+
+        const storedLang = await AsyncStorage.getItem("@user_selected_language");
+        if (storedLang && (storedLang === "en" || storedLang === "hi" || storedLang === "hinglish")) {
+          setSelectedLanguage(storedLang);
+        }
+      } catch {}
+    }
+    loadCityAndLang();
+  }, [user?.city]);
+
+  const handleSelectCity = async (cityName: string) => {
+    setSelectedCity(cityName);
+    try {
+      await AsyncStorage.setItem("@user_selected_city", cityName);
+      useAuthStore.getState().updateUser({ city: cityName });
+      const API_URL =
+        process.env.EXPO_PUBLIC_API_URL ||
+        "https://multiserviceapp-4pdw.onrender.com/api";
+      const token = useAuthStore.getState().token;
+      fetch(`${API_URL}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          phone: user?.phoneNumber,
+          phoneNumber: user?.phoneNumber,
+          city: cityName,
+        }),
+      }).catch(() => {});
+    } catch {}
+  };
+
+  const handleSelectLanguage = async (lang: "en" | "hi" | "hinglish") => {
+    setSelectedLanguage(lang);
+    try {
+      await AsyncStorage.setItem("@user_selected_language", lang);
+    } catch {}
+  };
 
   const referralCode = `INISHA-${user?.phoneNumber?.slice(-4) || "7857"}`;
   const displayName = user?.name || `Customer ${user?.phoneNumber?.slice(-4) || "User"}`;
@@ -296,8 +350,8 @@ export default function ProfileScreen() {
         onClose={() => setLangCityVisible(false)}
         selectedCity={selectedCity}
         selectedLanguage={selectedLanguage}
-        onSelectCity={setSelectedCity}
-        onSelectLanguage={setSelectedLanguage}
+        onSelectCity={handleSelectCity}
+        onSelectLanguage={handleSelectLanguage}
       />
 
       <InAppAdminPortalModal

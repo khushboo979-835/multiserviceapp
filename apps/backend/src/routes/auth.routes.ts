@@ -306,6 +306,8 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
           role: "CUSTOMER",
           name: `Customer ${cleanPhone.slice(-4)}`,
           email: `user_${cleanPhone}@inishacityservice.com`,
+          address: "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
+          city: "Bhagalpur",
           isVerified: true,
           walletBalance: 250,
         });
@@ -317,6 +319,8 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
         role: "CUSTOMER",
         name: `Customer ${cleanPhone.slice(-4)}`,
         email: `user_${cleanPhone}@inishacityservice.com`,
+        address: "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
+        city: "Bhagalpur",
         walletBalance: 250,
       };
     }
@@ -347,6 +351,8 @@ const handleVerifyCustomerOtp = async (req: Request, res: Response) => {
         assignedPartnerId: user.assignedPartnerId || "",
         name: user.name || `Customer ${cleanPhone.slice(-4)}`,
         email: user.email || `user_${cleanPhone}@inishacityservice.com`,
+        address: user.address || "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213",
+        city: user.city || "Bhagalpur",
         walletBalance: user.walletBalance ?? 250,
       },
     });
@@ -795,6 +801,8 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response) 
         role: user.role,
         name: user.name,
         email: user.email,
+        address: user.address || "",
+        city: user.city || "Bhagalpur",
         walletBalance: user.walletBalance,
         isVerified: user.isVerified,
         shopId: user.shopId,
@@ -812,6 +820,83 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response) 
     });
   }
 });
+
+/**
+ * Endpoint: PUT /api/auth/profile & PUT /api/auth/me
+ * Update user profile (name, email, address, city, location)
+ */
+const handleUpdateProfile = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || req.user?.userId || req.body?.userId;
+    const phone = req.user?.phoneNumber || req.body?.phone || req.body?.phoneNumber;
+
+    let user = null;
+    if (userId && String(userId).match(/^[0-9a-fA-F]{24}$/)) {
+      user = await User.findById(userId);
+    }
+    if (!user && phone) {
+      const cleanPhone = String(phone).replace(/\D/g, "").slice(-10);
+      user = await User.findOne({
+        $or: [
+          { phoneNumber: `+91${cleanPhone}` },
+          { phoneNumber: cleanPhone },
+        ],
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found to update profile.",
+      });
+    }
+
+    const { name, email, address, city, currentLocation } = req.body;
+
+    if (name !== undefined) user.name = String(name).trim();
+    if (email !== undefined) user.email = String(email).trim().toLowerCase();
+    if (address !== undefined) user.address = String(address).trim();
+    if (city !== undefined) user.city = String(city).trim();
+    if (currentLocation && Array.isArray(currentLocation.coordinates)) {
+      user.currentLocation = currentLocation;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile details updated successfully",
+      user: {
+        id: user._id.toString(),
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        name: user.name,
+        email: user.email,
+        address: user.address,
+        city: user.city,
+        walletBalance: user.walletBalance,
+        isVerified: user.isVerified,
+        shopId: user.shopId,
+        assignedPartnerId: user.assignedPartnerId,
+        isOnline: user.isOnline,
+        currentLocation: user.currentLocation,
+      },
+    });
+  } catch (error: any) {
+    console.error("PUT /api/auth/profile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+      error: error?.message,
+    });
+  }
+};
+
+router.put("/profile", requireAuth, handleUpdateProfile);
+router.patch("/profile", requireAuth, handleUpdateProfile);
+router.put("/me", requireAuth, handleUpdateProfile);
+// Also support unauthenticated profile update if phone provided
+router.put("/customer/profile", handleUpdateProfile);
 
 // Customer Routes
 router.post("/customer/send-otp", handleSendCustomerOtp);

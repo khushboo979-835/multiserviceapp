@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   Dimensions,
   Alert,
   Platform,
+  Modal,
+  KeyboardAvoidingView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -30,10 +33,14 @@ import {
   ArrowLeft,
   X,
   Clock,
+  Crosshair,
+  Check,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCartStore } from "../../../src/store/useCartStore";
 import { useAuthStore } from "../../../src/store/useAuthStore";
+import { LocationService } from "../../../src/services/location.service";
 import { db } from "../../../src/config/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { MOCK_COUPONS } from "../../../src/constants/mockData";
@@ -71,10 +78,87 @@ export default function CartScreen() {
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState(
-    "Flat 402, Shivam Residency, Boring Road, Patna - 800001"
+    "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213"
   );
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [addressInput, setAddressInput] = useState("");
+  const [detectingGps, setDetectingGps] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "COD" | "WALLET">("UPI");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // Load saved address from storage or user profile on mount
+  useEffect(() => {
+    async function loadAddress() {
+      try {
+        const stored = await AsyncStorage.getItem("@user_delivery_address");
+        if (stored && stored.trim().length > 0) {
+          setDeliveryAddress(stored.trim());
+          setAddressInput(stored.trim());
+        } else if (user?.address && user.address.trim().length > 0) {
+          setDeliveryAddress(user.address.trim());
+          setAddressInput(user.address.trim());
+        } else {
+          const defaultAddr = "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213";
+          setDeliveryAddress(defaultAddr);
+          setAddressInput(defaultAddr);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadAddress();
+  }, [user?.address]);
+
+  const handleDetectGps = async () => {
+    setDetectingGps(true);
+    try {
+      const loc = await LocationService.getCurrentLocation();
+      if (loc?.formattedAddress) {
+        setAddressInput(loc.formattedAddress);
+      }
+    } catch {
+      const fallback = LocationService.getFallbackLocation();
+      setAddressInput(fallback.formattedAddress);
+    } finally {
+      setDetectingGps(false);
+    }
+  };
+
+  const handleSaveDeliveryAddress = async () => {
+    const trimmed = addressInput.trim();
+    if (!trimmed) {
+      Alert.alert("Address Required", "Please enter your complete delivery address.");
+      return;
+    }
+
+    setDeliveryAddress(trimmed);
+    await AsyncStorage.setItem("@user_delivery_address", trimmed);
+
+    // Update user profile in local store
+    useAuthStore.getState().updateUser({ address: trimmed });
+
+    // Sync to backend MongoDB Atlas
+    try {
+      const API_URL =
+        process.env.EXPO_PUBLIC_API_URL ||
+        "https://multiserviceapp-4pdw.onrender.com/api";
+      const token = useAuthStore.getState().token;
+      fetch(`${API_URL}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          phone: user?.phoneNumber,
+          address: trimmed,
+        }),
+      }).catch(() => {});
+    } catch {}
+
+    setIsAddressModalOpen(false);
+  };
 
   const subtotal = getSubtotal();
   const discount = getDiscount();
@@ -145,8 +229,8 @@ export default function CartScreen() {
         })),
         deliveryAddress: {
           street: deliveryAddress,
-          city: "Patna",
-          pincode: "800001",
+          city: user?.city || "Bhagalpur",
+          pincode: "813213",
           phone: user?.phoneNumber || "+91 95078 60048",
         },
         paymentMethod: paymentMethod === "COD" ? "COD" : paymentMethod === "WALLET" ? "WALLET" : "ONLINE",
@@ -462,18 +546,26 @@ export default function CartScreen() {
         </View>
 
         {/* 📍 Delivery Address */}
-        <View style={styles.cardSection}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            setAddressInput(deliveryAddress);
+            setIsAddressModalOpen(true);
+          }}
+          style={styles.cardSection}
+        >
           <View style={styles.addressHeader}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <MapPin size={18} color="#ef4444" />
               <Text style={styles.sectionHeading}>Delivery Address</Text>
             </View>
-            <TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Text style={styles.changeAddressText}>Change</Text>
-            </TouchableOpacity>
+              <ChevronRight size={14} color="#ef4444" />
+            </View>
           </View>
           <Text style={styles.addressText}>{deliveryAddress}</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* 💳 Payment Method Selection */}
         <View style={styles.cardSection}>
@@ -606,6 +698,115 @@ export default function CartScreen() {
           <ChevronRight size={18} color="#ffffff" />
         </TouchableOpacity>
       </View>
+
+      {/* 📍 Interactive Delivery Address Modal */}
+      <Modal
+        visible={isAddressModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsAddressModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.addressModalOverlay}
+        >
+          <View style={styles.addressModalCard}>
+            {/* Header */}
+            <View style={styles.addressModalHeader}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={styles.addressModalIconCircle}>
+                  <MapPin size={20} color="#ef4444" />
+                </View>
+                <View>
+                  <Text style={styles.addressModalTitle}>Change Delivery Address</Text>
+                  <Text style={styles.addressModalSub}>Enter your exact doorstep location</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsAddressModalOpen(false)}
+                style={styles.addressModalCloseBtn}
+              >
+                <X size={18} color="#0f172a" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {/* GPS Live Detect Button */}
+              <TouchableOpacity
+                onPress={handleDetectGps}
+                style={styles.gpsDetectBtn}
+                activeOpacity={0.8}
+                disabled={detectingGps}
+              >
+                {detectingGps ? (
+                  <ActivityIndicator size="small" color="#ef4444" />
+                ) : (
+                  <Crosshair size={18} color="#ef4444" />
+                )}
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.gpsDetectTitle}>
+                    {detectingGps ? "Detecting Live Location..." : "Use Current GPS Location"}
+                  </Text>
+                  <Text style={styles.gpsDetectSub}>
+                    Auto-detect address via device GPS
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Quick Area Suggestions */}
+              <Text style={styles.quickAreaHeading}>QUICK AREA SELECT (SULTANGANJ / BHAGALPUR)</Text>
+              <View style={styles.quickAreaContainer}>
+                {[
+                  "Rahmatnagar, Dilgouri, Sultanganj (813213)",
+                  "Station Road, Sultanganj, Bhagalpur",
+                  "Tilka Manjhi Chowk, Bhagalpur",
+                  "Zero Mile, Barari, Bhagalpur",
+                  "Adampur, Bhagalpur (812001)",
+                  "Aliganj, Bhagalpur",
+                ].map((area) => (
+                  <TouchableOpacity
+                    key={area}
+                    style={styles.quickAreaChip}
+                    onPress={() => setAddressInput(area)}
+                    activeOpacity={0.7}
+                  >
+                    <MapPin size={12} color="#64748b" style={{ marginRight: 4 }} />
+                    <Text style={styles.quickAreaChipText}>{area}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Address Input Box */}
+              <Text style={styles.addressInputLabel}>COMPLETE DELIVERY ADDRESS</Text>
+              <View style={styles.addressInputBox}>
+                <TextInput
+                  value={addressInput}
+                  onChangeText={setAddressInput}
+                  placeholder="House / Flat No., Landmark, Street, Sultanganj / Bhagalpur..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  numberOfLines={3}
+                  style={styles.addressTextInput}
+                />
+              </View>
+
+              {/* Confirm / Deliver Here Button */}
+              <TouchableOpacity
+                onPress={handleSaveDeliveryAddress}
+                style={styles.saveAddressBtn}
+                activeOpacity={0.85}
+              >
+                <Check size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.saveAddressBtnText}>Deliver to this Address</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1100,5 +1301,144 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 14,
     fontWeight: "900",
+  },
+  /* Delivery Address Modal */
+  addressModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    justifyContent: "flex-end",
+  },
+  addressModalCard: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 20,
+    maxHeight: "85%",
+  },
+  addressModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  addressModalIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fef2f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addressModalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+  addressModalSub: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  addressModalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gpsDetectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff1f2",
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+  },
+  gpsDetectTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#ef4444",
+  },
+  gpsDetectSub: {
+    fontSize: 11,
+    color: "#9f1239",
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  quickAreaHeading: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748b",
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  quickAreaContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  quickAreaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  quickAreaChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  addressInputLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#475569",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  addressInputBox: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#cbd5e1",
+    borderRadius: 16,
+    padding: 12,
+    minHeight: 90,
+    marginBottom: 16,
+  },
+  addressTextInput: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0f172a",
+    textAlignVertical: "top",
+    minHeight: 65,
+    padding: 0,
+  },
+  saveAddressBtn: {
+    backgroundColor: "#ef4444",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    borderRadius: 16,
+    shadowColor: "#ef4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveAddressBtnText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#ffffff",
   },
 });

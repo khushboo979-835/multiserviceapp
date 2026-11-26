@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   StyleSheet,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {
   X,
@@ -28,6 +30,7 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  Building2,
 } from "lucide-react-native";
 import { useAuthStore } from "../../store/useAuthStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -42,10 +45,31 @@ export function EditProfileModal({
   visible: boolean;
   onClose: () => void;
 }) {
-  const { user, setAuth } = useAuthStore();
-  const [name, setName] = useState(user?.name || "Customer");
+  const { user, updateUser } = useAuthStore();
+  const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [address, setAddress] = useState("Flat 302, Green Valley Apartments, Main City");
+  const [city, setCity] = useState(user?.city || "Bhagalpur");
+  const [address, setAddress] = useState(user?.address || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setName(user?.name || "");
+      setEmail(user?.email || "");
+      setCity(user?.city || "Bhagalpur");
+      AsyncStorage.getItem("@user_delivery_address").then((stored) => {
+        if (stored && stored.trim()) {
+          setAddress(stored.trim());
+        } else if (user?.address && user.address.trim()) {
+          setAddress(user.address.trim());
+        } else {
+          setAddress("Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213");
+        }
+      }).catch(() => {
+        setAddress(user?.address || "Rahmatnagar, Dilgouri, Sultanganj, Bhagalpur, Bihar - 813213");
+      });
+    }
+  }, [visible, user]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -53,89 +77,169 @@ export function EditProfileModal({
       return;
     }
 
-    const updatedUser = {
-      ...user!,
-      name: name.trim(),
-      email: email.trim(),
-    };
+    try {
+      setSaving(true);
+      const trimmedName = name.trim();
+      const trimmedEmail = email.trim();
+      const trimmedCity = city.trim() || "Bhagalpur";
+      const trimmedAddress = address.trim();
 
-    setAuth(updatedUser, "");
-    await AsyncStorage.setItem("@user_profile", JSON.stringify(updatedUser));
-    await AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(updatedUser));
+      // 1. Update local reactive state
+      updateUser({
+        name: trimmedName,
+        email: trimmedEmail,
+        city: trimmedCity,
+        address: trimmedAddress,
+      });
 
-    Alert.alert("Profile Updated ✅", "Your personal profile details have been saved.");
-    onClose();
+      // 2. Persist in AsyncStorage for offline & instant reloads
+      await Promise.all([
+        AsyncStorage.setItem("@user_delivery_address", trimmedAddress),
+        AsyncStorage.setItem("@user_selected_city", trimmedCity),
+        AsyncStorage.setItem(
+          "@user_profile",
+          JSON.stringify({
+            ...user,
+            name: trimmedName,
+            email: trimmedEmail,
+            city: trimmedCity,
+            address: trimmedAddress,
+          })
+        ),
+      ]);
+
+      // 3. Sync to backend MongoDB Atlas
+      const API_URL =
+        process.env.EXPO_PUBLIC_API_URL ||
+        "https://multiserviceapp-4pdw.onrender.com/api";
+      const token = useAuthStore.getState().token;
+
+      fetch(`${API_URL}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          phone: user?.phoneNumber,
+          phoneNumber: user?.phoneNumber,
+          name: trimmedName,
+          email: trimmedEmail,
+          city: trimmedCity,
+          address: trimmedAddress,
+        }),
+      }).catch((e) => console.warn("Background profile sync:", e?.message));
+
+      Alert.alert("Profile Updated ✅", "Your profile, city, and address have been saved successfully.");
+      onClose();
+    } catch (err: any) {
+      Alert.alert("Error", err?.message || "Failed to save profile changes.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>Edit Profile Details</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeCircle}>
-              <X size={20} color="#0f172a" />
-            </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoid}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>Edit Profile Details</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeCircle}>
+                <X size={20} color="#0f172a" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 280 }}
+            >
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>FULL NAME</Text>
+                <View style={styles.inputWrapper}>
+                  <User size={18} color="#64748b" style={{ marginRight: 10 }} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Your Full Name"
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>EMAIL ADDRESS</Text>
+                <View style={styles.inputWrapper}>
+                  <Mail size={18} color="#64748b" style={{ marginRight: 10 }} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="yourname@gmail.com"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>REGISTERED PHONE (VERIFIED)</Text>
+                <View style={[styles.inputWrapper, { backgroundColor: "#f1f5f9" }]}>
+                  <Phone size={18} color="#64748b" style={{ marginRight: 10 }} />
+                  <Text style={styles.disabledText}>{user?.phoneNumber || "+91 95078 60048"}</Text>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>CITY / SERVICE REGION</Text>
+                <View style={styles.inputWrapper}>
+                  <Building2 size={18} color="#64748b" style={{ marginRight: 10 }} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={city}
+                    onChangeText={setCity}
+                    placeholder="Bhagalpur / Sultanganj"
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>DELIVERY & SERVICE ADDRESS</Text>
+                <View style={[styles.inputWrapper, { minHeight: 70, height: "auto", paddingVertical: 10 }]}>
+                  <MapPin size={18} color="#ef4444" style={{ marginRight: 10, marginTop: 2 }} />
+                  <TextInput
+                    style={[styles.textInput, { minHeight: 55, textAlignVertical: "top" }]}
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholder="House/Flat No, Landmark, Sultanganj / Bhagalpur..."
+                    placeholderTextColor="#94a3b8"
+                    multiline
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSave}
+                style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+                activeOpacity={0.85}
+                disabled={saving}
+              >
+                <Text style={styles.saveBtnText}>
+                  {saving ? "Saving Changes..." : "Save Profile Changes"}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>FULL NAME</Text>
-              <View style={styles.inputWrapper}>
-                <User size={18} color="#64748b" style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Your Full Name"
-                  placeholderTextColor="#94a3b8"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EMAIL ADDRESS</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={18} color="#64748b" style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="yourname@gmail.com"
-                  placeholderTextColor="#94a3b8"
-                  keyboardType="email-address"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>REGISTERED PHONE (VERIFIED)</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: "#f1f5f9" }]}>
-                <Phone size={18} color="#64748b" style={{ marginRight: 10 }} />
-                <Text style={styles.disabledText}>{user?.phoneNumber || "+91 78570 23438"}</Text>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>DEFAULT SERVICE ADDRESS</Text>
-              <View style={styles.inputWrapper}>
-                <MapPin size={18} color="#64748b" style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  value={address}
-                  onChangeText={setAddress}
-                  placeholder="Doorstep Address"
-                  placeholderTextColor="#94a3b8"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity onPress={handleSave} style={styles.saveBtn} activeOpacity={0.85}>
-              <Text style={styles.saveBtnText}>Save Profile Changes</Text>
-            </TouchableOpacity>
-          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -426,6 +530,9 @@ export function HelpSupportModal({
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.6)",

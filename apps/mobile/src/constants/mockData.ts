@@ -1710,6 +1710,26 @@ export const MOCK_COUPONS: import("../types").Coupon[] = [
 
 export const MOCK_CITIES: import("../types").FranchiseCity[] = [
   {
+    id: "city_bhagalpur",
+    cityName: "Bhagalpur",
+    state: "Bihar",
+    isActive: true,
+    managerName: "Inisha Central Hub",
+    managerPhone: "+91 95078 60048",
+    totalProviders: 85,
+    monthlyGmv: 650000,
+  },
+  {
+    id: "city_sultanganj",
+    cityName: "Sultanganj",
+    state: "Bihar",
+    isActive: true,
+    managerName: "Inisha Dilgouri Hub",
+    managerPhone: "+91 95078 60048",
+    totalProviders: 42,
+    monthlyGmv: 380000,
+  },
+  {
     id: "city_patna",
     cityName: "Patna",
     state: "Bihar",
@@ -1738,16 +1758,6 @@ export const MOCK_CITIES: import("../types").FranchiseCity[] = [
     managerPhone: "+91 91234 56789",
     totalProviders: 45,
     monthlyGmv: 390000,
-  },
-  {
-    id: "city_bhagalpur",
-    cityName: "Bhagalpur",
-    state: "Bihar",
-    isActive: true,
-    managerName: "Vikram Mishra",
-    managerPhone: "+91 93345 11223",
-    totalProviders: 38,
-    monthlyGmv: 310000,
   },
   {
     id: "city_delhi",

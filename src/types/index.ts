@@ -27,6 +27,7 @@ export interface User {
   email?: string;
   avatarUrl?: string;
   address?: string;
+  city?: string;
   walletBalance?: number;
   kycStatus?: KycStatus;
   shopId?: string;

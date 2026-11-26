@@ -15,6 +15,8 @@ export interface IUser extends Document {
   name?: string;
   email?: string;
   avatarUrl?: string;
+  address?: string;
+  city?: string;
   isVerified: boolean;
   isBlocked: boolean;
   walletBalance: number;
@@ -66,6 +68,16 @@ const UserSchema = new Schema<IUser>(
     avatarUrl: {
       type: String,
       default: "",
+    },
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    city: {
+      type: String,
+      default: "Bhagalpur",
+      trim: true,
     },
     isVerified: {
       type: Boolean,

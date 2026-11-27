@@ -121,7 +121,9 @@ export default function ProfileScreen() {
   };
 
   const referralCode = `INISHA-${user?.phoneNumber?.slice(-4) || "7857"}`;
-  const displayName = user?.name || `Customer ${user?.phoneNumber?.slice(-4) || "User"}`;
+  const displayName = user
+    ? user.name || `Customer ${user.phoneNumber?.slice(-4) || ""}`
+    : "Guest Customer";
 
   const handleCopyReferral = () => {
     setCopied(true);
@@ -177,14 +179,23 @@ export default function ProfileScreen() {
         <View style={styles.userInfoCol}>
           <View style={styles.nameRow}>
             <Text style={styles.userName}>{displayName}</Text>
-            <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.editIconBtn}>
+            <TouchableOpacity
+              onPress={() => (!user ? router.push("/(auth)/login") : setEditVisible(true))}
+              style={styles.editIconBtn}
+            >
               <Edit3 size={15} color="#ef4444" />
             </TouchableOpacity>
           </View>
-          <View style={styles.phoneRow}>
+          <TouchableOpacity
+            style={styles.phoneRow}
+            onPress={() => (!user ? router.push("/(auth)/login") : setEditVisible(true))}
+            activeOpacity={0.7}
+          >
             <Phone size={13} color="#64748b" />
-            <Text style={styles.userPhone}>{user?.phoneNumber || "+91 95078 60048"}</Text>
-          </View>
+            <Text style={styles.userPhone}>
+              {user?.phoneNumber || "Tap to Login / Register 🔐"}
+            </Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.customerBadge}>
           <Sparkles size={13} color="#ef4444" />

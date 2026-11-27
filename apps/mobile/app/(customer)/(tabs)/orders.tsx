@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ import {
   Truck,
   RotateCcw,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useCartStore } from "../../../src/store/useCartStore";
 import { useBookingStore } from "../../../src/store/useBookingStore";
 import { useAuthStore } from "../../../src/store/useAuthStore";
@@ -51,61 +51,80 @@ export default function OrdersScreen() {
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<StoreOrder | null>(null);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      setOrders([]);
-      return;
-    }
-
-    const fetchMyOrders = async () => {
-      setLoadingOrders(true);
-      try {
-        const res = await apiClient.get("/orders/my-orders");
-        if (res.data?.success && Array.isArray(res.data.orders)) {
-          const mappedOrders: StoreOrder[] = res.data.orders.map((o: any) => ({
-            id: o.orderId || o._id,
-            orderNumber: o.orderNumber || `IN-${o.orderId?.slice(-6) || "ORD"}`,
-            items: (o.items || []).map((it: any) => ({
-              product: {
-                id: it.productId,
-                name: it.name,
-                price: it.price,
-                originalPrice: it.originalPrice || it.price,
-                imageUrl: it.imageUrl || "",
-                category: "GENERAL",
-                categoryName: "Store",
-                unit: it.variant || "1 Unit",
-              },
-              quantity: it.quantity || 1,
-            })),
-            itemTotal: o.pricing?.subtotal || 0,
-            deliveryFee: o.pricing?.deliveryFee || 0,
-            discountAmount: o.pricing?.discount || 0,
-            giftWrapFee: o.pricing?.packagingFee || 0,
-            totalAmount: o.pricing?.total || 0,
-            status: o.status || "PLACED",
-            otp: o.deliveryInfo?.deliveryOtp || "---",
-            isGift: false,
-            deliveryAddress:
-              typeof o.deliveryAddress === "string"
-                ? o.deliveryAddress
-                : `${o.deliveryAddress?.street || ""}, ${o.deliveryAddress?.city || ""}`,
-            paymentMethod: o.paymentMethod || "COD",
-            paymentStatus: o.paymentStatus || "PENDING",
-            placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Recent",
-            estimatedDeliveryTime: o.estimatedDeliveryTime || "20-30 mins",
-          }));
-          setOrders(mappedOrders);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch customer orders:", err);
-      } finally {
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) {
+        setOrders([]);
         setLoadingOrders(false);
+        return;
       }
-    };
 
-    fetchMyOrders();
-  }, [user]);
+      let isActive = true;
+
+      const fetchMyData = async () => {
+        setLoadingOrders(true);
+        try {
+          // 1. Fetch personal store orders strictly for authenticated customer
+          const res = await apiClient.get("/orders/my-orders");
+          if (isActive && res.data?.success && Array.isArray(res.data.orders)) {
+            const mappedOrders: StoreOrder[] = res.data.orders.map((o: any) => ({
+              id: o.orderId || o._id,
+              orderNumber: o.orderNumber || `IN-${o.orderId?.slice(-6) || "ORD"}`,
+              items: (o.items || []).map((it: any) => ({
+                product: {
+                  id: it.productId,
+                  name: it.name,
+                  price: it.price,
+                  originalPrice: it.originalPrice || it.price,
+                  imageUrl: it.imageUrl || "",
+                  category: "GENERAL",
+                  categoryName: "Store",
+                  unit: it.variant || "1 Unit",
+                },
+                quantity: it.quantity || 1,
+              })),
+              itemTotal: o.pricing?.subtotal || 0,
+              deliveryFee: o.pricing?.deliveryFee || 0,
+              discountAmount: o.pricing?.discount || 0,
+              giftWrapFee: o.pricing?.packagingFee || 0,
+              totalAmount: o.pricing?.total || 0,
+              status: o.status || "PLACED",
+              otp: o.deliveryInfo?.deliveryOtp || "---",
+              isGift: false,
+              deliveryAddress:
+                typeof o.deliveryAddress === "string"
+                  ? o.deliveryAddress
+                  : `${o.deliveryAddress?.street || ""}, ${o.deliveryAddress?.city || ""}`,
+              paymentMethod: o.paymentMethod || "COD",
+              paymentStatus: o.paymentStatus || "PENDING",
+              placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Recent",
+              estimatedDeliveryTime: o.estimatedDeliveryTime || "20-30 mins",
+            }));
+            setOrders(mappedOrders);
+          } else if (isActive) {
+            setOrders([]);
+          }
+
+          // 2. Fetch personal service bookings strictly for authenticated customer
+          const bRes = await apiClient.get("/bookings/my-bookings").catch(() => null);
+          if (isActive && bRes?.data?.success && Array.isArray(bRes.data.bookings)) {
+            useBookingStore.getState().setBookingHistory(bRes.data.bookings);
+          }
+        } catch (err) {
+          console.warn("Failed to fetch customer orders:", err);
+          if (isActive) setOrders([]);
+        } finally {
+          if (isActive) setLoadingOrders(false);
+        }
+      };
+
+      fetchMyData();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
 
   const handleShareInvoice = async (order: StoreOrder) => {
     try {
@@ -534,8 +553,16 @@ export default function OrdersScreen() {
                     GSTIN: 10AABCI9823P1Z4 • CIN: U74999BR2026PTC049128
                   </Text>
                   <Text style={styles.invoiceCompanySub}>
-                    Regd Off: Boring Canal Road, Patna, Bihar - 800001
+                    Hub: Sultanganj, Bhagalpur, Bihar - 813213
                   </Text>
+                  <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#e2e8f0" }}>
+                    <Text style={[styles.invoiceCompanySub, { fontWeight: "800", color: "#0f172a" }]}>
+                      BILLED TO: {user?.name || `Customer ${user?.phoneNumber?.slice(-4) || ""}`} ({user?.phoneNumber || ""})
+                    </Text>
+                    <Text style={styles.invoiceCompanySub}>
+                      Delivery: {selectedInvoiceOrder.deliveryAddress}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.invoiceDetailsGrid}>

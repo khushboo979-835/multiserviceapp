@@ -188,6 +188,21 @@ export default function CartScreen() {
   };
 
   const handlePlaceOrder = () => {
+    if (!user) {
+      Alert.alert(
+        "Login Required 🔐",
+        "Please login with your mobile number to place your order and view your personal order history.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Login / Register",
+            onPress: () => router.push("/(auth)/login"),
+          },
+        ]
+      );
+      return;
+    }
+
     if (items.length === 0) {
       Alert.alert("Cart is empty", "Please add items to cart before checkout.");
       return;
@@ -229,9 +244,9 @@ export default function CartScreen() {
         })),
         deliveryAddress: {
           street: deliveryAddress,
-          city: user?.city || "Bhagalpur",
+          city: user.city || "Bhagalpur",
           pincode: "813213",
-          phone: user?.phoneNumber || "+91 95078 60048",
+          phone: user.phoneNumber,
         },
         paymentMethod: paymentMethod === "COD" ? "COD" : paymentMethod === "WALLET" ? "WALLET" : "ONLINE",
       }).catch((err) => console.warn("Marketplace order sync notice:", err.message));
@@ -243,9 +258,9 @@ export default function CartScreen() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        customerId: user?.id || "usr_customer_live",
-        customerName: user?.name || "Customer",
-        customerPhone: user?.phoneNumber || "+91 95078 60048",
+        customerId: user.id,
+        customerName: user.name || `Customer ${user.phoneNumber.slice(-4)}`,
+        customerPhone: user.phoneNumber,
         categoryId: "INSHA_STORE",
         subcategoryId: "PRODUCT_ORDER",
         formValues: {
@@ -289,9 +304,9 @@ export default function CartScreen() {
       setDoc(doc(db, "bookings", order.id), {
         id: order.id,
         bookingId: order.orderNumber,
-        customerId: user?.id || "usr_customer_live",
-        customerName: user?.name || "Customer",
-        customerPhone: user?.phoneNumber || "+91 95078 60048",
+        customerId: user.id,
+        customerName: user.name || `Customer ${user.phoneNumber.slice(-4)}`,
+        customerPhone: user.phoneNumber,
         serviceName: "Inisha Store Express Order",
         serviceTitle: `Order #${order.orderNumber} (${order.items.length} items)`,
         amount: order.totalAmount,

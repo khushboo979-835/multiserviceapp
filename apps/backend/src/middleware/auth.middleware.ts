@@ -102,6 +102,38 @@ export const requireAuth = async (
   next();
 };
 
+export const optionalAuth = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.header("authorization") || req.header("Authorization");
+  const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (token) {
+    const decoded = verifyJwtToken(token);
+    if (decoded) {
+      const isAdminToken =
+        decoded.role === "ADMIN" ||
+        decoded.role === "admin" ||
+        decoded.sub === "admin" ||
+        decoded.iss === "inisha-admin";
+
+      req.user = {
+        id: decoded.userId || decoded.id || (isAdminToken ? "admin_super_user" : ""),
+        userId: decoded.userId || decoded.id || (isAdminToken ? "admin_super_user" : ""),
+        phoneNumber: decoded.phoneNumber || decoded.phone || "",
+        role: isAdminToken ? "ADMIN" : (decoded.role || "CUSTOMER"),
+        shopId: decoded.shopId || "",
+        assignedPartnerId: decoded.assignedPartnerId || decoded.providerId || "",
+        ...decoded,
+      };
+    }
+  }
+
+  next();
+};
+
 export const requireRole = (...roles: AppUserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {

@@ -193,7 +193,7 @@ export function EditProfileModal({
                 <Text style={styles.label}>REGISTERED PHONE (VERIFIED)</Text>
                 <View style={[styles.inputWrapper, { backgroundColor: "#f1f5f9" }]}>
                   <Phone size={18} color="#64748b" style={{ marginRight: 10 }} />
-                  <Text style={styles.disabledText}>{user?.phoneNumber || "+91 95078 60048"}</Text>
+                  <Text style={styles.disabledText}>{user?.phoneNumber || "No phone linked"}</Text>
                 </View>
               </View>
 

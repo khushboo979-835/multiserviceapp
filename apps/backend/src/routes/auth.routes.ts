@@ -6,7 +6,7 @@ import { ProviderProfile } from "../models/ProviderProfile";
 import { DeliveryPartner } from "../models/DeliveryPartner";
 import Shop from "../models/Shop";
 import { SmsService } from "../services/sms.service";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware";
+import { requireAuth, optionalAuth, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -892,11 +892,11 @@ const handleUpdateProfile = async (req: AuthenticatedRequest, res: Response) => 
   }
 };
 
-router.put("/profile", requireAuth, handleUpdateProfile);
-router.patch("/profile", requireAuth, handleUpdateProfile);
-router.put("/me", requireAuth, handleUpdateProfile);
+router.put("/profile", optionalAuth, handleUpdateProfile);
+router.patch("/profile", optionalAuth, handleUpdateProfile);
+router.put("/me", optionalAuth, handleUpdateProfile);
 // Also support unauthenticated profile update if phone provided
-router.put("/customer/profile", handleUpdateProfile);
+router.put("/customer/profile", optionalAuth, handleUpdateProfile);
 
 // Customer Routes
 router.post("/customer/send-otp", handleSendCustomerOtp);

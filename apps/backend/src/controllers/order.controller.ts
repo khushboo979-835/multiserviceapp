@@ -131,26 +131,33 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     let userObjectId: mongoose.Types.ObjectId;
+    let actualUser: any = null;
+
     if (mongoose.Types.ObjectId.isValid(rawUserId)) {
       userObjectId = new mongoose.Types.ObjectId(rawUserId);
+      actualUser = await User.findById(userObjectId);
     } else {
-      const phoneToFind = req.user?.phoneNumber || deliveryAddress?.phone;
-      let existingUser = phoneToFind ? await User.findOne({ phoneNumber: phoneToFind }) : null;
-      if (!existingUser && phoneToFind) {
-        existingUser = await User.create({
-          phoneNumber: phoneToFind,
+      const cleanPhone = String(req.user?.phoneNumber || req.user?.phone || deliveryAddress?.phone || "").replace(/\D/g, "").slice(-10);
+      if (cleanPhone && cleanPhone !== "9507860048") {
+        actualUser = await User.findOne({
+          $or: [{ phoneNumber: `+91${cleanPhone}` }, { phoneNumber: cleanPhone }],
+        });
+      }
+      if (!actualUser && cleanPhone && cleanPhone !== "9507860048") {
+        actualUser = await User.create({
+          phoneNumber: `+91${cleanPhone}`,
           role: "CUSTOMER",
           name: req.user?.name || req.body.customerName || "Customer",
           walletBalance: 250,
           isVerified: true,
         });
       }
-      userObjectId = existingUser ? (existingUser._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
+      userObjectId = actualUser ? (actualUser._id as mongoose.Types.ObjectId) : new mongoose.Types.ObjectId();
     }
 
     const customerId = userObjectId.toString();
-    const customerName = req.user?.name || req.body.customerName || "Customer";
-    const customerPhone = req.user?.phoneNumber || req.body.customerPhone || deliveryAddress.phone;
+    const customerName = actualUser?.name || req.user?.name || req.body.customerName || "Customer";
+    const customerPhone = actualUser?.phoneNumber || req.user?.phoneNumber || deliveryAddress.phone;
 
     const newOrder = await Order.create({
       orderId,
@@ -173,9 +180,9 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response) => {
       deliveryAddress: {
         street: deliveryAddress.street,
         landmark: deliveryAddress.landmark || "",
-        city: deliveryAddress.city || "Patna",
-        pincode: deliveryAddress.pincode || "800001",
-        coordinates: deliveryAddress.coordinates || [85.1376, 25.5941],
+        city: deliveryAddress.city || "Bhagalpur",
+        pincode: deliveryAddress.pincode || "813213",
+        coordinates: deliveryAddress.coordinates || [86.7381, 25.2425],
         phone: deliveryAddress.phone,
       },
       status: "PENDING",
@@ -233,10 +240,18 @@ export const getMyOrders = async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    const rawPhone = req.user?.phoneNumber || req.user?.phone || "";
+    const cleanPhone = String(rawPhone).replace(/\D/g, "").slice(-10);
+
     const userConditions: any[] = [{ customerId: rawUserId }];
     if (mongoose.Types.ObjectId.isValid(rawUserId)) {
       userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
       userConditions.push({ userId: rawUserId });
+    }
+    // Also include personal customerPhone if valid and not dummy/helpline
+    if (cleanPhone && cleanPhone !== "9507860048" && cleanPhone !== "9999999999") {
+      userConditions.push({ customerPhone: `+91${cleanPhone}` });
+      userConditions.push({ customerPhone: cleanPhone });
     }
 
     const orders = await Order.find({ $or: userConditions }).sort({ createdAt: -1 });

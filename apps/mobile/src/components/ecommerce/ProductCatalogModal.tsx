@@ -33,6 +33,7 @@ import { MOCK_COUPONS, MOCK_PRODUCTS } from "../../constants/mockData";
 import SafeImage from "../common/SafeImage";
 import { catalogKeys, fetchCatalogProducts } from "../../api/catalog";
 import { useCartStore } from "../../store/useCartStore";
+import { useAuthStore } from "../../store/useAuthStore";
 
 interface ProductCatalogModalProps {
   visible: boolean;
@@ -60,6 +61,7 @@ export default function ProductCatalogModal({
 }: ProductCatalogModalProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((state) => state.user);
   const { addItem, updateQuantity: updateStoreQty, getItemQuantity } = useCartStore();
 
   const productsQuery = useQuery<Product[]>({
@@ -163,6 +165,24 @@ export default function ProductCatalogModal({
   };
 
   const handlePlaceOrder = () => {
+    if (!user) {
+      Alert.alert(
+        "Login Required 🔐",
+        "Please login with your mobile number to place your order.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Login / Register",
+            onPress: () => {
+              onClose();
+              router.push("/(auth)/login");
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     const orderId = `ord_${Math.floor(100000 + Math.random() * 900000)}`;
     const newOrder = {
       id: orderId,
@@ -198,8 +218,9 @@ export default function ProductCatalogModal({
         serviceName: `Quick Delivery (${cartItems.length} Items)`,
         serviceTitle: `Quick Delivery (${cartItems.length} Items)`,
         amount: finalTotal,
-        customerName: "Customer",
-        customerPhone: "+91 95078 60048",
+        customerId: user.id || (user as any)._id,
+        customerName: user.name || `Customer ${user.phoneNumber?.slice(-4) || ""}`,
+        customerPhone: user.phoneNumber,
         status: "CONFIRMED",
         createdAt: Date.now(),
       }),

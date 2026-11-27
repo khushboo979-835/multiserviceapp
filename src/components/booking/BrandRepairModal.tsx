@@ -151,6 +151,24 @@ export default function BrandRepairModal({
   const totalAmount = repairsTotal > 0 ? repairsTotal : customProblem.trim().length > 0 ? 499 : 499;
 
   const handleBookRepair = async () => {
+    if (!user) {
+      Alert.alert(
+        "Login Required 🔐",
+        "Please login with your mobile number to book your doorstep repair.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Login / Register",
+            onPress: () => {
+              onClose();
+              router.push("/(auth)/login");
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     if (!selectedModel) {
       Alert.alert("Select Model", "Please select your mobile model.");
       return;
@@ -173,9 +191,9 @@ export default function BrandRepairModal({
       selectedIssues: selectedIssues.length > 0 ? selectedIssues : ["Doorstep Mobile Inspection & Repair"],
       customProblem: customProblem.trim(),
       totalAmount,
-      userId: user?.id || (user as any)?._id || "usr_guest",
-      customerName: user?.name || "Inisha Customer",
-      customerPhone: user?.phone || "+91 95078 60048",
+      userId: user.id || (user as any)._id,
+      customerName: user.name || `Customer ${user.phoneNumber?.slice(-4) || ""}`,
+      customerPhone: user.phoneNumber,
       address: customerAddress || "Doorstep Address",
       scheduledDate: new Date().toISOString().split("T")[0],
       scheduledTime: "Within 60 Minutes",

@@ -97,6 +97,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       AsyncStorage.setItem("@user_profile", JSON.stringify(user)).catch(() => {});
       AsyncStorage.setItem("@inisha_user_profile", JSON.stringify(user)).catch(() => {});
     }
+    try {
+      const { useCartStore } = require("./useCartStore");
+      useCartStore.getState().clearCartStore();
+    } catch {}
     set((state) => ({
       user,
       token: token || state.token,
@@ -150,6 +154,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     AsyncStorage.multiRemove([
       "@auth_token",
       "@user_profile",
+      "@inisha_auth_token",
+      "@inisha_user_profile",
       "@provider_profile",
       "@cart_items",
       "@user_orders",

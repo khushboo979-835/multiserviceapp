@@ -196,7 +196,7 @@ export const createRepairBooking = async (req: AuthenticatedRequest, res: Respon
       userId: userObjectId,
       customerId: userObjectId.toString(),
       customerName: customerName || req.user?.name || "Inisha Customer",
-      customerPhone: customerPhone || req.user?.phoneNumber || "+91 95078 60048",
+      customerPhone: customerPhone || req.user?.phoneNumber || "",
       providerId: availableProvider?.partnerId || "INP-TECH-01",
       providerName: availableProvider?.name || "Certified Mobile Technician",
       providerPhone: availableProvider?.phone || "+91 98123 45678",
@@ -509,10 +509,17 @@ export const getMyBookings = async (req: AuthenticatedRequest, res: Response) =>
       });
     }
 
+    const rawPhone = req.user?.phoneNumber || req.user?.phone || "";
+    const cleanPhone = String(rawPhone).replace(/\D/g, "").slice(-10);
+
     const userConditions: any[] = [{ customerId: rawUserId }];
     if (mongoose.Types.ObjectId.isValid(rawUserId)) {
       userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
       userConditions.push({ userId: rawUserId });
+    }
+    if (cleanPhone && cleanPhone !== "9507860048" && cleanPhone !== "9999999999") {
+      userConditions.push({ customerPhone: `+91${cleanPhone}` });
+      userConditions.push({ customerPhone: cleanPhone });
     }
 
     const bookings = await Booking.find({ $or: userConditions }).sort({ createdAt: -1 });

@@ -248,11 +248,6 @@ export const getMyOrders = async (req: AuthenticatedRequest, res: Response) => {
       userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
       userConditions.push({ userId: rawUserId });
     }
-    // Also include personal customerPhone if valid and not dummy/helpline
-    if (cleanPhone && cleanPhone !== "9507860048" && cleanPhone !== "9999999999") {
-      userConditions.push({ customerPhone: `+91${cleanPhone}` });
-      userConditions.push({ customerPhone: cleanPhone });
-    }
 
     const orders = await Order.find({ $or: userConditions }).sort({ createdAt: -1 });
 

@@ -517,10 +517,6 @@ export const getMyBookings = async (req: AuthenticatedRequest, res: Response) =>
       userConditions.push({ userId: new mongoose.Types.ObjectId(rawUserId) });
       userConditions.push({ userId: rawUserId });
     }
-    if (cleanPhone && cleanPhone !== "9507860048" && cleanPhone !== "9999999999") {
-      userConditions.push({ customerPhone: `+91${cleanPhone}` });
-      userConditions.push({ customerPhone: cleanPhone });
-    }
 
     const bookings = await Booking.find({ $or: userConditions }).sort({ createdAt: -1 });
 

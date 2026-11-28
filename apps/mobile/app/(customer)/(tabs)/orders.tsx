@@ -10,6 +10,7 @@ import {
   Dimensions,
   Share,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -51,79 +52,73 @@ export default function OrdersScreen() {
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<StoreOrder | null>(null);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) {
+  const fetchMyData = useCallback(async () => {
+    if (!user) {
+      setOrders([]);
+      setLoadingOrders(false);
+      return;
+    }
+
+    setLoadingOrders(true);
+    try {
+      // 1. Fetch personal store orders strictly for authenticated customer
+      const res = await apiClient.get("/orders/my-orders");
+      if (res.data?.success && Array.isArray(res.data.orders)) {
+        const mappedOrders: StoreOrder[] = res.data.orders.map((o: any) => ({
+          id: o.orderId || o._id,
+          orderNumber: o.orderNumber || `IN-${o.orderId?.slice(-6) || "ORD"}`,
+          items: (o.items || []).map((it: any) => ({
+            product: {
+              id: it.productId,
+              name: it.name,
+              price: it.price,
+              originalPrice: it.originalPrice || it.price,
+              imageUrl: it.imageUrl || "",
+              category: "GENERAL",
+              categoryName: "Store",
+              unit: it.variant || "1 Unit",
+            },
+            quantity: it.quantity || 1,
+          })),
+          itemTotal: o.pricing?.subtotal || 0,
+          deliveryFee: o.pricing?.deliveryFee || 0,
+          discountAmount: o.pricing?.discount || 0,
+          giftWrapFee: o.pricing?.packagingFee || 0,
+          totalAmount: o.pricing?.total || 0,
+          status: o.status || "PLACED",
+          otp: o.deliveryInfo?.deliveryOtp || "---",
+          isGift: false,
+          deliveryAddress:
+            typeof o.deliveryAddress === "string"
+              ? o.deliveryAddress
+              : `${o.deliveryAddress?.street || ""}, ${o.deliveryAddress?.city || ""}`,
+          paymentMethod: o.paymentMethod || "COD",
+          paymentStatus: o.paymentStatus || "PENDING",
+          placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Recent",
+          estimatedDeliveryTime: o.estimatedDeliveryTime || "20-30 mins",
+        }));
+        setOrders(mappedOrders);
+      } else {
         setOrders([]);
-        setLoadingOrders(false);
-        return;
       }
 
-      let isActive = true;
+      // 2. Fetch personal service bookings strictly for authenticated customer
+      const bRes = await apiClient.get("/bookings/my-bookings").catch(() => null);
+      if (bRes?.data?.success && Array.isArray(bRes.data.bookings)) {
+        useBookingStore.getState().setBookingHistory(bRes.data.bookings);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch customer orders:", err);
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [user]);
 
-      const fetchMyData = async () => {
-        setLoadingOrders(true);
-        try {
-          // 1. Fetch personal store orders strictly for authenticated customer
-          const res = await apiClient.get("/orders/my-orders");
-          if (isActive && res.data?.success && Array.isArray(res.data.orders)) {
-            const mappedOrders: StoreOrder[] = res.data.orders.map((o: any) => ({
-              id: o.orderId || o._id,
-              orderNumber: o.orderNumber || `IN-${o.orderId?.slice(-6) || "ORD"}`,
-              items: (o.items || []).map((it: any) => ({
-                product: {
-                  id: it.productId,
-                  name: it.name,
-                  price: it.price,
-                  originalPrice: it.originalPrice || it.price,
-                  imageUrl: it.imageUrl || "",
-                  category: "GENERAL",
-                  categoryName: "Store",
-                  unit: it.variant || "1 Unit",
-                },
-                quantity: it.quantity || 1,
-              })),
-              itemTotal: o.pricing?.subtotal || 0,
-              deliveryFee: o.pricing?.deliveryFee || 0,
-              discountAmount: o.pricing?.discount || 0,
-              giftWrapFee: o.pricing?.packagingFee || 0,
-              totalAmount: o.pricing?.total || 0,
-              status: o.status || "PLACED",
-              otp: o.deliveryInfo?.deliveryOtp || "---",
-              isGift: false,
-              deliveryAddress:
-                typeof o.deliveryAddress === "string"
-                  ? o.deliveryAddress
-                  : `${o.deliveryAddress?.street || ""}, ${o.deliveryAddress?.city || ""}`,
-              paymentMethod: o.paymentMethod || "COD",
-              paymentStatus: o.paymentStatus || "PENDING",
-              placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Recent",
-              estimatedDeliveryTime: o.estimatedDeliveryTime || "20-30 mins",
-            }));
-            setOrders(mappedOrders);
-          } else if (isActive) {
-            setOrders([]);
-          }
-
-          // 2. Fetch personal service bookings strictly for authenticated customer
-          const bRes = await apiClient.get("/bookings/my-bookings").catch(() => null);
-          if (isActive && bRes?.data?.success && Array.isArray(bRes.data.bookings)) {
-            useBookingStore.getState().setBookingHistory(bRes.data.bookings);
-          }
-        } catch (err) {
-          console.warn("Failed to fetch customer orders:", err);
-          if (isActive) setOrders([]);
-        } finally {
-          if (isActive) setLoadingOrders(false);
-        }
-      };
-
+  useFocusEffect(
+    useCallback(() => {
       fetchMyData();
-
-      return () => {
-        isActive = false;
-      };
-    }, [user])
+    }, [fetchMyData])
   );
 
   const handleShareInvoice = async (order: StoreOrder) => {
@@ -186,6 +181,14 @@ export default function OrdersScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={loadingOrders}
+            onRefresh={fetchMyData}
+            colors={["#ef4444"]}
+            tintColor="#ef4444"
+          />
+        }
       >
         {activeSegment === "STORE" ? (
           /* ================= STORE ORDERS LIST ================= */
